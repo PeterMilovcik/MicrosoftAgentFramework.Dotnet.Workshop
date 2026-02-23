@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/modules/">
+    <Project Path="modules/00_ConnectivityCheck/00_ConnectivityCheck.csproj" />
+    <Project Path="modules/01_HelloAgent/01_HelloAgent.csproj" />
+    <Project Path="modules/02_Tools_FunctionCalling/02_Tools_FunctionCalling.csproj" />
+    <Project Path="modules/03_State_Sessions_Persistence/03_State_Sessions_Persistence.csproj" />
+    <Project Path="modules/04_Workflows_MultiStep/04_Workflows_MultiStep.csproj" />
+    <Project Path="modules/05_HumanInLoop_Guards/05_HumanInLoop_Guards.csproj" />
+    <Project Path="modules/06_Capstone_TriageAssistant/06_Capstone_TriageAssistant.csproj" />
+  </Folder>
+</Solution>

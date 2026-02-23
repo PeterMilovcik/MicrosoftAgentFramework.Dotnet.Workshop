@@ -1,0 +1,24 @@
+2026-02-23T14:30:00Z [INFO]  Scheduled nightly build triggered for branch: main
+2026-02-23T14:30:04Z [INFO]  Restoring NuGet packages...
+2026-02-23T14:30:15Z [INFO]  Restore completed. 217 packages restored.
+2026-02-23T14:30:15Z [INFO]  Building solution: PaymentGateway.sln
+2026-02-23T14:31:02Z [INFO]  Build succeeded. 0 warnings.
+2026-02-23T14:31:02Z [INFO]  Running all tests...
+2026-02-23T14:31:05Z [INFO]  Test run started. 512 tests discovered.
+2026-02-23T14:34:21Z [WARN]  Test flaky: PaymentGateway.Tests.Unit.RetryPolicyTest.ShouldRetryOnTransientFailure (attempt 1/3)
+2026-02-23T14:34:38Z [WARN]  Test flaky: PaymentGateway.Tests.Unit.RetryPolicyTest.ShouldRetryOnTransientFailure (attempt 2/3)
+2026-02-23T14:34:55Z [ERROR] Test failed: PaymentGateway.Tests.Unit.RetryPolicyTest.ShouldRetryOnTransientFailure
+               Expected: retry_count = 3
+               Actual:   retry_count = 2
+               StackTrace:
+                 at RetryPolicy.ExecuteAsync(Func`1 action, RetryOptions options) in RetryPolicy.cs:line 88
+                 at RetryPolicyTest.ShouldRetryOnTransientFailure() in RetryPolicyTest.cs:line 42
+2026-02-23T14:35:10Z [ERROR] Test failed: PaymentGateway.Tests.Integration.ChargeCardTest.ShouldDeclineExpiredCard
+               HttpResponseException: 504 Gateway Timeout
+               URL: POST https://payment-sandbox.internal/api/v2/charges
+               Latency: 30002ms (timeout threshold: 30000ms)
+2026-02-23T14:35:10Z [INFO]  Publishing code coverage report...
+2026-02-23T14:35:15Z [ERROR] Code coverage dropped below threshold: 74.3% (required: 75.0%)
+2026-02-23T14:35:15Z [INFO]  Test run complete: 509 passed, 2 failed, 1 skipped.
+2026-02-23T14:35:15Z [ERROR] Build pipeline FAILED. Exit code: 1
+2026-02-23T14:35:15Z [INFO]  Failure notification sent to: payments-team@contoso.com

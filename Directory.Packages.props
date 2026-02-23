@@ -1,0 +1,23 @@
+<Project>
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Microsoft Agent Framework -->
+    <PackageVersion Include="Microsoft.Agents.AI" Version="1.0.0-rc1" />
+    <PackageVersion Include="Microsoft.Agents.AI.OpenAI" Version="1.0.0-rc1" />
+    <PackageVersion Include="Microsoft.Agents.AI.Workflows" Version="1.0.0-rc1" />
+
+    <!-- Microsoft Extensions AI -->
+    <PackageVersion Include="Microsoft.Extensions.AI" Version="10.3.0" />
+    <PackageVersion Include="Microsoft.Extensions.AI.OpenAI" Version="10.3.0" />
+
+    <!-- Azure OpenAI -->
+    <PackageVersion Include="Azure.AI.OpenAI" Version="2.1.0" />
+    <PackageVersion Include="Azure.Identity" Version="1.17.1" />
+
+    <!-- System utilities -->
+    <PackageVersion Include="System.Text.Json" Version="9.0.2" />
+  </ItemGroup>
+</Project>
