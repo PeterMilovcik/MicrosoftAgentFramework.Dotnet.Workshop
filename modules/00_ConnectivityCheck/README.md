@@ -102,21 +102,27 @@ dotnet run --project modules/00_ConnectivityCheck
    Deployment: gpt-4o
    API Version:2025-01-01-preview
 
-🔗 Correlation ID: 3f8a1c2d-...
+🔗 Correlation ID: 7a693c41-b5ce-4abd-9b93-8970d653d992
 
-📡 Sending test message: "Say OK" ... done (842ms)
+📡 Sending test message: "Say OK" ... done (1226ms)
 
 📨 Response:
    OK
 
 📊 Diagnostics:
    Deployment used : gpt-4o
-   Elapsed time    : 842ms
-   Correlation ID  : 3f8a1c2d-...
-   Input tokens    : 14
+   Elapsed time    : 1226ms
+   Correlation ID  : 7a693c41-b5ce-4abd-9b93-8970d653d992
+   Input tokens    : 25
    Output tokens   : 2
 
 ✅ Connectivity check PASSED. Azure OpenAI is reachable.
+
+📊 Token Usage Summary
+   Input tokens:  25
+   Output tokens: 2
+   Total tokens:  27
+   LLM requests:  1
 ```
 
 ---
