@@ -154,7 +154,7 @@ Azure.AI.OpenAI          → raw Azure OpenAI SDK (HTTP client, auth)
 | Azure OpenAI | Microsoft's cloud-hosted LLM service (GPT-4o, etc.) | 00 | [Docs](https://learn.microsoft.com/azure/ai-services/openai/overview) |
 | Token | The unit LLMs process (~¾ of a word); drives cost and rate limits | 00 | [Quotas](https://learn.microsoft.com/azure/ai-services/openai/quotas-limits) |
 | `IChatClient` | Vendor-neutral .NET interface for chat models | 00 | [M.E.AI](https://learn.microsoft.com/dotnet/ai/ai-extensions) |
-| `AIAgent` | LLM + instructions + tools + session — the core agent type | 00 | [GitHub](https://github.com/microsoft/Agents) |
+| `AIAgent` | LLM + instructions + tools + session — the core agent type | 00 | [GitHub](https://github.com/microsoft/agent-framework) |
 | System prompt | Instructions that define agent behaviour, role, and constraints | 01 | [Best practices](https://learn.microsoft.com/azure/ai-services/openai/concepts/system-message) |
 | Streaming | Token-by-token response delivery via `RunStreamingAsync()` | 01 | — |
 | Function calling | Model autonomously invokes registered C# methods to retrieve data | 02 | [Guide](https://learn.microsoft.com/azure/ai-services/openai/how-to/function-calling) |
