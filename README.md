@@ -87,7 +87,7 @@ An **AI Agent** is more than a raw LLM call. It wraps an LLM with **instructions
 
 #### Grounding
 
-**Grounding** is the practice of anchoring an LLM's answers in real, verifiable data instead of relying solely on its training knowledge. Without grounding, models can "hallucinate" — produce plausible-sounding but incorrect information. In this workshop, the `ReadFile` and `SearchKb` tools ground the agent by giving it access to actual build logs and knowledge-base articles at query time. The model reads the tool output and bases its analysis on that evidence, significantly improving accuracy. Grounding is a foundational technique for building trustworthy AI systems and is essential in production agent architectures. See [Retrieval-Augmented Generation (RAG)](https://learn.microsoft.com/azure/ai-services/openai/concepts/retrieval-augmented-generation) for the broader pattern.
+**Grounding** is the practice of anchoring an LLM's answers in real, verifiable data instead of relying solely on its training knowledge. Without grounding, models can "hallucinate" — produce plausible-sounding but incorrect information. In this workshop, the `ReadFile` and `SearchKb` tools ground the agent by giving it access to actual build logs and knowledge-base articles at query time. The model reads the tool output and bases its analysis on that evidence, significantly improving accuracy. Grounding is a foundational technique for building trustworthy AI systems and is essential in production agent architectures. See [Retrieval-Augmented Generation (RAG)](https://learn.microsoft.com/en-us/azure/search/retrieval-augmented-generation-overview?tabs=videos) for the broader pattern.
 
 ### Patterns
 
