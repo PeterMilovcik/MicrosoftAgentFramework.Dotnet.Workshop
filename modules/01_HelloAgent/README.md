@@ -1,4 +1,4 @@
-# Module 01 – Hello Agent
+# Module 01 - Hello Agent
 
 **Duration:** ~25 minutes  
 **Goal:** Build a basic interactive agent with a system prompt and persistent conversation history.
@@ -18,9 +18,9 @@ Learn the fundamentals of the Microsoft Agent Framework:
 
 ## Concepts Covered
 
-- `IChatClient.AsAIAgent(instructions)` – wraps a chat model as an agent
-- `agent.CreateSessionAsync()` – creates a stateful session
-- `agent.RunStreamingAsync(input, session)` – streams the response token by token
+- `IChatClient.AsAIAgent(instructions)` - wraps a chat model as an agent
+- `agent.CreateSessionAsync()` - creates a stateful session
+- `agent.RunStreamingAsync(input, session)` - streams the response token by token
 - Loading `system-base.md` and `system-safety.md` from `assets/prompts/`
 - REPL commands: `/help`, `/reset`, `/sys`, `/exit`
 
@@ -40,7 +40,7 @@ dotnet run --project modules/01_HelloAgent
 
 ```
 ===========================================
- Module 01 – Hello Agent (REPL Loop)
+ Module 01 - Hello Agent (REPL Loop)
 ===========================================
 
 ✅ Agent ready. System prompt loaded.
@@ -83,6 +83,6 @@ Goodbye!
    ```
    Ask "What are your capabilities?" and compare the formatting.
 
-3. ✏️ **Test conversation memory**: Ask "My name is Alice." Then ask "What is my name?" Verify the agent remembers. Then use `/reset` and ask again – it should not remember.
+3. ✏️ **Test conversation memory**: Ask "My name is Alice." Then ask "What is my name?" Verify the agent remembers. Then use `/reset` and ask again - it should not remember.
 
 4. ✏️ **Explore `/sys`**: Use the `/sys` command to see the active system prompt. Observe how both `system-base.md` and `system-safety.md` are combined.

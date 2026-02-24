@@ -1,4 +1,4 @@
-# Module 05 – Human-in-the-Loop & Guards
+# Module 05 - Human-in-the-Loop & Guards
 
 **Duration:** ~25 minutes  
 **Goal:** Add human approval gates and per-tool access policies to the workflow.

@@ -1,10 +1,10 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using ConnectivityCheck;
 using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
 
 Console.WriteLine("===========================================");
-Console.WriteLine(" Module 00 – Azure OpenAI Connectivity Check");
+Console.WriteLine(" Module 00 - Azure OpenAI Connectivity Check");
 Console.WriteLine("===========================================");
 Console.WriteLine();
 

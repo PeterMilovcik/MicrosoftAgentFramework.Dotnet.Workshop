@@ -1,4 +1,4 @@
-# Module 00 – Connectivity Check
+# Module 00 - Connectivity Check
 
 **Duration:** ~10 minutes  
 **Goal:** Verify your environment is correctly configured and Azure OpenAI is reachable.
@@ -46,7 +46,7 @@ dotnet run --project modules/00_ConnectivityCheck
 
 ```
 ===========================================
- Module 00 – Azure OpenAI Connectivity Check
+ Module 00 - Azure OpenAI Connectivity Check
 ===========================================
 
 ✅ Configuration loaded.

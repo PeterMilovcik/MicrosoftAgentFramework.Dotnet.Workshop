@@ -1,4 +1,4 @@
-# Module 02 – Tools and Function Calling
+# Module 02 - Tools and Function Calling
 
 **Duration:** ~35 minutes  
 **Goal:** Expose tools to the agent and handle function calling with security guardrails.
@@ -18,8 +18,8 @@ Teach the agent to use tools to answer questions grounded in real data:
 
 ## Concepts Covered
 
-- `AIFunctionFactory.Create(MethodDelegate)` – wraps a static method as an AI tool
-- `[Description("...")]` attribute – provides tool/parameter descriptions to the model
+- `AIFunctionFactory.Create(MethodDelegate)` - wraps a static method as an AI tool
+- `[Description("...")]` attribute - provides tool/parameter descriptions to the model
 - Tool allowlist pattern: restrict `ReadFile` to `assets/sample-data/` only
 - Security guardrails: no `..` traversal, extension allowlist, max file size
 

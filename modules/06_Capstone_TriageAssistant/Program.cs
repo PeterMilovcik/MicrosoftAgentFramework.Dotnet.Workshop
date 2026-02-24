@@ -2,7 +2,7 @@ using System.Text.Json;
 using CapstoneTriageAssistant;
 
 Console.WriteLine("===========================================");
-Console.WriteLine(" Module 06 – Capstone: Triage Assistant");
+Console.WriteLine(" Module 06 - Capstone: Triage Assistant");
 Console.WriteLine("===========================================");
 Console.WriteLine();
 
@@ -57,8 +57,8 @@ while (true)
     Console.WriteLine("Step 2: Select a sample log file to analyze:");
     Console.ResetColor();
     Console.WriteLine("  [0] None");
-    Console.WriteLine("  [1] build-log-01.txt  (AuthService – DB connection failure)");
-    Console.WriteLine("  [2] build-log-02.txt  (PaymentGateway – retry + coverage failure)");
+    Console.WriteLine("  [1] build-log-01.txt  (AuthService - DB connection failure)");
+    Console.WriteLine("  [2] build-log-02.txt  (PaymentGateway - retry + coverage failure)");
     Console.Write("Choice [0-2]: ");
 
     string? logFileName = null;

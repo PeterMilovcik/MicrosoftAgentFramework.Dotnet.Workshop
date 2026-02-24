@@ -1,4 +1,4 @@
-# Module 06 – Capstone: Triage Assistant
+# Module 06 - Capstone: Triage Assistant
 
 **Duration:** ~20 minutes  
 **Goal:** Combine all previous concepts into a realistic software triage application.
@@ -64,8 +64,8 @@ END
 
 Step 2: Select a sample log file to analyze:
   [0] None
-  [1] build-log-01.txt  (AuthService – DB connection failure)
-  [2] build-log-02.txt  (PaymentGateway – retry + coverage failure)
+  [1] build-log-01.txt  (AuthService - DB connection failure)
+  [2] build-log-02.txt  (PaymentGateway - retry + coverage failure)
 Choice [0-2]: 1
 Selected: build-log-01.txt
 

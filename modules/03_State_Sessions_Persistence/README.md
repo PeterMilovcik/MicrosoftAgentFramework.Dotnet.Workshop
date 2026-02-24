@@ -1,4 +1,4 @@
-# Module 03 – State, Sessions & Persistence
+# Module 03 - State, Sessions & Persistence
 
 **Duration:** ~25 minutes  
 **Goal:** Persist conversation sessions as JSON files and reload them across application restarts.
@@ -76,7 +76,7 @@ You> /list
 Saved sessions (1):
   ad5dcad1-2797-4570-959f-31fa92edb111 | 2026-02-24 07:50:50Z | "testing-discussion" | 2 messages
 You> /load ad5
-✅ Loaded session: ad5dcad1-2797-4570-959f-31fa92edb111 ("testing-discussion") – 2 messages in history
+✅ Loaded session: ad5dcad1-2797-4570-959f-31fa92edb111 ("testing-discussion") - 2 messages in history
 ```
 
 ---

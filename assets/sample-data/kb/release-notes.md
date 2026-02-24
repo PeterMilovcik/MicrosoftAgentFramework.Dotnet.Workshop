@@ -1,4 +1,4 @@
-# Release Notes – Platform v3.4.0
+# Release Notes - Platform v3.4.0
 
 **Release Date**: 2026-02-20
 **Release Manager**: Alex Johnson

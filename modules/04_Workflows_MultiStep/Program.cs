@@ -3,7 +3,7 @@ using WorkflowsMultiStep;
 using Microsoft.Agents.AI;
 
 Console.WriteLine("===========================================");
-Console.WriteLine(" Module 04 – Workflows: Multi-Step Analysis");
+Console.WriteLine(" Module 04 - Workflows: Multi-Step Analysis");
 Console.WriteLine("===========================================");
 Console.WriteLine();
 

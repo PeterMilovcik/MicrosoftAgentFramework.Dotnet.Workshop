@@ -1,4 +1,4 @@
-# Microsoft Agent Framework – .NET 10 Workshop
+# Microsoft Agent Framework - .NET 10 Workshop
 
 A **3-hour hands-on workshop** for building AI agents with the **Microsoft Agent Framework** in **.NET 10** using console applications.
 
@@ -68,7 +68,7 @@ dotnet build AgentFrameworkWorkshop.slnx
 ./scripts/run.sh 00        # Linux/macOS
 ./scripts/run.ps1 00       # Windows PowerShell
 
-# 5. Start the workshop – module 01
+# 5. Start the workshop - module 01
 ./scripts/run.sh 01        # Linux/macOS
 ./scripts/run.ps1 01       # Windows PowerShell
 ```
@@ -133,13 +133,13 @@ agent-framework-dotnet-workshop/
 
 | Time | Module | Topic |
 |------|--------|-------|
-| 0:00 | **00** | Connectivity check – verify env vars & Azure OpenAI |
-| 0:10 | **01** | Hello Agent – system prompt + conversation REPL |
-| 0:35 | **02** | Tools & Function Calling – GetTime, ReadFile, SearchKb |
-| 1:10 | **03** | State, Sessions & Persistence – JSON session store |
-| 1:35 | **04** | Workflows – 4-step analysis pipeline |
-| 2:15 | **05** | Human-in-the-Loop – approval gates + tool policy |
-| 2:40 | **06** | Capstone – full Triage Assistant |
+| 0:00 | **00** | Connectivity check - verify env vars & Azure OpenAI |
+| 0:10 | **01** | Hello Agent - system prompt + conversation REPL |
+| 0:35 | **02** | Tools & Function Calling - GetTime, ReadFile, SearchKb |
+| 1:10 | **03** | State, Sessions & Persistence - JSON session store |
+| 1:35 | **04** | Workflows - 4-step analysis pipeline |
+| 2:15 | **05** | Human-in-the-Loop - approval gates + tool policy |
+| 2:40 | **06** | Capstone - full Triage Assistant |
 | 3:00 | 🎉 | Done! |
 
 ---
@@ -148,9 +148,9 @@ agent-framework-dotnet-workshop/
 
 All agent prompts live in `assets/prompts/`. Edit them without touching any code:
 
-- **`system-base.md`** – Core assistant behavior
-- **`system-safety.md`** – Tool-use constraints and guardrails
-- **`triage-rubric.md`** – Structured output schema for the capstone
+- **`system-base.md`** - Core assistant behavior
+- **`system-safety.md`** - Tool-use constraints and guardrails
+- **`triage-rubric.md`** - Structured output schema for the capstone
 
 Changes take effect immediately on next `dotnet run` (files are copied to build output).
 
@@ -158,4 +158,4 @@ Changes take effect immediately on next `dotnet run` (files are copied to build 
 
 ## License
 
-MIT – see [LICENSE](LICENSE).
+MIT - see [LICENSE](LICENSE).

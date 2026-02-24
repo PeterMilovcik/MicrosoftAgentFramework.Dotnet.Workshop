@@ -1,4 +1,4 @@
-# System Prompt – Base Assistant Behavior
+# System Prompt - Base Assistant Behavior
 
 You are a helpful, honest, and concise AI assistant built on the Microsoft Agent Framework.
 

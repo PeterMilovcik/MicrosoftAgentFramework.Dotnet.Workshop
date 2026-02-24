@@ -2,7 +2,7 @@ using ToolsFunctionCalling;
 using Microsoft.Agents.AI;
 
 Console.WriteLine("===========================================");
-Console.WriteLine(" Module 02 – Tools and Function Calling");
+Console.WriteLine(" Module 02 - Tools and Function Calling");
 Console.WriteLine("===========================================");
 Console.WriteLine();
 

@@ -18,10 +18,10 @@ internal sealed class WorkflowOutput
 
 /// <summary>
 /// A 4-step analysis workflow:
-///   1. Plan    – produce a short plan and risk notes
-///   2. Gather  – use tools to collect evidence
-///   3. Critique – identify gaps and propose improvements
-///   4. Finalize – produce human summary + structured JSON
+///   1. Plan    - produce a short plan and risk notes
+///   2. Gather  - use tools to collect evidence
+///   3. Critique - identify gaps and propose improvements
+///   4. Finalize - produce human summary + structured JSON
 /// </summary>
 internal static class AnalysisWorkflow
 {

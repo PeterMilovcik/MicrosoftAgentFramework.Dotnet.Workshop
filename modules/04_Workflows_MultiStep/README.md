@@ -1,4 +1,4 @@
-# Module 04 – Workflows: Multi-Step Analysis
+# Module 04 - Workflows: Multi-Step Analysis
 
 **Duration:** ~40 minutes  
 **Goal:** Implement an explicit multi-step workflow with 4 sequential LLM calls and tool usage.
@@ -100,10 +100,16 @@ Query> Analyze build-log-01.txt and identify the likely root cause
 1. ✏️ **Build log 01**: Query: _"Analyze build-log-01.txt and identify likely root causes"_
 
 2. ✏️ **Build log 02**: Query: _"Analyze build-log-02.txt for test failures and coverage issues"_
-   Compare the JSON output for both logs – observe different categories.
+   Compare the JSON output for both logs - observe different categories.
 
 3. ✏️ **KB analysis**: Query: _"What does the KB say about handling flaky tests?"_
    The evidence step should call SearchKb.
 
 4. ✏️ **Add a step**: Extend the workflow with a **5th step "Impact"** that estimates business impact.
    Add it between Critique and Final in `AnalysisWorkflow.cs`.
+
+
+💡HINT: Prompt for GitHub Copilot:
+```
+Module `04_Workflows_MultiStep`: In #file:AnalysisWorkflow.cs add a new step. Extend the workflow with a 5th step "Impact" that estimates business impact. Add it between Critique and Final in `AnalysisWorkflow.cs`. Update also #file:Program.cs 
+```

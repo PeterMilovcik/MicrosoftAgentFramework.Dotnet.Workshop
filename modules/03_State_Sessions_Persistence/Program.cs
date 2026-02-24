@@ -3,7 +3,7 @@ using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
 
 Console.WriteLine("===========================================");
-Console.WriteLine(" Module 03 – State, Sessions & Persistence");
+Console.WriteLine(" Module 03 - State, Sessions & Persistence");
 Console.WriteLine("===========================================");
 Console.WriteLine();
 
@@ -126,7 +126,7 @@ while (true)
         agentSession = await agent.CreateSessionAsync();
 
         Console.ForegroundColor = ConsoleColor.Green;
-        Console.WriteLine($"✅ Loaded session: {target.SessionId} (\"{target.Label}\") – {inMemoryMessages.Count} messages in history");
+        Console.WriteLine($"✅ Loaded session: {target.SessionId} (\"{target.Label}\") - {inMemoryMessages.Count} messages in history");
         Console.ResetColor();
         continue;
     }

@@ -2,7 +2,7 @@ using HumanInLoopGuards;
 using Microsoft.Agents.AI;
 
 Console.WriteLine("===========================================");
-Console.WriteLine(" Module 05 – Human-in-the-Loop & Guards");
+Console.WriteLine(" Module 05 - Human-in-the-Loop & Guards");
 Console.WriteLine("===========================================");
 Console.WriteLine();
 

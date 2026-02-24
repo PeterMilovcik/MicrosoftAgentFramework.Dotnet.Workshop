@@ -3,7 +3,7 @@ using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
 
 Console.WriteLine("===========================================");
-Console.WriteLine(" Module 01 – Hello Agent (REPL Loop)");
+Console.WriteLine(" Module 01 - Hello Agent (REPL Loop)");
 Console.WriteLine("===========================================");
 Console.WriteLine();
 
@@ -119,7 +119,7 @@ static string LoadPromptFile(string path, string fallback)
     if (!File.Exists(path))
     {
         Console.ForegroundColor = ConsoleColor.Yellow;
-        Console.WriteLine($"⚠️  Prompt file not found: {path} – using default.");
+        Console.WriteLine($"⚠️  Prompt file not found: {path} - using default.");
         Console.ResetColor();
         return fallback;
     }

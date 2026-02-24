@@ -1,4 +1,4 @@
-# System Prompt – Safety and Tool-Use Constraints
+# System Prompt - Safety and Tool-Use Constraints
 
 ## Tool-Use Policy
 

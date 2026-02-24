@@ -3,7 +3,7 @@ using System.Text.Json.Serialization;
 namespace CapstoneTriageAssistant;
 
 /// <summary>
-/// Structured Triage Card output – matches the triage-rubric.md schema.
+/// Structured Triage Card output - matches the triage-rubric.md schema.
 /// </summary>
 internal sealed class TriageCard
 {
