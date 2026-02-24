@@ -93,7 +93,7 @@ An **AI Agent** is more than a raw LLM call. It wraps an LLM with **instructions
 
 #### Sessions & State
 
-A **session** represents a single conversation between a user and an agent. It holds the message history — every user message, assistant reply, and tool call — so the model has context for follow-up questions. By default, sessions live in memory and disappear when the process exits. Module 03 introduces **session persistence**: saving the conversation to a JSON file and reloading it later, so a user can resume where they left off. The `SessionStore` class handles serialisation via `System.Text.Json`. Session management is critical in production systems for audit trails, debugging, and multi-turn workflows. See [Conversation history management](https://learn.microsoft.com/azure/ai-services/openai/how-to/chatgpt) for best practices.
+A **session** represents a single conversation between a user and an agent. It holds the message history — every user message, assistant reply, and tool call — so the model has context for follow-up questions. By default, sessions live in memory and disappear when the process exits. Module 03 introduces **session persistence**: saving the conversation to a JSON file and reloading it later, so a user can resume where they left off. The `SessionStore` class handles serialisation via `System.Text.Json`. Session management is critical in production systems for audit trails, debugging, and multi-turn workflows.  
 
 #### Multi-Step Workflows
 
