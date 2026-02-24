@@ -149,28 +149,28 @@ Azure.AI.OpenAI          → raw Azure OpenAI SDK (HTTP client, auth)
 
 ### Quick-Reference Glossary
 
-| Term | Definition | Module | Link |
-|------|-----------|--------|------|
-| Azure OpenAI | Microsoft's cloud-hosted LLM service (GPT-4o, etc.) | 00 | [Docs](https://learn.microsoft.com/azure/ai-services/openai/overview) |
-| Token | The unit LLMs process (~¾ of a word); drives cost and rate limits | 00 | [Quotas](https://learn.microsoft.com/azure/ai-services/openai/quotas-limits) |
-| `IChatClient` | Vendor-neutral .NET interface for chat models | 00 | [M.E.AI](https://learn.microsoft.com/dotnet/ai/ai-extensions) |
-| `AIAgent` | LLM + instructions + tools + session — the core agent type | 00 | [GitHub](https://github.com/microsoft/agent-framework) |
-| System prompt | Instructions that define agent behaviour, role, and constraints | 01 | [Best practices](https://learn.microsoft.com/azure/ai-services/openai/concepts/system-message) |
-| Streaming | Token-by-token response delivery via `RunStreamingAsync()` | 01 | — |
-| Function calling | Model autonomously invokes registered C# methods to retrieve data | 02 | [Guide](https://learn.microsoft.com/azure/ai-services/openai/how-to/function-calling) |
-| `AITool` / `AIFunctionFactory` | .NET types for registering callable tools with an agent | 02 | [M.E.AI](https://learn.microsoft.com/dotnet/ai/ai-extensions) |
-| Grounding | Anchoring answers in real data (files, KB) to prevent hallucination | 02 | [RAG](https://learn.microsoft.com/en-us/azure/ai-foundry/concepts/retrieval-augmented-generation?view=foundry-classic) |
-| Session persistence | Saving conversation history to JSON for resume and audit | 03 | [Conversations](https://learn.microsoft.com/azure/ai-services/openai/how-to/chatgpt) |
-| Multi-step workflow | Chained LLM calls (Plan → Evidence → Critique → Final) | 04 | [CoT](https://learn.microsoft.com/azure/ai-services/openai/concepts/advanced-prompt-engineering) |
-| Structured output | Instructing the model to return JSON matching a defined schema | 04 | [Guide](https://learn.microsoft.com/azure/ai-services/openai/how-to/structured-outputs) |
-| Human-in-the-loop | Human approval gates before the agent takes consequential actions | 05 | [Safety](https://learn.microsoft.com/azure/ai-services/openai/concepts/safety-system-message-templates) |
-| Tool approval policy | Per-tool `AlwaysAllow` / `RequireApproval` / `Deny` enforcement | 05 | — |
-| Triage Card | Structured incident report (summary, category, severity, owner) | 06 | — |
-| Prompt composition | Layering base + safety + rubric prompts into one instruction string | 06 | [Prompt eng.](https://learn.microsoft.com/azure/ai-services/openai/concepts/prompt-engineering) |
-| Group chat | Round-robin multi-agent orchestration with shared history | 07 | [GitHub](https://github.com/microsoft/Agents) |
-| Handoff routing | Directed agent-to-specialist transfer based on semantic matching | 08 | [GitHub](https://github.com/microsoft/Agents) |
-| Magentic-One | LLM-managed dynamic orchestration; manager selects agents per turn | 09 | [Paper](https://www.microsoft.com/en-us/research/articles/magentic-one-a-generalist-multi-agent-system-for-solving-complex-tasks/) |
-| `DelegatingChatClient` | Wrapper base class for intercepting LLM calls (e.g., token tracking) | 00 | [M.E.AI](https://learn.microsoft.com/dotnet/ai/ai-extensions) |
+| Term | Definition | Module |
+|------|-----------|--------|
+| Azure OpenAI | Microsoft's cloud-hosted LLM service (GPT-4o, etc.) | 00 |
+| Token | The unit LLMs process (~¾ of a word); drives cost and rate limits | 00 |
+| `IChatClient` | Vendor-neutral .NET interface for chat models | 00 |
+| `AIAgent` | LLM + instructions + tools + session — the core agent type | 00 |
+| System prompt | Instructions that define agent behaviour, role, and constraints | 01 |
+| Streaming | Token-by-token response delivery via `RunStreamingAsync()` | 01 |
+| Function calling | Model autonomously invokes registered C# methods to retrieve data | 02 |
+| `AITool` / `AIFunctionFactory` | .NET types for registering callable tools with an agent | 02 |
+| Grounding | Anchoring answers in real data (files, KB) to prevent hallucination | 02 |
+| Session persistence | Saving conversation history to JSON for resume and audit | 03 |
+| Multi-step workflow | Chained LLM calls (Plan → Evidence → Critique → Final) | 04 |
+| Structured output | Instructing the model to return JSON matching a defined schema | 04 |
+| Human-in-the-loop | Human approval gates before the agent takes consequential actions | 05 |
+| Tool approval policy | Per-tool `AlwaysAllow` / `RequireApproval` / `Deny` enforcement | 05 |
+| Triage Card | Structured incident report (summary, category, severity, owner) | 06 |
+| Prompt composition | Layering base + safety + rubric prompts into one instruction string | 06 |
+| Group chat | Round-robin multi-agent orchestration with shared history | 07 |
+| Handoff routing | Directed agent-to-specialist transfer based on semantic matching | 08 |
+| Magentic-One | LLM-managed dynamic orchestration; manager selects agents per turn | 09 |
+| `DelegatingChatClient` | Wrapper base class for intercepting LLM calls (e.g., token tracking) | 00 |
 
 ---
 
