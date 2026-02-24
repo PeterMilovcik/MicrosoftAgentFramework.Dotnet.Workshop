@@ -161,11 +161,4 @@ Module `03_State_Sessions_Persistence`: #file:SessionStore.cs extend #sym:Worksh
 
 ---
 
-## Further Reading
-
-- [System.Text.Json serialization](https://learn.microsoft.com/dotnet/standard/serialization/system-text-json/overview)
-- [Conversation history patterns for AI](https://learn.microsoft.com/azure/ai-services/openai/how-to/chatgpt)
-
----
-
 **[Next: Module 04 — Workflows & Multi-Step Pipelines →](../04_Workflows_MultiStep/README.md)**

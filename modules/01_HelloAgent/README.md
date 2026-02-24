@@ -150,11 +150,4 @@ In #file:Program.cs for module 01_HelloAgent, add a `/tokens` command to the REP
 
 ---
 
-## Further Reading
-
-- [System prompt best practices (Azure OpenAI)](https://learn.microsoft.com/azure/ai-services/openai/concepts/system-message)
-- [Microsoft.Extensions.AI — IChatClient](https://learn.microsoft.com/dotnet/ai/ai-extensions)
-
----
-
 **[Next: Module 02 — Tools & Function Calling →](../02_Tools_FunctionCalling/README.md)**

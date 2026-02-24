@@ -163,12 +163,4 @@ Set them before running. See scripts/set-env.sh or scripts/set-env.ps1
 
 ---
 
-## Further Reading
-
-- [Azure OpenAI Service documentation](https://learn.microsoft.com/azure/ai-services/openai/)
-- [Microsoft.Extensions.AI Overview](https://learn.microsoft.com/dotnet/ai/ai-extensions)
-- [Microsoft Agent Framework (GitHub)](https://github.com/microsoft/agent-framework)
-
----
-
 **[Next: Module 01 — Hello Agent →](../01_HelloAgent/README.md)**

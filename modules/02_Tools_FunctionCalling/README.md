@@ -146,11 +146,4 @@ Implement a new tool `ListFiles()` in #file:WorkshopTools.cs in module `02_Tools
 
 ---
 
-## Further Reading
-
-- [Function calling with Azure OpenAI](https://learn.microsoft.com/azure/ai-services/openai/how-to/function-calling)
-- [Microsoft.Extensions.AI — AIFunctionFactory](https://learn.microsoft.com/dotnet/ai/ai-extensions)
-
----
-
 **[Next: Module 03 — State, Sessions & Persistence →](../03_State_Sessions_Persistence/README.md)**

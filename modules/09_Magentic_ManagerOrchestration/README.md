@@ -211,14 +211,6 @@ In #file:MagenticWorkflow.cs for module 09, add a counter that tracks consecutiv
 
 ---
 
-## Further Reading
-
-- [Magentic-One: A Generalist Multi-Agent System (Microsoft Research)](https://www.microsoft.com/en-us/research/articles/magentic-one-a-generalist-multi-agent-system-for-solving-complex-tasks/)
-- [Multi-agent orchestration patterns](https://learn.microsoft.com/azure/ai-services/openai/concepts/advanced-prompt-engineering)
-- [Microsoft Agent Framework (GitHub)](https://github.com/microsoft/Agents)
-
----
-
 🎉 **Full workshop complete!**
 
 **[← Back to Workshop Overview](../../README.md)** · **[☕ Support](../../README.md#-support)**
