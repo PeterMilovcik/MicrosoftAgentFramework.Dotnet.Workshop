@@ -19,11 +19,6 @@ internal enum CombatResult
 /// </summary>
 internal static class CombatWorkflow
 {
-    private static readonly JsonSerializerOptions JsonOpts = new()
-    {
-        WriteIndented = true,
-        PropertyNameCaseInsensitive = true,
-    };
 
     public static async Task<CombatResult> RunAsync(
         GameState state, Creature creature, AIAgent combatNarrator, CancellationToken ct)
@@ -63,7 +58,8 @@ internal static class CombatWorkflow
             var prompt = BuildCombatPrompt(state.Player, creature, choice, combatLog);
 
             // Run combat narrator
-            var response = await RunAgent(combatNarrator, prompt, ct);
+            var response = await AgentHelper.RunAgent(combatNarrator, prompt, ct,
+                "{\"narrative\": \"The combat magic fizzles momentarily.\", \"player_damage_dealt\": 0, \"player_damage_taken\": 0}");
             var result = ParseCombatRound(response);
 
             if (result is not null)
@@ -71,10 +67,9 @@ internal static class CombatWorkflow
                 // Apply creature HP change
                 creature.HP = Math.Max(0, creature.HP - result.PlayerDamageDealt);
 
-                // Apply player HP from the narrator's update (already applied via tool)
-                // but also sync from game state in case the tool updated it
-                if (result.PlayerHP > 0)
-                    state.Player.HP = Math.Clamp(result.PlayerHP, 0, state.Player.MaxHP);
+                // Apply player damage taken (don't trust LLM's player_hp — use damage delta instead)
+                if (result.PlayerDamageTaken > 0)
+                    state.Player.HP = Math.Clamp(state.Player.HP - result.PlayerDamageTaken, 0, state.Player.MaxHP);
 
                 // Print combat narrative
                 Console.ForegroundColor = ConsoleColor.Cyan;
@@ -125,7 +120,7 @@ internal static class CombatWorkflow
                     state.AddLog($"Defeated {creature.Name} (+{creature.XPReward} XP).");
 
                     // Save creature state
-                    var creatureJson = JsonSerializer.Serialize(creature, JsonOpts);
+                    var creatureJson = JsonSerializer.Serialize(creature, AgentHelper.JsonOpts);
                     CreatureTools.SaveCreature(creatureJson);
 
                     return CombatResult.CreatureDefeated;
@@ -254,7 +249,7 @@ internal static class CombatWorkflow
             {
                 // End of input stream — auto-flee
                 Console.WriteLine();
-                return options.Contains("Flee") ? "Flee" : options[0];
+                return options.Contains("flee") ? "flee" : options[0];
             }
 
             input = input.Trim();
@@ -269,36 +264,9 @@ internal static class CombatWorkflow
         }
     }
 
-    private static async Task<string> RunAgent(AIAgent agent, string prompt, CancellationToken ct)
-    {
-        var session = await agent.CreateSessionAsync(ct);
-        var sb = new StringBuilder();
-        try
-        {
-            await foreach (var update in agent.RunStreamingAsync(prompt, session).WithCancellation(ct))
-            {
-                sb.Append(update.Text);
-            }
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
-            if (sb.Length > 0) return sb.ToString().Trim();
-            return "{\"narrative\": \"The combat magic fizzles momentarily.\", \"player_damage_dealt\": 0, \"player_damage_taken\": 0}";
-        }
-        return sb.ToString().Trim();
-    }
-
     private static CombatRound? ParseCombatRound(string text)
     {
-        if (string.IsNullOrWhiteSpace(text)) return null;
-        var start = text.IndexOf('{');
-        var end = text.LastIndexOf('}');
-        if (start < 0 || end <= start) return null;
-        try
-        {
-            return JsonSerializer.Deserialize<CombatRound>(text[start..(end + 1)], JsonOpts);
-        }
-        catch { return null; }
+        return AgentHelper.ParseJson<CombatRound>(text);
     }
 
     private sealed class CombatRound
@@ -312,12 +280,6 @@ internal static class CombatWorkflow
         [System.Text.Json.Serialization.JsonPropertyName("player_damage_taken")]
         public int PlayerDamageTaken { get; set; }
 
-        [System.Text.Json.Serialization.JsonPropertyName("player_hp")]
-        public int PlayerHP { get; set; }
-
-        [System.Text.Json.Serialization.JsonPropertyName("creature_hp")]
-        public int CreatureHP { get; set; }
-
         [System.Text.Json.Serialization.JsonPropertyName("creature_defeated")]
         public bool CreatureDefeated { get; set; }
 
@@ -326,8 +288,5 @@ internal static class CombatWorkflow
 
         [System.Text.Json.Serialization.JsonPropertyName("player_defeated")]
         public bool PlayerDefeated { get; set; }
-
-        [System.Text.Json.Serialization.JsonPropertyName("loot_gained")]
-        public List<Item> LootGained { get; set; } = [];
     }
 }

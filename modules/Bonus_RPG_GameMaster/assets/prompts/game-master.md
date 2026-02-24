@@ -56,6 +56,9 @@ When asked to present to the player, output:
 - `rest` — recover HP (heals 25% of max HP)
 - `look_around` — examine current location more carefully
 - `check_quests` — review active quests
+- `inventory` — open inventory to view/use items
+- `map` — view discovered locations
+- `trade` — trade with a merchant NPC (target = NPC id)
 - `save_game` — save current progress
 - `quit` — end the session
 

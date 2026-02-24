@@ -1,4 +1,3 @@
-using System.Text;
 using System.Text.Json;
 using Microsoft.Agents.AI;
 using RPGGameMaster.Models;
@@ -11,11 +10,6 @@ namespace RPGGameMaster.Workflow;
 /// </summary>
 internal static class DialogueWorkflow
 {
-    private static readonly JsonSerializerOptions JsonOpts = new()
-    {
-        WriteIndented = true,
-        PropertyNameCaseInsensitive = true,
-    };
 
     public static async Task RunAsync(
         AgentConfig config, GameState state, NPC npc, CancellationToken ct)
@@ -27,9 +21,6 @@ internal static class DialogueWorkflow
         Console.ForegroundColor = ConsoleColor.DarkGray;
         Console.WriteLine($"  {npc.Description}");
         Console.ResetColor();
-
-        // Mark as met
-        npc.HasMet = true;
 
         // Create dynamic NPC agent from stored instructions
         var npcBaseInstructions = !string.IsNullOrWhiteSpace(npc.AgentInstructions)
@@ -62,6 +53,9 @@ internal static class DialogueWorkflow
             ? $"The adventurer {state.Player.Name} approaches you again. Greet them as someone you've met before."
             : $"An adventurer named {state.Player.Name} approaches you for the first time. Greet them in character.";
 
+        // Mark as met (after constructing openingPrompt so first-meeting greeting fires)
+        npc.HasMet = true;
+
         // Dialogue loop
         var maxRounds = 10;
         var round = 0;
@@ -87,7 +81,8 @@ internal static class DialogueWorkflow
             }
 
             // NPC speaks (returns JSON with speech + options)
-            var npcResponse = await RunAgent(npcAgent, npcPrompt, ct);
+            var npcResponse = await AgentHelper.RunAgent(npcAgent, npcPrompt, ct,
+                "{\"speech\": \"The NPC seems lost in thought.\", \"options\": []}");
 
             // Parse the structured response
             var (speech, options) = ParseNpcResponse(npcResponse);
@@ -127,13 +122,13 @@ internal static class DialogueWorkflow
             var choice = GetDialogueChoice(options);
             if (choice is null) continue;
 
-            // Check for end conversation
-            if ((choice.Text.Contains("end", StringComparison.OrdinalIgnoreCase) ||
-                 choice.Text.Contains("leave", StringComparison.OrdinalIgnoreCase) ||
+            // Check for end conversation: last option is always exit, or text hints at leaving
+            if (choice.Number == options[^1].Number ||
+                 (choice.Text.Contains("end", StringComparison.OrdinalIgnoreCase) &&
+                  choice.Text.Contains("conversation", StringComparison.OrdinalIgnoreCase)) ||
+                 choice.Text.Contains("goodbye", StringComparison.OrdinalIgnoreCase) ||
                  choice.Text.Contains("farewell", StringComparison.OrdinalIgnoreCase) ||
-                 choice.Text.Contains("goodbye", StringComparison.OrdinalIgnoreCase)) &&
-                (choice.Text.Contains("conversation", StringComparison.OrdinalIgnoreCase) ||
-                 choice.Number == 0))
+                 choice.Text.Contains("leave", StringComparison.OrdinalIgnoreCase))
             {
                 Console.ForegroundColor = ConsoleColor.DarkGray;
                 Console.WriteLine($"\n  You bid farewell to {npc.Name}.");
@@ -141,13 +136,15 @@ internal static class DialogueWorkflow
                 break;
             }
 
-            // Check for quest acceptance
-            if (unofferedQuests.Count > 0 &&
+            // Check for quest acceptance — only if the NPC explicitly mentioned a quest
+            // and the player's chosen option contains clear acceptance language
+            if (unofferedQuests.Count > 0 && round >= 3 &&
                 (choice.Text.Contains("accept", StringComparison.OrdinalIgnoreCase) ||
-                 choice.Text.Contains("help", StringComparison.OrdinalIgnoreCase) ||
-                 choice.Text.Contains("quest", StringComparison.OrdinalIgnoreCase) ||
-                 choice.Text.Contains("sure", StringComparison.OrdinalIgnoreCase) ||
-                 choice.Text.Contains("yes", StringComparison.OrdinalIgnoreCase)))
+                 (choice.Text.Contains("quest", StringComparison.OrdinalIgnoreCase) &&
+                  (choice.Text.Contains("yes", StringComparison.OrdinalIgnoreCase) ||
+                   choice.Text.Contains("sure", StringComparison.OrdinalIgnoreCase) ||
+                   choice.Text.Contains("agree", StringComparison.OrdinalIgnoreCase) ||
+                   choice.Text.Contains("help", StringComparison.OrdinalIgnoreCase)))))
             {
                 var quest = unofferedQuests[0];
                 state.Player.ActiveQuests.Add(quest);
@@ -167,7 +164,7 @@ internal static class DialogueWorkflow
 
     private static (string speech, List<DialogueOption> options) ParseNpcResponse(string text)
     {
-        var json = ExtractJson(text);
+        var json = AgentHelper.ExtractJson(text);
         if (json is null) return (text, []);  // No JSON found — treat entire response as speech
         try
         {
@@ -232,40 +229,5 @@ internal static class DialogueWorkflow
             Console.WriteLine($"Enter 1-{options.Count}.");
             Console.ResetColor();
         }
-    }
-
-    private static async Task<string> RunAgent(AIAgent agent, string prompt, CancellationToken ct)
-    {
-        var session = await agent.CreateSessionAsync(ct);
-        var sb = new StringBuilder();
-        try
-        {
-            await foreach (var update in agent.RunStreamingAsync(prompt, session).WithCancellation(ct))
-            {
-                sb.Append(update.Text);
-            }
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
-            // Content filter or transient errors — return what we have or a fallback
-            if (sb.Length > 0) return sb.ToString().Trim();
-            return $"[The response was filtered. The NPC seems lost in thought.]";
-        }
-        return sb.ToString().Trim();
-    }
-
-    private static string? ExtractJson(string text)
-    {
-        if (string.IsNullOrWhiteSpace(text)) return null;
-        var start = text.IndexOf('{');
-        var end = text.LastIndexOf('}');
-        if (start < 0 || end <= start) return null;
-        return text[start..(end + 1)];
-    }
-
-    private sealed class DialogueOption
-    {
-        public int Number { get; set; }
-        public string Text { get; set; } = "";
     }
 }

@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.Text.Json;
 using Microsoft.Extensions.AI;
 using RPGGameMaster.Models;
+using RPGGameMaster.Workflow;
 
 namespace RPGGameMaster.Tools;
 
@@ -11,7 +12,6 @@ namespace RPGGameMaster.Tools;
 /// </summary>
 internal static class LocationTools
 {
-    private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
 
     private static string LocationsDir
     {
@@ -28,12 +28,12 @@ internal static class LocationTools
     {
         try
         {
-            var location = JsonSerializer.Deserialize<Location>(locationJson, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            var location = JsonSerializer.Deserialize<Location>(locationJson, AgentHelper.JsonOpts);
             if (location is null || string.IsNullOrWhiteSpace(location.Id))
                 return "ERROR: Invalid location JSON or missing id.";
 
             var path = Path.Combine(LocationsDir, $"{location.Id}.json");
-            File.WriteAllText(path, JsonSerializer.Serialize(location, JsonOptions));
+            File.WriteAllText(path, JsonSerializer.Serialize(location, AgentHelper.JsonOpts));
             return $"OK: Location '{location.Name}' saved with id '{location.Id}'.";
         }
         catch (Exception ex)
@@ -67,11 +67,11 @@ internal static class LocationTools
             var summaries = new List<object>();
             foreach (var file in files)
             {
-                var loc = JsonSerializer.Deserialize<Location>(File.ReadAllText(file), new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                var loc = JsonSerializer.Deserialize<Location>(File.ReadAllText(file), AgentHelper.JsonOpts);
                 if (loc is not null)
                     summaries.Add(new { loc.Id, loc.Name, loc.Theme, ExitCount = loc.Exits.Count });
             }
-            return JsonSerializer.Serialize(summaries, JsonOptions);
+            return JsonSerializer.Serialize(summaries, AgentHelper.JsonOpts);
         }
         catch (Exception ex)
         {

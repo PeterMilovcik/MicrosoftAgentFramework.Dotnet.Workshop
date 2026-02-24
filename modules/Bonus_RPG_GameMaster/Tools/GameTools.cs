@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.Text.Json;
 using Microsoft.Extensions.AI;
 using RPGGameMaster.Models;
+using RPGGameMaster.Workflow;
 
 namespace RPGGameMaster.Tools;
 
@@ -11,7 +12,6 @@ namespace RPGGameMaster.Tools;
 /// </summary>
 internal static class GameTools
 {
-    private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
 
     private static string SavesDir
     {
@@ -52,7 +52,7 @@ internal static class GameTools
     public static string GetPlayerStats()
     {
         if (_gameState is null) return "ERROR: No game state loaded.";
-        return JsonSerializer.Serialize(_gameState.Player, JsonOptions);
+        return JsonSerializer.Serialize(_gameState.Player, AgentHelper.JsonOpts);
     }
 
     [Description("Updates the player's HP and/or gold. Input JSON with optional fields: hp, gold, xp.")]

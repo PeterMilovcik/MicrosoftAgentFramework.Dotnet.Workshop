@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.Text.Json;
 using Microsoft.Extensions.AI;
 using RPGGameMaster.Models;
+using RPGGameMaster.Workflow;
 
 namespace RPGGameMaster.Tools;
 
@@ -11,7 +12,6 @@ namespace RPGGameMaster.Tools;
 /// </summary>
 internal static class CreatureTools
 {
-    private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
 
     private static string CreaturesDir
     {
@@ -28,12 +28,12 @@ internal static class CreatureTools
     {
         try
         {
-            var creature = JsonSerializer.Deserialize<Creature>(creatureJson, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            var creature = JsonSerializer.Deserialize<Creature>(creatureJson, AgentHelper.JsonOpts);
             if (creature is null || string.IsNullOrWhiteSpace(creature.Id))
                 return "ERROR: Invalid creature JSON or missing id.";
 
             var path = Path.Combine(CreaturesDir, $"{creature.Id}.json");
-            File.WriteAllText(path, JsonSerializer.Serialize(creature, JsonOptions));
+            File.WriteAllText(path, JsonSerializer.Serialize(creature, AgentHelper.JsonOpts));
             return $"OK: Creature '{creature.Name}' saved with id '{creature.Id}'.";
         }
         catch (Exception ex)
@@ -67,11 +67,11 @@ internal static class CreatureTools
             var creatures = new List<Creature>();
             foreach (var file in files)
             {
-                var creature = JsonSerializer.Deserialize<Creature>(File.ReadAllText(file), new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                var creature = JsonSerializer.Deserialize<Creature>(File.ReadAllText(file), AgentHelper.JsonOpts);
                 if (creature is not null && creature.LocationId == locationId && !creature.IsDefeated)
                     creatures.Add(creature);
             }
-            return JsonSerializer.Serialize(creatures, JsonOptions);
+            return JsonSerializer.Serialize(creatures, AgentHelper.JsonOpts);
         }
         catch (Exception ex)
         {

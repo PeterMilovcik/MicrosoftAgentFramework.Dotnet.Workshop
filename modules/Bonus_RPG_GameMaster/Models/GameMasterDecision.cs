@@ -34,7 +34,7 @@ internal sealed class GameOption
     [JsonPropertyName("description")]
     public string Description { get; set; } = "";
 
-    /// <summary>move, talk, fight, pickup, use_item, rest, look_around, check_quests, save_game, quit</summary>
+    /// <summary>move, talk, fight, pickup, use_item, rest, look_around, check_quests, inventory, map, trade, save_game, quit</summary>
     [JsonPropertyName("action_type")]
     public string ActionType { get; set; } = "";
 

@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.Text.Json;
 using Microsoft.Extensions.AI;
 using RPGGameMaster.Models;
+using RPGGameMaster.Workflow;
 
 namespace RPGGameMaster.Tools;
 
@@ -11,7 +12,6 @@ namespace RPGGameMaster.Tools;
 /// </summary>
 internal static class NPCTools
 {
-    private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
 
     private static string NPCsDir
     {
@@ -28,12 +28,12 @@ internal static class NPCTools
     {
         try
         {
-            var npc = JsonSerializer.Deserialize<NPC>(npcJson, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            var npc = JsonSerializer.Deserialize<NPC>(npcJson, AgentHelper.JsonOpts);
             if (npc is null || string.IsNullOrWhiteSpace(npc.Id))
                 return "ERROR: Invalid NPC JSON or missing id.";
 
             var path = Path.Combine(NPCsDir, $"{npc.Id}.json");
-            File.WriteAllText(path, JsonSerializer.Serialize(npc, JsonOptions));
+            File.WriteAllText(path, JsonSerializer.Serialize(npc, AgentHelper.JsonOpts));
             return $"OK: NPC '{npc.Name}' saved with id '{npc.Id}'.";
         }
         catch (Exception ex)
@@ -67,11 +67,11 @@ internal static class NPCTools
             var npcs = new List<NPC>();
             foreach (var file in files)
             {
-                var npc = JsonSerializer.Deserialize<NPC>(File.ReadAllText(file), new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                var npc = JsonSerializer.Deserialize<NPC>(File.ReadAllText(file), AgentHelper.JsonOpts);
                 if (npc is not null && npc.LocationId == locationId)
                     npcs.Add(npc);
             }
-            return JsonSerializer.Serialize(npcs, JsonOptions);
+            return JsonSerializer.Serialize(npcs, AgentHelper.JsonOpts);
         }
         catch (Exception ex)
         {

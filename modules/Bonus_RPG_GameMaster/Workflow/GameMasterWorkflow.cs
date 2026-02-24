@@ -15,12 +15,6 @@ internal static class GameMasterWorkflow
 {
     private const int MaxInnerIterations = 6;
 
-    private static readonly JsonSerializerOptions JsonOpts = new()
-    {
-        WriteIndented = true,
-        PropertyNameCaseInsensitive = true,
-    };
-
     public static async Task RunAsync(AgentConfig config, GameState state, CancellationToken ct = default)
     {
         var baseDir = AppContext.BaseDirectory;
@@ -52,7 +46,7 @@ internal static class GameMasterWorkflow
         // ── First turn: generate starting location ──
         if (state.Locations.Count == 0)
         {
-            PrintStatus("Generating your world...");
+            AgentHelper.PrintStatus("Generating your world...");
             await GenerateLocationForEntry(config, state, null, null, agentMap, LoadPrompt, ct);
         }
 
@@ -90,7 +84,8 @@ internal static class GameMasterWorkflow
                 if (innerIter >= MaxInnerIterations)
                     gmPrompt += "\n\nIMPORTANT: This is your last inner iteration. You MUST output PRESENT_TO_PLAYER now.";
 
-                var decisionText = await RunAgent(gmAgent, gmPrompt, ct);
+                var decisionText = await AgentHelper.RunAgent(gmAgent, gmPrompt, ct,
+                    "{\"next_agent\": \"PRESENT_TO_PLAYER\", \"reason\": \"Error occurred\", \"task\": \"Present current state\"}");
                 var decision = ParseDecision(decisionText);
 
                 if (decision.NextAgent.Equals("PRESENT_TO_PLAYER", StringComparison.OrdinalIgnoreCase))
@@ -99,18 +94,18 @@ internal static class GameMasterWorkflow
                 // Route to sub-agent
                 if (!agentMap.TryGetValue(decision.NextAgent, out var subAgent))
                 {
-                    PrintWarning($"Unknown agent '{decision.NextAgent}', skipping.");
+                    AgentHelper.PrintWarning($"Unknown agent '{decision.NextAgent}', skipping.");
                     turnContext.Add($"SYSTEM: Unknown agent '{decision.NextAgent}' — skipped.");
                     continue;
                 }
 
-                PrintSubAgentWork(decision.NextAgent, decision.Task);
+                AgentHelper.PrintSubAgentWork(decision.NextAgent, decision.Task);
 
                 var subPrompt = $"World theme: {state.WorldTheme}\n\n" +
                     $"Current game context:\n{string.Join("\n\n---\n\n", turnContext)}\n\n" +
                     $"Your task:\n{decision.Task}";
 
-                var subResponse = await RunAgent(subAgent, subPrompt, ct);
+                var subResponse = await AgentHelper.RunAgent(subAgent, subPrompt, ct);
                 turnContext.Add($"{decision.NextAgent.ToUpper()} OUTPUT:\n{subResponse}");
 
                 // Process sub-agent output — integrate into game state
@@ -124,23 +119,13 @@ internal static class GameMasterWorkflow
                 $"Turn context:\n{string.Join("\n\n---\n\n", turnContext)}\n\n" +
                 "Remember: output ONLY the JSON {\"narrative\": \"...\", \"options\": [...]}";
 
-            var presentText = await RunAgent(gmAgent, presentPrompt, ct);
+            var presentText = await AgentHelper.RunAgent(gmAgent, presentPrompt, ct);
             presentation = ParsePresentation(presentText);
 
             if (presentation is null || presentation.Options.Count == 0)
             {
-                // Fallback: simple presentation
-                presentation = new PlayerPresentation
-                {
-                    Narrative = state.CurrentLocation?.Description ?? "You look around.",
-                    Options =
-                    [
-                        new() { Number = 1, Description = "Look around", ActionType = "look_around" },
-                        new() { Number = 2, Description = "Check quests", ActionType = "check_quests" },
-                        new() { Number = 3, Description = "Save game", ActionType = "save_game" },
-                        new() { Number = 4, Description = "Quit", ActionType = "quit" },
-                    ],
-                };
+                // Fallback: build contextual options from current game state
+                presentation = BuildFallbackPresentation(state);
             }
 
             // Display to player
@@ -157,11 +142,6 @@ internal static class GameMasterWorkflow
             playerAction = await HandlePlayerAction(choice, state, config, agentMap, LoadPrompt, combatNarrator, ct);
 
             if (playerAction == "__QUIT__") break;
-            if (playerAction == "__GAME_OVER__")
-            {
-                PrintGameOver(state);
-                break;
-            }
 
             // Check level up
             if (state.Player.TryLevelUp())
@@ -172,6 +152,9 @@ internal static class GameMasterWorkflow
                 Console.ResetColor();
                 state.AddLog($"Player leveled up to {state.Player.Level}!");
             }
+
+            // Check quest completion
+            CheckQuestCompletion(state);
         }
     }
 
@@ -195,7 +178,10 @@ internal static class GameMasterWorkflow
                 return await HandleTalk(choice, state, config, ct);
 
             case "fight":
-                return await HandleFight(choice, state, combatNarrator, ct);
+                var fightResult = await HandleFight(choice, state, combatNarrator, ct);
+                if (fightResult == "__GAME_OVER__")
+                    return HandleDeath(state);
+                return fightResult;
 
             case "pickup":
                 return HandlePickup(choice, state);
@@ -212,6 +198,15 @@ internal static class GameMasterWorkflow
             case "check_quests":
                 PrintQuests(state);
                 return "Player reviewed their active quests.";
+
+            case "inventory":
+                return HandleInventory(state);
+
+            case "map":
+                return HandleMap(state);
+
+            case "trade":
+                return await HandleTrade(choice, state, config, ct);
 
             case "save_game":
                 SaveGameToDisk(state);
@@ -244,7 +239,7 @@ internal static class GameMasterWorkflow
         if (string.IsNullOrWhiteSpace(exit.TargetLocationId))
         {
             // Unexplored — generate new location
-            PrintStatus($"Discovering what lies {exit.Direction}...");
+            AgentHelper.PrintStatus($"Discovering what lies {exit.Direction}...");
             var newLoc = await GenerateLocationForEntry(
                 config, state, currentLoc.Id, exit, agentMap, loadPrompt, ct);
 
@@ -252,7 +247,7 @@ internal static class GameMasterWorkflow
             {
                 exit.TargetLocationId = newLoc.Id;
                 // Save updated current location with the new exit link
-                var locJson = JsonSerializer.Serialize(currentLoc, JsonOpts);
+                var locJson = JsonSerializer.Serialize(currentLoc, AgentHelper.JsonOpts);
                 LocationTools.SaveLocation(locJson);
             }
         }
@@ -387,6 +382,334 @@ internal static class GameMasterWorkflow
         return $"Player rested, healed {healed} HP.";
     }
 
+    // ── Inventory ──
+
+    private static string HandleInventory(GameState state)
+    {
+        var player = state.Player;
+        Console.WriteLine();
+        Console.ForegroundColor = ConsoleColor.Yellow;
+        Console.WriteLine("🎒 Inventory:");
+        Console.ResetColor();
+
+        if (player.Inventory.Count == 0)
+        {
+            Console.ForegroundColor = ConsoleColor.DarkGray;
+            Console.WriteLine("   (empty)");
+            Console.ResetColor();
+            return "Player checked inventory — nothing to do.";
+        }
+
+        for (var i = 0; i < player.Inventory.Count; i++)
+        {
+            var item = player.Inventory[i];
+            var bonus = item.Type switch
+            {
+                "weapon" => $" (+{item.EffectValue} atk)",
+                "armor" => $" (+{item.EffectValue} def)",
+                "potion" => $" (heals {item.EffectValue})",
+                _ => "",
+            };
+            Console.ForegroundColor = ConsoleColor.White;
+            Console.Write($"   [{i + 1}] {item.Name}");
+            Console.ForegroundColor = ConsoleColor.DarkGray;
+            Console.WriteLine($" — {item.Type}{bonus}");
+            Console.ResetColor();
+        }
+
+        // Offer to use a potion
+        var potions = player.Inventory.Where(i => i.Type == "potion").ToList();
+        if (potions.Count > 0 && player.HP < player.MaxHP)
+        {
+            Console.ForegroundColor = ConsoleColor.DarkCyan;
+            Console.Write("\n   Use a potion? Enter item number or 0 to close > ");
+            Console.ResetColor();
+
+            var input = Console.ReadLine()?.Trim();
+            if (int.TryParse(input, out var idx) && idx >= 1 && idx <= player.Inventory.Count)
+            {
+                var chosen = player.Inventory[idx - 1];
+                if (chosen.Type == "potion")
+                {
+                    var healed = Math.Min(chosen.EffectValue, player.MaxHP - player.HP);
+                    player.HP += healed;
+                    player.Inventory.RemoveAt(idx - 1);
+                    Console.ForegroundColor = ConsoleColor.Green;
+                    Console.WriteLine($"   🧪 Used {chosen.Name}: healed {healed} HP (now {player.HP}/{player.MaxHP})");
+                    Console.ResetColor();
+                    state.AddLog($"Used {chosen.Name}, healed {healed} HP.");
+                    return $"Player used {chosen.Name}, healed {healed} HP.";
+                }
+                else
+                {
+                    Console.ForegroundColor = ConsoleColor.DarkGray;
+                    Console.WriteLine($"   {chosen.Name} is equipped passively.");
+                    Console.ResetColor();
+                }
+            }
+        }
+        else
+        {
+            Console.ForegroundColor = ConsoleColor.DarkGray;
+            Console.Write("\n   Press Enter to close inventory > ");
+            Console.ResetColor();
+            Console.ReadLine();
+        }
+
+        return "Player reviewed their inventory.";
+    }
+
+    // ── Map ──
+
+    private static string HandleMap(GameState state)
+    {
+        Console.WriteLine();
+        Console.ForegroundColor = ConsoleColor.Yellow;
+        Console.WriteLine("🗺️  Discovered Locations:");
+        Console.ResetColor();
+
+        foreach (var loc in state.Locations.Values)
+        {
+            var isCurrent = loc.Id == state.CurrentLocationId;
+            Console.ForegroundColor = isCurrent ? ConsoleColor.Cyan : ConsoleColor.White;
+            Console.Write($"   {(isCurrent ? "➤ " : "  ")}{loc.Name}");
+            Console.ForegroundColor = ConsoleColor.DarkGray;
+
+            var exitNames = loc.Exits.Select(e =>
+            {
+                var explored = !string.IsNullOrEmpty(e.TargetLocationId) ? "✓" : "?";
+                return $"{e.Direction}[{explored}]";
+            });
+            Console.WriteLine($" — exits: {string.Join(", ", exitNames)}");
+            Console.ResetColor();
+        }
+
+        Console.ForegroundColor = ConsoleColor.DarkGray;
+        Console.WriteLine($"\n   Total: {state.Locations.Count} locations discovered.");
+        Console.ResetColor();
+
+        return "Player viewed the map.";
+    }
+
+    // ── Death / Respawn ──
+
+    private static string HandleDeath(GameState state)
+    {
+        Console.WriteLine();
+        Console.ForegroundColor = ConsoleColor.Red;
+        Console.WriteLine("╔══════════════════════════════════════════╗");
+        Console.WriteLine("║           ☠  YOU HAVE FALLEN  ☠         ║");
+        Console.WriteLine("╚══════════════════════════════════════════╝");
+        Console.ResetColor();
+
+        // Penalty: lose 50% gold, 25% XP
+        var goldLost = state.Player.Gold / 2;
+        var xpLost = state.Player.XP / 4;
+        state.Player.Gold -= goldLost;
+        state.Player.XP = Math.Max(0, state.Player.XP - xpLost);
+
+        // Full HP restore
+        state.Player.HP = state.Player.MaxHP;
+
+        // Teleport to first discovered location (starting area)
+        var startLoc = state.Locations.Values.FirstOrDefault();
+        if (startLoc is not null)
+            state.CurrentLocationId = startLoc.Id;
+
+        Console.ForegroundColor = ConsoleColor.DarkYellow;
+        Console.WriteLine($"\n  You awaken back at {startLoc?.Name ?? "the starting area"}...");
+        Console.WriteLine($"  Lost: {goldLost} gold, {xpLost} XP");
+        Console.WriteLine($"  HP fully restored to {state.Player.HP}/{state.Player.MaxHP}");
+        Console.ResetColor();
+
+        state.AddLog($"Fell in battle. Lost {goldLost}g and {xpLost}xp. Respawned at {startLoc?.Name ?? "start"}.");
+
+        return $"Player was defeated but respawned at {startLoc?.Name ?? "the starting area"} with penalties.";
+    }
+
+    // ── NPC Trading ──
+
+    private static async Task<string> HandleTrade(
+        GameOption choice, GameState state, AgentConfig config, CancellationToken ct)
+    {
+        var npcId = choice.Target;
+        NPC? npc = null;
+
+        if (state.NPCs.TryGetValue(npcId, out npc)) { }
+        else
+        {
+            npc = state.NPCs.Values.FirstOrDefault(n =>
+                n.Name.Contains(npcId, StringComparison.OrdinalIgnoreCase) ||
+                npcId.Contains(n.Name, StringComparison.OrdinalIgnoreCase));
+        }
+
+        if (npc is null)
+            return $"Merchant '{npcId}' not found.";
+
+        Console.WriteLine();
+        Console.ForegroundColor = ConsoleColor.Yellow;
+        Console.WriteLine($"  🪙 Trading with {npc.Name}");
+        Console.ResetColor();
+
+        // Create a merchant agent
+        var merchantPrompt = $"You are {npc.Name}, a merchant. " +
+            $"The player has {state.Player.Gold} gold. " +
+            "Generate a shop inventory of 3-5 items the player can buy, priced fairly for their level.\n\n" +
+            $"Player level: {state.Player.Level}\n" +
+            $"World theme: {state.WorldTheme}\n\n" +
+            "Output ONLY a JSON object:\n" +
+            "{\"greeting\": \"...\", \"items\": [{\"name\": \"...\", \"description\": \"...\", \"type\": \"weapon|armor|potion|misc\", \"effect_value\": 0, \"price\": 0}, ...]}";
+
+        var merchantAgent = config.CreateAgent($"You are a merchant NPC named {npc.Name}. {npc.Personality}");
+        var shopResponse = await AgentHelper.RunAgent(merchantAgent, merchantPrompt, ct,
+            "{\"greeting\": \"Welcome!\", \"items\": []}");
+
+        var shopJson = AgentHelper.ExtractJson(shopResponse);
+        List<ShopItem> shopItems = [];
+        string greeting = "Welcome, adventurer!";
+
+        if (shopJson is not null)
+        {
+            try
+            {
+                using var doc = JsonDocument.Parse(shopJson);
+                var root = doc.RootElement;
+                if (root.TryGetProperty("greeting", out var g)) greeting = g.GetString() ?? greeting;
+                if (root.TryGetProperty("items", out var arr))
+                {
+                    foreach (var el in arr.EnumerateArray())
+                    {
+                        shopItems.Add(new ShopItem
+                        {
+                            Name = el.TryGetProperty("name", out var n) ? n.GetString() ?? "" : "",
+                            Description = el.TryGetProperty("description", out var d) ? d.GetString() ?? "" : "",
+                            Type = el.TryGetProperty("type", out var t) ? t.GetString() ?? "misc" : "misc",
+                            EffectValue = el.TryGetProperty("effect_value", out var ev) ? ev.GetInt32() : 0,
+                            Price = el.TryGetProperty("price", out var p) ? p.GetInt32() : 10,
+                        });
+                    }
+                }
+            }
+            catch { /* use defaults */ }
+        }
+
+        Console.ForegroundColor = ConsoleColor.Cyan;
+        Console.WriteLine($"\n  {npc.Name}: \"{greeting}\"");
+        Console.ResetColor();
+
+        if (shopItems.Count == 0)
+        {
+            Console.ForegroundColor = ConsoleColor.DarkGray;
+            Console.WriteLine("  (No items available for trade.)");
+            Console.ResetColor();
+            return $"Attempted to trade with {npc.Name} but no items were available.";
+        }
+
+        // Show shop
+        Console.ForegroundColor = ConsoleColor.DarkGray;
+        Console.WriteLine($"  Your gold: {state.Player.Gold}");
+        Console.ResetColor();
+        Console.WriteLine();
+
+        for (var i = 0; i < shopItems.Count; i++)
+        {
+            var item = shopItems[i];
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.Write($"  [{i + 1}] {item.Name}");
+            Console.ForegroundColor = ConsoleColor.DarkGray;
+            Console.Write($" — {item.Description} ({item.Type})");
+            Console.ForegroundColor = ConsoleColor.White;
+            Console.WriteLine($"  {item.Price}g");
+            Console.ResetColor();
+        }
+
+        // Sell option
+        Console.ForegroundColor = ConsoleColor.Yellow;
+        Console.Write($"  [S] ");
+        Console.ForegroundColor = ConsoleColor.DarkGray;
+        Console.WriteLine("Sell an item from your inventory");
+        Console.ForegroundColor = ConsoleColor.Yellow;
+        Console.Write($"  [0] ");
+        Console.ForegroundColor = ConsoleColor.DarkGray;
+        Console.WriteLine("Leave shop");
+        Console.ResetColor();
+
+        Console.ForegroundColor = ConsoleColor.DarkGray;
+        Console.Write("\n  Your choice > ");
+        Console.ResetColor();
+        var input = Console.ReadLine()?.Trim();
+
+        if (string.Equals(input, "s", StringComparison.OrdinalIgnoreCase) && state.Player.Inventory.Count > 0)
+        {
+            // Sell
+            Console.WriteLine();
+            for (var i = 0; i < state.Player.Inventory.Count; i++)
+            {
+                var inv = state.Player.Inventory[i];
+                var sellPrice = Math.Max(1, (inv.Type == "weapon" || inv.Type == "armor" ? inv.EffectValue * 3 : inv.EffectValue));
+                Console.ForegroundColor = ConsoleColor.White;
+                Console.Write($"  [{i + 1}] {inv.Name}");
+                Console.ForegroundColor = ConsoleColor.DarkGray;
+                Console.WriteLine($" — sells for {sellPrice}g");
+                Console.ResetColor();
+            }
+            Console.ForegroundColor = ConsoleColor.DarkGray;
+            Console.Write("  Sell which? > ");
+            Console.ResetColor();
+            var sellInput = Console.ReadLine()?.Trim();
+            if (int.TryParse(sellInput, out var si) && si >= 1 && si <= state.Player.Inventory.Count)
+            {
+                var sold = state.Player.Inventory[si - 1];
+                var price = Math.Max(1, (sold.Type == "weapon" || sold.Type == "armor" ? sold.EffectValue * 3 : sold.EffectValue));
+                state.Player.Inventory.RemoveAt(si - 1);
+                state.Player.Gold += price;
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine($"  Sold {sold.Name} for {price}g (now {state.Player.Gold}g)");
+                Console.ResetColor();
+                state.AddLog($"Sold {sold.Name} for {price}g.");
+                return $"Player sold {sold.Name} for {price} gold.";
+            }
+        }
+        else if (int.TryParse(input, out var buyIdx) && buyIdx >= 1 && buyIdx <= shopItems.Count)
+        {
+            var toBuy = shopItems[buyIdx - 1];
+            if (state.Player.Gold >= toBuy.Price)
+            {
+                state.Player.Gold -= toBuy.Price;
+                state.Player.Inventory.Add(new Item
+                {
+                    Name = toBuy.Name,
+                    Description = toBuy.Description,
+                    Type = toBuy.Type,
+                    EffectValue = toBuy.EffectValue,
+                });
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine($"  Bought {toBuy.Name} for {toBuy.Price}g (remaining: {state.Player.Gold}g)");
+                Console.ResetColor();
+                state.AddLog($"Bought {toBuy.Name} for {toBuy.Price}g.");
+                return $"Player bought {toBuy.Name} for {toBuy.Price} gold.";
+            }
+            else
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"  Not enough gold! Need {toBuy.Price}g, have {state.Player.Gold}g.");
+                Console.ResetColor();
+            }
+        }
+
+        return $"Player browsed {npc.Name}'s shop.";
+    }
+
+    /// <summary>Temporary DTO for shop items with price.</summary>
+    private sealed class ShopItem
+    {
+        public string Name { get; set; } = "";
+        public string Description { get; set; } = "";
+        public string Type { get; set; } = "misc";
+        public int EffectValue { get; set; }
+        public int Price { get; set; }
+    }
+
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     // Location generation (triggers NPC/creature gen)
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -414,13 +737,13 @@ internal static class GameMasterWorkflow
             $"{exitHint}\n{backRef}\n\n" +
             "Generate a new location. Output ONLY the raw Location JSON object, no markdown fences, no explanation.";
 
-        PrintSubAgentWork("world_architect", "Generating location...");
-        var locResponse = await RunAgent(architect, prompt, ct);
-        var newLoc = ParseJson<Location>(locResponse);
+        AgentHelper.PrintSubAgentWork("world_architect", "Generating location...");
+        var locResponse = await AgentHelper.RunAgent(architect, prompt, ct);
+        var newLoc = AgentHelper.ParseJson<Location>(locResponse);
 
         if (newLoc is null || string.IsNullOrWhiteSpace(newLoc.Id))
         {
-            PrintWarning("Failed to generate location.");
+            AgentHelper.PrintWarning("Failed to generate location.");
             return null;
         }
 
@@ -440,14 +763,14 @@ internal static class GameMasterWorkflow
 
             for (var i = 0; i < npcCount; i++)
             {
-                PrintSubAgentWork("npc_weaver", $"Creating NPC {i + 1}...");
+                AgentHelper.PrintSubAgentWork("npc_weaver", $"Creating NPC {i + 1}...");
                 var npcPrompt = $"World theme: {state.WorldTheme}\n" +
                     $"Location: {newLoc.Name} — {newLoc.Description}\n" +
                     $"Location id: {newLoc.Id}\n\n" +
                     "Generate a unique NPC for this location. Output ONLY the raw NPC JSON object, no markdown fences, no explanation.";
 
-                var npcResponse = await RunAgent(npcWeaver, npcPrompt, ct);
-                var npc = ParseJson<NPC>(npcResponse);
+                var npcResponse = await AgentHelper.RunAgent(npcWeaver, npcPrompt, ct);
+                var npc = AgentHelper.ParseJson<NPC>(npcResponse);
 
                 if (npc is not null && !string.IsNullOrWhiteSpace(npc.Id))
                 {
@@ -464,7 +787,7 @@ internal static class GameMasterWorkflow
         {
             var creaturePromptText = loadPrompt("creature-forger");
             var forge = config.CreateAgent(creaturePromptText);
-            PrintSubAgentWork("creature_forger", "Spawning creature...");
+            AgentHelper.PrintSubAgentWork("creature_forger", "Spawning creature...");
 
             var difficulty = state.Player.Level <= 2 ? "easy" : state.Player.Level <= 4 ? "medium" : "hard";
             var creaturePrompt = $"World theme: {state.WorldTheme}\n" +
@@ -473,8 +796,8 @@ internal static class GameMasterWorkflow
                 $"Difficulty: {difficulty}\n\n" +
                 "Generate a creature for this location. Output ONLY the raw Creature JSON object, no markdown fences, no explanation.";
 
-            var creatureResponse = await RunAgent(forge, creaturePrompt, ct);
-            var creature = ParseJson<Creature>(creatureResponse);
+            var creatureResponse = await AgentHelper.RunAgent(forge, creaturePrompt, ct);
+            var creature = AgentHelper.ParseJson<Creature>(creatureResponse);
 
             if (creature is not null && !string.IsNullOrWhiteSpace(creature.Id))
             {
@@ -486,34 +809,10 @@ internal static class GameMasterWorkflow
         }
 
         // Persist the updated location with NPC/creature ids
-        var updatedLocJson = JsonSerializer.Serialize(newLoc, JsonOpts);
+        var updatedLocJson = JsonSerializer.Serialize(newLoc, AgentHelper.JsonOpts);
         LocationTools.SaveLocation(updatedLocJson);
 
         return newLoc;
-    }
-
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    // Agent execution helpers
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-    private static async Task<string> RunAgent(AIAgent agent, string prompt, CancellationToken ct)
-    {
-        var session = await agent.CreateSessionAsync(ct);
-        var sb = new StringBuilder();
-        try
-        {
-            await foreach (var update in agent.RunStreamingAsync(prompt, session).WithCancellation(ct))
-            {
-                sb.Append(update.Text);
-            }
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
-            PrintWarning($"LLM error: {ex.Message.Split('\n')[0]}");
-            if (sb.Length > 0) return sb.ToString().Trim();
-            return "{\"next_agent\": \"PRESENT_TO_PLAYER\", \"reason\": \"Error occurred\", \"task\": \"Present current state\"}";
-        }
-        return sb.ToString().Trim();
     }
 
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -522,11 +821,11 @@ internal static class GameMasterWorkflow
 
     private static GameMasterDecision ParseDecision(string text)
     {
-        var json = ExtractJson(text);
+        var json = AgentHelper.ExtractJson(text);
         if (json is null) return new GameMasterDecision { NextAgent = "PRESENT_TO_PLAYER", Task = text };
         try
         {
-            return JsonSerializer.Deserialize<GameMasterDecision>(json, JsonOpts)
+            return JsonSerializer.Deserialize<GameMasterDecision>(json, AgentHelper.JsonOpts)
                 ?? new GameMasterDecision { NextAgent = "PRESENT_TO_PLAYER", Task = text };
         }
         catch
@@ -537,27 +836,10 @@ internal static class GameMasterWorkflow
 
     private static PlayerPresentation? ParsePresentation(string text)
     {
-        var json = ExtractJson(text);
+        var json = AgentHelper.ExtractJson(text);
         if (json is null) return null;
-        try { return JsonSerializer.Deserialize<PlayerPresentation>(json, JsonOpts); }
+        try { return JsonSerializer.Deserialize<PlayerPresentation>(json, AgentHelper.JsonOpts); }
         catch { return null; }
-    }
-
-    private static T? ParseJson<T>(string text) where T : class
-    {
-        var json = ExtractJson(text);
-        if (json is null) return null;
-        try { return JsonSerializer.Deserialize<T>(json, JsonOpts); }
-        catch { return null; }
-    }
-
-    private static string? ExtractJson(string text)
-    {
-        if (string.IsNullOrWhiteSpace(text)) return null;
-        var start = text.IndexOf('{');
-        var end = text.LastIndexOf('}');
-        if (start < 0 || end <= start) return null;
-        return text[start..(end + 1)];
     }
 
     private static Task ProcessSubAgentOutput(string agentName, string response, GameState state, CancellationToken ct)
@@ -567,7 +849,7 @@ internal static class GameMasterWorkflow
             switch (agentName.ToLowerInvariant())
             {
                 case "world_architect":
-                    var loc = ParseJson<Location>(response);
+                    var loc = AgentHelper.ParseJson<Location>(response);
                     if (loc is not null && !string.IsNullOrWhiteSpace(loc.Id))
                     {
                         loc.Visited = true;
@@ -579,7 +861,7 @@ internal static class GameMasterWorkflow
                     break;
 
                 case "npc_weaver":
-                    var npc = ParseJson<NPC>(response);
+                    var npc = AgentHelper.ParseJson<NPC>(response);
                     if (npc is not null && !string.IsNullOrWhiteSpace(npc.Id))
                     {
                         state.NPCs[npc.Id] = npc;
@@ -595,7 +877,7 @@ internal static class GameMasterWorkflow
                     break;
 
                 case "creature_forger":
-                    var creature = ParseJson<Creature>(response);
+                    var creature = AgentHelper.ParseJson<Creature>(response);
                     if (creature is not null && !string.IsNullOrWhiteSpace(creature.Id))
                     {
                         state.Creatures[creature.Id] = creature;
@@ -616,6 +898,47 @@ internal static class GameMasterWorkflow
         }
 
         return Task.CompletedTask;
+    }
+
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // Quest completion
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+    private static void CheckQuestCompletion(GameState state)
+    {
+        foreach (var quest in state.Player.ActiveQuests.Where(q => !q.IsComplete))
+        {
+            var completed = quest.Type.ToLowerInvariant() switch
+            {
+                "defeat" => state.Creatures.TryGetValue(quest.TargetId, out var c) && c.IsDefeated,
+                "fetch" => state.Player.Inventory.Any(i =>
+                    i.Name.Equals(quest.TargetId, StringComparison.OrdinalIgnoreCase)),
+                "explore" => state.Locations.TryGetValue(quest.TargetId, out var loc) && loc.Visited,
+                _ => false,
+            };
+
+            if (!completed) continue;
+
+            quest.IsComplete = true;
+
+            // Award rewards
+            state.Player.Gold += quest.RewardGold;
+            state.Player.XP += quest.RewardXP;
+            if (quest.RewardItem is not null)
+                state.Player.Inventory.Add(quest.RewardItem);
+
+            Console.WriteLine();
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine($"  ✅ Quest Complete: {quest.Title}!");
+            Console.ResetColor();
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            if (quest.RewardGold > 0) Console.WriteLine($"     +{quest.RewardGold} gold");
+            if (quest.RewardXP > 0) Console.WriteLine($"     +{quest.RewardXP} XP");
+            if (quest.RewardItem is not null) Console.WriteLine($"     +{quest.RewardItem.Name}");
+            Console.ResetColor();
+
+            state.AddLog($"Quest '{quest.Title}' completed! (+{quest.RewardGold}g, +{quest.RewardXP}xp)");
+        }
     }
 
     private static string BuildGameStateSummary(GameState state)
@@ -669,6 +992,52 @@ internal static class GameMasterWorkflow
         return sb.ToString();
     }
 
+    private static PlayerPresentation BuildFallbackPresentation(GameState state)
+    {
+        var loc = state.CurrentLocation;
+        var options = new List<GameOption>();
+        var n = 1;
+
+        // Exits
+        if (loc is not null)
+        {
+            foreach (var exit in loc.Exits)
+                options.Add(new() { Number = n++, Description = $"Go {exit.Direction} — {exit.Description}", ActionType = "move", Target = exit.Direction });
+
+            // NPCs
+            foreach (var npcId in loc.NPCIds)
+            {
+                if (state.NPCs.TryGetValue(npcId, out var npc))
+                    options.Add(new() { Number = n++, Description = $"Talk to {npc.Name} ({npc.Occupation})", ActionType = "talk", Target = npc.Id });
+            }
+
+            // Creatures
+            foreach (var cId in loc.CreatureIds)
+            {
+                if (state.Creatures.TryGetValue(cId, out var creature) && !creature.IsDefeated)
+                    options.Add(new() { Number = n++, Description = $"Fight {creature.Name}", ActionType = "fight", Target = creature.Id });
+            }
+
+            // Items on ground
+            foreach (var item in loc.Items)
+                options.Add(new() { Number = n++, Description = $"Pick up {item.Name}", ActionType = "pickup", Target = item.Name });
+        }
+
+        options.Add(new() { Number = n++, Description = "Look around", ActionType = "look_around" });
+        if (state.Player.Inventory.Count > 0)
+            options.Add(new() { Number = n++, Description = "Open inventory", ActionType = "inventory" });
+        options.Add(new() { Number = n++, Description = "Check quests", ActionType = "check_quests" });
+        options.Add(new() { Number = n++, Description = "View map", ActionType = "map" });
+        options.Add(new() { Number = n++, Description = "Save game", ActionType = "save_game" });
+        options.Add(new() { Number = n++, Description = "Quit", ActionType = "quit" });
+
+        return new PlayerPresentation
+        {
+            Narrative = loc?.Description ?? "You look around, getting your bearings.",
+            Options = options,
+        };
+    }
+
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     // Save game
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -677,7 +1046,7 @@ internal static class GameMasterWorkflow
     {
         var dir = Path.Combine(AppContext.BaseDirectory, "game-data", "saves");
         Directory.CreateDirectory(dir);
-        var json = JsonSerializer.Serialize(state, JsonOpts);
+        var json = JsonSerializer.Serialize(state, AgentHelper.JsonOpts);
         File.WriteAllText(Path.Combine(dir, "save.json"), json);
 
         Console.ForegroundColor = ConsoleColor.Green;
@@ -692,7 +1061,7 @@ internal static class GameMasterWorkflow
         try
         {
             var json = File.ReadAllText(path);
-            return JsonSerializer.Deserialize<GameState>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            return JsonSerializer.Deserialize<GameState>(json, AgentHelper.JsonOpts);
         }
         catch { return null; }
     }
@@ -788,41 +1157,4 @@ internal static class GameMasterWorkflow
         }
     }
 
-    private static void PrintSubAgentWork(string agent, string task)
-    {
-        Console.ForegroundColor = ConsoleColor.DarkGray;
-        Console.Write($"  ⚙ [{agent}] ");
-        Console.ResetColor();
-        Console.ForegroundColor = ConsoleColor.DarkGray;
-        Console.WriteLine(task);
-        Console.ResetColor();
-    }
-
-    private static void PrintStatus(string msg)
-    {
-        Console.ForegroundColor = ConsoleColor.DarkCyan;
-        Console.WriteLine($"\n🌍 {msg}");
-        Console.ResetColor();
-    }
-
-    private static void PrintWarning(string msg)
-    {
-        Console.ForegroundColor = ConsoleColor.Yellow;
-        Console.WriteLine($"  ⚠️ {msg}");
-        Console.ResetColor();
-    }
-
-    private static void PrintGameOver(GameState state)
-    {
-        Console.WriteLine();
-        Console.ForegroundColor = ConsoleColor.Red;
-        Console.WriteLine("╔══════════════════════════════════════════╗");
-        Console.WriteLine("║           ☠  GAME  OVER  ☠              ║");
-        Console.WriteLine("╚══════════════════════════════════════════╝");
-        Console.ResetColor();
-        Console.WriteLine();
-        Console.WriteLine($"  {state.Player.Name} fell after {state.TurnCount} turns.");
-        Console.WriteLine($"  Level: {state.Player.Level} | Locations discovered: {state.Locations.Count}");
-        Console.WriteLine($"  Creatures defeated: {state.Creatures.Values.Count(c => c.IsDefeated)}");
-    }
 }
