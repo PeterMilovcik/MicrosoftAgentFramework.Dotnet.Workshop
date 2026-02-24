@@ -69,7 +69,8 @@ dotnet build AgentFrameworkWorkshop.slnx
 ./scripts/run.ps1 00       # Windows PowerShell
 
 # 5. Start the workshop – module 01
-./scripts/run.sh 01
+./scripts/run.sh 01        # Linux/macOS
+./scripts/run.ps1 01       # Windows PowerShell
 ```
 
 Or run directly:
