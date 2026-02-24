@@ -115,7 +115,7 @@ A **multi-agent system** uses several specialised agents — each with its own i
 
 #### Group Chat (Round-Robin)
 
-In the **group chat** pattern, multiple agents take turns in a fixed, rotating order — like people sitting around a table, each speaking in turn. A **`RoundRobinGroupChatManager`** coordinates the rotation and enforces a maximum iteration count. All agents share the same conversation history, so each can see what the others have said. This pattern is the simplest to implement and reason about, but it is rigid: every agent speaks every round regardless of whether they have something useful to add. Module 07 implements this using the `AgentWorkflowBuilder` API from `Microsoft.Agents.AI.Workflows`. Best for tasks where every perspective is always needed. See [Microsoft Agent Framework — Workflows](https://github.com/microsoft/Agents) for the API.
+In the **group chat** pattern, multiple agents take turns in a fixed, rotating order — like people sitting around a table, each speaking in turn. A **`RoundRobinGroupChatManager`** coordinates the rotation and enforces a maximum iteration count. All agents share the same conversation history, so each can see what the others have said. This pattern is the simplest to implement and reason about, but it is rigid: every agent speaks every round regardless of whether they have something useful to add. Module 07 implements this using the `AgentWorkflowBuilder` API from `Microsoft.Agents.AI.Workflows`. Best for tasks where every perspective is always needed. See [Workflow Getting Started Samples](https://github.com/microsoft/agent-framework/tree/main/dotnet/samples/GettingStarted/Workflows).
 
 #### Handoff Routing
 
