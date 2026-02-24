@@ -159,7 +159,7 @@ Azure.AI.OpenAI          → raw Azure OpenAI SDK (HTTP client, auth)
 | Streaming | Token-by-token response delivery via `RunStreamingAsync()` | 01 | — |
 | Function calling | Model autonomously invokes registered C# methods to retrieve data | 02 | [Guide](https://learn.microsoft.com/azure/ai-services/openai/how-to/function-calling) |
 | `AITool` / `AIFunctionFactory` | .NET types for registering callable tools with an agent | 02 | [M.E.AI](https://learn.microsoft.com/dotnet/ai/ai-extensions) |
-| Grounding | Anchoring answers in real data (files, KB) to prevent hallucination | 02 | [RAG](https://learn.microsoft.com/azure/ai-services/openai/concepts/retrieval-augmented-generation) |
+| Grounding | Anchoring answers in real data (files, KB) to prevent hallucination | 02 | [RAG](https://learn.microsoft.com/en-us/azure/ai-foundry/concepts/retrieval-augmented-generation?view=foundry-classic) |
 | Session persistence | Saving conversation history to JSON for resume and audit | 03 | [Conversations](https://learn.microsoft.com/azure/ai-services/openai/how-to/chatgpt) |
 | Multi-step workflow | Chained LLM calls (Plan → Evidence → Critique → Final) | 04 | [CoT](https://learn.microsoft.com/azure/ai-services/openai/concepts/advanced-prompt-engineering) |
 | Structured output | Instructing the model to return JSON matching a defined schema | 04 | [Guide](https://learn.microsoft.com/azure/ai-services/openai/how-to/structured-outputs) |
