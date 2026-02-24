@@ -79,7 +79,7 @@ A **system prompt** (also called **system message** or **instructions**) is a bl
 
 #### AI Agents
 
-An **AI Agent** is more than a raw LLM call. It wraps an LLM with **instructions** (system prompt), optional **tools** it can invoke, and a **session** that tracks conversation history. Where a plain chat completion is stateless and passive, an agent can reason over multiple turns, decide which tools to call, and maintain context across an entire interaction. In the Microsoft Agent Framework, you create an agent by calling `chatClient.AsAIAgent(instructions, tools)`, which returns an `AIAgent` instance. You then create an `AgentSession` and call `RunAsync()` or `RunStreamingAsync()` to get responses. Module 00 creates your first agent; by Module 06 you have a fully-featured triage assistant. See [Microsoft Agent Framework on GitHub](https://github.com/microsoft/Agents) for the source and API reference.
+An **AI Agent** is more than a raw LLM call. It wraps an LLM with **instructions** (system prompt), optional **tools** it can invoke, and a **session** that tracks conversation history. Where a plain chat completion is stateless and passive, an agent can reason over multiple turns, decide which tools to call, and maintain context across an entire interaction. In the Microsoft Agent Framework, you create an agent by calling `chatClient.AsAIAgent(instructions, tools)`, which returns an `AIAgent` instance. You then create an `AgentSession` and call `RunAsync()` or `RunStreamingAsync()` to get responses. Module 00 creates your first agent; by Module 06 you have a fully-featured triage assistant. See [Microsoft Agent Framework on GitHub](https://github.com/microsoft/agent-framework) for the source and API reference.
 
 #### Function Calling & Tools
 
