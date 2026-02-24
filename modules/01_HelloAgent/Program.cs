@@ -50,6 +50,7 @@ while (true)
     if (input.Equals("/exit", StringComparison.OrdinalIgnoreCase) ||
         input.Equals("/quit", StringComparison.OrdinalIgnoreCase))
     {
+        AgentConfig.PrintTokenSummary();
         Console.WriteLine("Goodbye!");
         break;
     }

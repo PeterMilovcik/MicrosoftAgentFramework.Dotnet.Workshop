@@ -5,6 +5,23 @@
 
 ---
 
+## What's New in This Module
+
+Building on Module 01's in-memory sessions, you'll now add **persistence**:
+- **Save sessions to disk** as JSON files
+- **Reload sessions** after restarting the application
+- **Multiple concurrent sessions** with switching support
+- Session management commands (`/new`, `/list`, `/load`, `/delete`)
+
+---
+
+## Prerequisites
+
+- Module 01 concepts (REPL, agent, session, streaming)
+- Basic understanding of JSON serialization in .NET
+
+---
+
 ## Purpose
 
 Understand how to manage agent state beyond a single run:
@@ -23,6 +40,38 @@ Understand how to manage agent state beyond a single run:
 - In-memory history tracking and replay
 - Session commands: `/new`, `/list`, `/load`, `/delete`, `/status`
 - Auto-save after each conversation turn
+
+---
+
+## Key Code
+
+**Session model with serializable message history:**
+
+```csharp
+internal class WorkshopSession
+{
+    public Guid SessionId { get; set; } = Guid.NewGuid();
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public string Label { get; set; } = "";
+    public List<SessionMessage> Messages { get; set; } = [];
+}
+```
+
+**Saving after each turn:**
+
+```csharp
+// After getting the agent's response, add to history and save
+workshopSession.Messages.Add(new("user", input));
+workshopSession.Messages.Add(new("assistant", responseText));
+SessionStore.Save(workshopSession);  // writes to .sessions/{id}.json
+```
+
+**Loading a session by ID prefix:**
+
+```csharp
+var session = SessionStore.Load(sessionId);
+// Replay history into a fresh AgentSession to restore context
+```
 
 ---
 
@@ -86,16 +135,33 @@ You> /load ad5
 1. ✏️ **Persona sessions**: Create two sessions with different "personas" by starting each with a different instruction:
    - Session A: "For this session, I am a Python developer"
    - Session B: "For this session, I am a DevOps engineer"
-   Switch between sessions and observe how context differs.
+   Switch between sessions and observe how context differs. *(~5 min)*
 
-2. ✏️ **Persistence test**: Create a session, have a conversation, then `/exit`. Restart the app, run `/list`, load the session, and ask a follow-up question. Verify history is preserved.
+2. ✏️ **Persistence test**: Create a session, have a conversation, then `/exit`. Restart the app, run `/list`, load the session, and ask a follow-up question. Verify history is preserved. *(~3 min)*
 
-3. ✏️ **Delete test**: Create 3 sessions, list them, delete the middle one, and verify the list is correct.
+3. ✏️ **Delete test**: Create 3 sessions, list them, delete the middle one, and verify the list is correct. *(~3 min)*
 
-4. ✏️ **Extend the model**: Add a `LastAccessedAt` field to `WorkshopSession` that updates on each `/load` command.
+4. ✏️ **Extend the model**: Add a `LastAccessedAt` field to `WorkshopSession` that updates on each `/load` command. *(~5 min)*
 
 💡HINT: Prompt for GitHub Copilot:
 
 ```
 Module `03_State_Sessions_Persistence`: #file:SessionStore.cs extend #sym:WorkshopSession model by adding a `LastAccessedAt` field that updates on each `/load` command. See #sym:Load(Guid) : WorkshopSession? Update #file:Program.cs to show `LastAccessedAt` in `/status` command.
 ```
+
+---
+
+## Key Takeaways
+
+- **Sessions decouple state from the process** — restart the app without losing context
+- **Auto-save** after each turn keeps conversations durable without user action
+- **Session labels** make it easy to find and manage multiple conversations
+- **History replay** feeds past messages into a fresh `AgentSession` to restore context
+- This pattern is foundational for production agent applications (e.g., chat history databases)
+
+---
+
+## Further Reading
+
+- [System.Text.Json serialization](https://learn.microsoft.com/dotnet/standard/serialization/system-text-json/overview)
+- [Conversation history patterns for AI](https://learn.microsoft.com/azure/ai-services/openai/how-to/chatgpt)

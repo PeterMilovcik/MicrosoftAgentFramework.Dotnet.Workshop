@@ -5,6 +5,22 @@
 
 ---
 
+## What's New in This Module
+
+Building on Module 00's single API call, you'll now create a **full interactive REPL** with:
+- **Streaming** responses (token-by-token output)
+- **Conversation memory** within a session
+- **Editable system prompts** loaded from Markdown files
+
+---
+
+## Prerequisites
+
+- Module 00 passing (environment validated)
+- Basic understanding of `AIAgent` and `AgentSession` from Module 00
+
+---
+
 ## Purpose
 
 Learn the fundamentals of the Microsoft Agent Framework:
@@ -23,6 +39,37 @@ Learn the fundamentals of the Microsoft Agent Framework:
 - `agent.RunStreamingAsync(input, session)` - streams the response token by token
 - Loading `system-base.md` and `system-safety.md` from `assets/prompts/`
 - REPL commands: `/help`, `/reset`, `/sys`, `/exit`
+
+---
+
+## Key Code
+
+**Streaming responses token-by-token:**
+
+```csharp
+// RunStreamingAsync returns an IAsyncEnumerable<AgentResponseUpdate>
+await foreach (var update in agent.RunStreamingAsync(input, session))
+{
+    Console.Write(update.Text);  // print each token as it arrives
+}
+```
+
+**Loading and combining prompts from files:**
+
+```csharp
+var systemPrompt = File.ReadAllText("assets/prompts/system-base.md");
+var safetyPrompt = File.ReadAllText("assets/prompts/system-safety.md");
+var instructions = $"{systemPrompt}\n\n---\n\n{safetyPrompt}";
+
+var agent = config.CreateAgent(instructions);
+```
+
+**Resetting conversation history:**
+
+```csharp
+// Create a fresh session to clear all history
+session = await agent.CreateSessionAsync();
+```
 
 ---
 
@@ -58,11 +105,7 @@ Agent> Hello! I'm designed to help with a variety of tasks, including:
 
 - **Answering questions**: I can provide information or explanations on a wide range of topics.
 - **Reading files**: If you provide me with a file (such as `.txt` or `.md` within a specific folder), I can analyze or summarize its content.
-- **Analyzing logs**: I can help pinpoint issues by reviewing log files and offering interpretations.
-- **Knowledge base search**: If a relevant keyword or topic exists in a predefined knowledge base, I can search it for useful information.
-- **Providing recommendations**: Based on the information you provide (e.g., logs or data), I can suggest next steps or possible solutions.
-
-Let me know how I can assist you today!
+...
 
 You> /reset
 🔄 Conversation history cleared.
@@ -75,14 +118,39 @@ Goodbye!
 
 ## Exercises
 
-1. ✏️ **Shorten responses**: Edit `assets/prompts/system-base.md` and add: "Always respond in 1-2 sentences maximum." Run again and observe shorter answers.
+1. ✏️ **Shorten responses**: Edit `assets/prompts/system-base.md` and add: "Always respond in 1-2 sentences maximum." Run again and observe shorter answers. *(~3 min)*
 
 2. ✏️ **Bullet mode**: Add the following line to `system-base.md`:
    ```
    When listing items, always use bullet points (•), never numbered lists.
    ```
-   Ask "What are your capabilities?" and compare the formatting.
+   Ask "What are your capabilities?" and compare the formatting. *(~3 min)*
 
-3. ✏️ **Test conversation memory**: Ask "My name is Alice." Then ask "What is my name?" Verify the agent remembers. Then use `/reset` and ask again - it should not remember.
+3. ✏️ **Test conversation memory**: Ask "My name is Alice." Then ask "What is my name?" Verify the agent remembers. Then use `/reset` and ask again — it should not remember. *(~3 min)*
 
-4. ✏️ **Explore `/sys`**: Use the `/sys` command to see the active system prompt. Observe how both `system-base.md` and `system-safety.md` are combined.
+4. ✏️ **Explore `/sys`**: Use the `/sys` command to see the active system prompt. Observe how both `system-base.md` and `system-safety.md` are combined. *(~2 min)*
+
+5. ✏️ **Add a `/tokens` command** that displays the current token usage summary using `AgentConfig.PrintTokenSummary()`. *(~5 min)*
+
+💡HINT: Prompt for GitHub Copilot:
+
+```
+In #file:Program.cs for module 01_HelloAgent, add a `/tokens` command to the REPL that calls AgentConfig.PrintTokenSummary() to display current token usage.
+```
+
+---
+
+## Key Takeaways
+
+- **Streaming** (`RunStreamingAsync`) gives a responsive UX — tokens appear as they're generated
+- **Sessions** maintain conversation history automatically — the agent remembers previous turns
+- **`/reset` creates a new session** — this is how you clear memory without restarting
+- **Prompts are just Markdown files** — easy to edit, version, and experiment with
+- Separating system prompt from safety prompt keeps concerns independent
+
+---
+
+## Further Reading
+
+- [System prompt best practices (Azure OpenAI)](https://learn.microsoft.com/azure/ai-services/openai/concepts/system-message)
+- [Microsoft.Extensions.AI — IChatClient](https://learn.microsoft.com/dotnet/ai/ai-extensions)

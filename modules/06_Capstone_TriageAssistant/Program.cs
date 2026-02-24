@@ -130,6 +130,7 @@ while (true)
     Console.WriteLine();
 }
 
+AgentConfig.PrintTokenSummary();
 Console.WriteLine("Goodbye!");
 
 static string LoadPromptFile(string path)

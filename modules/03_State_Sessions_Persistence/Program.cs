@@ -51,6 +51,7 @@ while (true)
 
     if (input.Equals("/exit", StringComparison.OrdinalIgnoreCase))
     {
+        AgentConfig.PrintTokenSummary();
         Console.WriteLine("Goodbye!");
         break;
     }
