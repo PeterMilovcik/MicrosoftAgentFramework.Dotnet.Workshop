@@ -10,7 +10,7 @@ No Docker. No web UI. Just C#, NuGet, and Azure OpenAI.
 
 | Requirement | Details |
 |-------------|---------|
-| .NET SDK | 10.0.102+ (pinned via `global.json`) |
+| .NET SDK | 10.0.100+ (any 10.0.x, configured via `global.json`) |
 | Azure OpenAI | An Azure OpenAI resource with a chat model deployment (e.g., `gpt-4o`) |
 | Shell | Bash (Linux/macOS) or PowerShell (Windows) |
 | Editor | Visual Studio 2022+, VS Code with C# Dev Kit, or Rider |
