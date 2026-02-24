@@ -415,7 +415,7 @@ When running the workshop with many participants sharing one Azure OpenAI deploy
 
 ## License
 
-MIT - see [LICENSE](LICENSE).
+This work is licensed under [CC BY-NC-ND 4.0](https://creativecommons.org/licenses/by-nc-nd/4.0/) — see [LICENSE](LICENSE). For commercial use, contact the author.
 
 ## ☕ Support
 
