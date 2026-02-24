@@ -7,5 +7,8 @@
     <Project Path="modules/04_Workflows_MultiStep/04_Workflows_MultiStep.csproj" />
     <Project Path="modules/05_HumanInLoop_Guards/05_HumanInLoop_Guards.csproj" />
     <Project Path="modules/06_Capstone_TriageAssistant/06_Capstone_TriageAssistant.csproj" />
+    <Project Path="modules/07_GroupChat_Orchestration/07_GroupChat_Orchestration.csproj" />
+    <Project Path="modules/08_Handoff_Orchestration/08_Handoff_Orchestration.csproj" />
+    <Project Path="modules/09_Magentic_ManagerOrchestration/09_Magentic_ManagerOrchestration.csproj" />
   </Folder>
 </Solution>
