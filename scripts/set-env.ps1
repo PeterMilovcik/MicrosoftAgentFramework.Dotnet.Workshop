@@ -1,7 +1,7 @@
-# set-env.ps1 – Set Azure OpenAI environment variables for the workshop
+# set-env.ps1 - Set Azure OpenAI environment variables for the workshop
 
 Write-Host "=============================================" -ForegroundColor Cyan
-Write-Host " Azure Agent Framework Workshop – Set Env" -ForegroundColor Cyan
+Write-Host " Azure Agent Framework Workshop - Set Env" -ForegroundColor Cyan
 Write-Host "=============================================" -ForegroundColor Cyan
 Write-Host ""
 
@@ -24,11 +24,11 @@ foreach ($var in $requiredVars) {
 }
 
 if ($missing.Count -eq 0) {
-    Write-Host "✅ All required environment variables are set." -ForegroundColor Green
+    Write-Host "[OK] All required environment variables are set." -ForegroundColor Green
     Write-Host ""
     Write-Host "Current values:"
     Write-Host "  AZURE_OPENAI_ENDPOINT    = $env:AZURE_OPENAI_ENDPOINT"
-    Write-Host "  AZURE_OPENAI_API_KEY     = (set, hidden)"
+    Write-Host '  AZURE_OPENAI_API_KEY     = (set, hidden)'
     Write-Host "  AZURE_OPENAI_DEPLOYMENT  = $env:AZURE_OPENAI_DEPLOYMENT"
     if ($env:AZURE_OPENAI_API_VERSION) {
         Write-Host "  AZURE_OPENAI_API_VERSION = $env:AZURE_OPENAI_API_VERSION"
@@ -36,7 +36,7 @@ if ($missing.Count -eq 0) {
     exit 0
 }
 
-Write-Host "❌ Missing required environment variables:" -ForegroundColor Red
+Write-Host "[ERROR] Missing required environment variables:" -ForegroundColor Red
 foreach ($var in $missing) {
     Write-Host "   - $var" -ForegroundColor Yellow
 }
