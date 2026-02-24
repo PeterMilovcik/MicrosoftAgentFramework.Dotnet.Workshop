@@ -44,17 +44,17 @@ This section introduces the ideas and terminology you will encounter throughout 
 
 ```mermaid
 graph TD
-    LLM["Azure OpenAI (LLM)"]
-    LLM --> Client["IChatClient — unified .NET abstraction"]
-    Client --> Agent["AIAgent — instructions + tools + session"]
-    Agent --> Tools["Function Calling & Tools"]
-    Agent --> State["Sessions & State"]
-    Agent --> Workflows["Multi-Step Workflows"]
-    Agent --> HITL["Human-in-the-Loop & Guardrails"]
-    Agent --> Multi["Multi-Agent Orchestration"]
-    Multi --> GC["Group Chat (round-robin)"]
-    Multi --> HO["Handoff Routing (directed)"]
-    Multi --> MG["Magentic-One (LLM-managed)"]
+    LLM["Azure OpenAI<br/><small>LLM</small>"]
+    LLM --> Client["IChatClient<br/><small>unified .NET abstraction</small>"]
+    Client --> Agent["AIAgent<br/><small>instructions · tools · session</small>"]
+    Agent --> Tools["Function Calling<br/>& Tools"]
+    Agent --> State["Sessions<br/>& State"]
+    Agent --> Workflows["Multi-Step<br/>Workflows"]
+    Agent --> HITL["Human-in-the-Loop<br/>& Guardrails"]
+    Agent --> Multi["Multi-Agent<br/>Orchestration"]
+    Multi --> GC["Group Chat<br/><small>round-robin</small>"]
+    Multi --> HO["Handoff Routing<br/><small>directed</small>"]
+    Multi --> MG["Magentic-One<br/><small>LLM-managed</small>"]
 
     style LLM fill:#f9f,stroke:#333
     style Agent fill:#2d6,stroke:#333
