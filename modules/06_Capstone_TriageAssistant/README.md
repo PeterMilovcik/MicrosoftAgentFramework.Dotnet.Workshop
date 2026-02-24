@@ -107,7 +107,7 @@ was not reachable at 127.0.0.1:5432 during the test run.
 
 1. ✏️ **Compare logs**: Run the capstone with `build-log-01.txt` (DB failure), then again with `build-log-02.txt` (retry + coverage). Compare the `category` and `suggested_owner_role` in the two Triage Cards.
 
-2. ✏️ **Custom failure report**: Write your own failure report (a recent real incident or a fictional one) and run it through the triage. Evaluate the quality of the output.
+2. ✏️ **Custom failure report**: Write your own failure report (a fictional one) and run it through the triage. Evaluate the quality of the output.
 
 3. ✏️ **Refine the rubric**: Edit `assets/prompts/triage-rubric.md` to add a new field `severity` (critical/high/medium/low). Update `TriageCard.cs` to include it and verify the agent produces the new field.
 
