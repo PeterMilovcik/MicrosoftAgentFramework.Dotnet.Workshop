@@ -45,8 +45,8 @@ This section introduces the ideas and terminology you will encounter throughout 
 ```mermaid
 graph TD
     LLM["Azure OpenAI<br/><small>LLM</small>"]
-    LLM --> Client["IChatClient<br/><small>unified .NET abstraction</small>"]
-    Client --> Agent["AIAgent<br/><small>instructions · tools · session</small>"]
+    LLM --> Client["IChatClient<br/><small>.NET abstraction</small>"]
+    Client --> Agent["AIAgent instructions<br/><small>tools · session</small>"]
     Agent --> Tools["Function Calling<br/>& Tools"]
     Agent --> State["Sessions<br/>& State"]
     Agent --> Workflows["Multi-Step<br/>Workflows"]
