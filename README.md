@@ -52,9 +52,9 @@ graph TD
     Agent --> Workflows["Multi-Step Workflows"]
     Agent --> HITL["Human-in-the-Loop & Guardrails"]
     Agent --> Multi["Multi-Agent Orchestration"]
-    Multi --> GC["Group Chat\n(round-robin)"]
-    Multi --> HO["Handoff Routing\n(directed)"]
-    Multi --> MG["Magentic-One\n(LLM-managed)"]
+    Multi --> GC["Group Chat (round-robin)"]
+    Multi --> HO["Handoff Routing (directed)"]
+    Multi --> MG["Magentic-One (LLM-managed)"]
 
     style LLM fill:#f9f,stroke:#333
     style Agent fill:#2d6,stroke:#333
