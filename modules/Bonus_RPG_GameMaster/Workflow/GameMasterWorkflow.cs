@@ -30,7 +30,7 @@ internal static class GameMasterWorkflow
         var worldArchitect = config.CreateAgent(LoadPrompt("world-architect"), tools: LocationTools.GetTools());
         var npcWeaver = config.CreateAgent(LoadPrompt("npc-weaver"), tools: NPCTools.GetTools());
         var creatureForger = config.CreateAgent(LoadPrompt("creature-forger"), tools: CreatureTools.GetTools());
-        var combatNarrator = config.CreateAgent(LoadPrompt("combat-narrator"), tools: GameTools.GetCombatTools());
+        var combatNarrator = config.CreateAgent(LoadPrompt("combat-narrator"));
 
         var agentMap = new Dictionary<string, AIAgent>(StringComparer.OrdinalIgnoreCase)
         {
@@ -139,7 +139,7 @@ internal static class GameMasterWorkflow
             state.AddLog($"Turn {state.TurnCount}: Player chose — {choice.Description}");
 
             // ── Handle player action ──
-            playerAction = await HandlePlayerAction(choice, state, config, agentMap, LoadPrompt, combatNarrator, ct);
+            playerAction = await HandlePlayerAction(choice, state, config, agentMap, LoadPrompt, ct);
 
             if (playerAction == "__QUIT__") break;
 
@@ -166,7 +166,6 @@ internal static class GameMasterWorkflow
         GameOption choice, GameState state, AgentConfig config,
         Dictionary<string, AIAgent> agentMap,
         Func<string, string> loadPrompt,
-        AIAgent combatNarrator,
         CancellationToken ct)
     {
         switch (choice.ActionType.ToLowerInvariant())
@@ -178,7 +177,7 @@ internal static class GameMasterWorkflow
                 return await HandleTalk(choice, state, config, ct);
 
             case "fight":
-                var fightResult = await HandleFight(choice, state, combatNarrator, ct);
+                var fightResult = await HandleFight(choice, state, config, loadPrompt, ct);
                 if (fightResult == "__GAME_OVER__")
                     return HandleDeath(state);
                 return fightResult;
@@ -295,7 +294,8 @@ internal static class GameMasterWorkflow
     }
 
     private static async Task<string> HandleFight(
-        GameOption choice, GameState state, AIAgent combatNarrator, CancellationToken ct)
+        GameOption choice, GameState state, AgentConfig config,
+        Func<string, string> loadPrompt, CancellationToken ct)
     {
         var creatureId = choice.Target;
         if (!state.Creatures.TryGetValue(creatureId, out var creature))
@@ -313,7 +313,7 @@ internal static class GameMasterWorkflow
         if (creature.IsDefeated)
             return $"{creature.Name} has already been defeated.";
 
-        var result = await CombatWorkflow.RunAsync(state, creature, combatNarrator, ct);
+        var result = await CombatWorkflow.RunAsync(state, creature, config, loadPrompt, ct);
 
         if (result == CombatResult.PlayerDefeated)
             return "__GAME_OVER__";
