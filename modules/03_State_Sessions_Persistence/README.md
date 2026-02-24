@@ -57,23 +57,26 @@ dotnet run --project modules/03_State_Sessions_Persistence
 ## Expected Interaction
 
 ```
-> /new
-Session label: testing-discussion
-✅ New session created: 3f8a1c2d-... ("testing-discussion")
+You> /new
+Session label (optional, press Enter to skip): testing-discussion
+✅ New session created: ad5dcad1-2797-4570-959f-31fa92edb111 ("testing-discussion")
 
-[testing-discussion] You> What are the flaky test guidelines?
-Agent> According to testing-guidelines.md...
+[testing-discussion] You> What are flaky tests guidelines?
+Agent> Flaky tests are tests that pass and fail intermittently without any changes ...
 
-> /list
+[testing-discussion] You> /list
 Saved sessions (1):
-  3f8a1c2d-... | 2026-02-23T15:42:00Z | "testing-discussion" | 2 messages ◄ active
-
-> /exit
+  ad5dcad1-2797-4570-959f-31fa92edb111 | 2026-02-24 07:50:50Z | "testing-discussion" | 2 messages ◄ active
+[testing-discussion] You> /exit
+Goodbye!
 
 # Restart the app, then:
-> /list
-> /load 3f8a  # use ID prefix
-✅ Loaded session: 3f8a1c2d-... – 2 messages in history
+
+You> /list
+Saved sessions (1):
+  ad5dcad1-2797-4570-959f-31fa92edb111 | 2026-02-24 07:50:50Z | "testing-discussion" | 2 messages
+You> /load ad5
+✅ Loaded session: ad5dcad1-2797-4570-959f-31fa92edb111 ("testing-discussion") – 2 messages in history
 ```
 
 ---
@@ -90,3 +93,9 @@ Saved sessions (1):
 3. ✏️ **Delete test**: Create 3 sessions, list them, delete the middle one, and verify the list is correct.
 
 4. ✏️ **Extend the model**: Add a `LastAccessedAt` field to `WorkshopSession` that updates on each `/load` command.
+
+💡HINT: Prompt for GitHub Copilot:
+
+```
+Module `03_State_Sessions_Persistence`: #file:SessionStore.cs extend #sym:WorkshopSession model by adding a `LastAccessedAt` field that updates on each `/load` command. See #sym:Load(Guid) : WorkshopSession? Update #file:Program.cs to show `LastAccessedAt` in `/status` command.
+```

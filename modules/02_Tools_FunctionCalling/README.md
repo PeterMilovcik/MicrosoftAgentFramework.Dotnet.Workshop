@@ -82,7 +82,7 @@ Agent> Here are the contents of build-log-01.txt:
 4. ✏️ **Add a tool**: Implement a new tool `ListFiles()` that lists files in `assets/sample-data/`.
    Register it in `WorkshopTools.GetTools()` and test it.
 
-HINT: Prompt for GitHub Copilot:
+💡HINT: Prompt for GitHub Copilot:
 
 ```
 Implement a new tool `ListFiles()` in #file:WorkshopTools.cs in module `02_Tools_FunctionCalling` that lists files in `assets/sample-data/`. Register it in `WorkshopTools.GetTools()`.
