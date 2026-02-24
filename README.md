@@ -1,8 +1,27 @@
 # Microsoft Agent Framework - .NET 10 Workshop
 
-A **3-hour hands-on workshop** for building AI agents with the **Microsoft Agent Framework** in **.NET 10** using console applications.
+> **Build AI agents that reason, use tools, collaborate, and stay under human control — all in C# and .NET 10.**
 
-No Docker. No web UI. Just C#, NuGet, and Azure OpenAI.
+A **hands-on workshop** (3 hours core + 1 hour advanced) that takes your team from zero to production-ready AI agent patterns using the **Microsoft Agent Framework**, **Azure OpenAI**, and plain console applications.
+
+### Why this workshop?
+
+- **AI agents are the next shift** — LLMs that can call tools, maintain state, and orchestrate multi-step workflows are replacing simple prompt-and-response patterns fast.
+- **Secure by default** — every module teaches guardrails: path-traversal protection, tool approval policies, human-in-the-loop gates. Your team builds safe habits from day one.
+- **No boilerplate, no distraction** — no Docker, no web UI, no frontend. Just C#, NuGet, and Azure OpenAI. Participants focus entirely on agent concepts.
+- **Progressive complexity** — 10 modules go from "hello world" to multi-agent orchestration (group chat, handoff routing, LLM-managed teams). Each builds on the last.
+- **Real-world scenario** — participants build a **software triage assistant** that reads build logs, searches a knowledge base, and produces structured incident cards — a pattern directly applicable to DevOps, support, and SRE workflows.
+
+### What your team will learn
+
+| Core (3 hours) | Advanced bonus (+1 hour) |
+|----------------|--------------------------|
+| Creating and configuring AI agents | Round-robin multi-agent group chat |
+| Tool registration and function calling | Directed agent-to-specialist handoff routing |
+| Session persistence across restarts | LLM-managed dynamic orchestration (Magentic-One pattern) |
+| Multi-step analysis workflows | Comparing orchestration trade-offs |
+| Human approval gates and tool policies | |
+| Structured output (JSON Triage Cards) | |
 
 ---
 
@@ -134,7 +153,7 @@ agent-framework-dotnet-workshop/
 
 ---
 
-## 3-Hour Workshop Timeline
+## Workshop Timeline (3h core + 1h advanced)
 
 | Time | Module | Topic |
 |------|--------|-------|
