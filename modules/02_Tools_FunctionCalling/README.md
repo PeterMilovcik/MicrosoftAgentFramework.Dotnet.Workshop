@@ -51,10 +51,15 @@ You> What time is it?
 Agent> The current time is 2026-02-23T15:42:31.0000000Z.
 
 You> What are our guidelines for flaky tests?
-Agent> According to our testing-guidelines.md, flaky tests must be:
-       • Quarantined within 48 hours of detection
-       • Fixed or removed within 2 sprint cycles (4 weeks)
-       ...
+Agent> Our guidelines for handling flaky tests are as follows:
+
+### Definition:
+- A **flaky test** is one that fails and passes inconsistently without any code changes.
+
+### Policy:
+1. **Classification**:
+   - A test is considered flaky if it fails 2 or more times i
+...
 
 You> Show me build-log-01.txt
 Agent> Here are the contents of build-log-01.txt:
@@ -72,7 +77,13 @@ Agent> Here are the contents of build-log-01.txt:
    The agent should call `SearchKb` and/or `ReadFile` for `kb/release-notes.md`.
 
 3. ✏️ **Security test**: Ask the agent to read `../../Directory.Build.props`.
-   It should refuse with a `⛔ Access denied` message.
+   It should refuse with a `⛔ I cannot fulfill this request...` message.
 
 4. ✏️ **Add a tool**: Implement a new tool `ListFiles()` that lists files in `assets/sample-data/`.
    Register it in `WorkshopTools.GetTools()` and test it.
+
+HINT: Prompt for GitHub Copilot:
+
+```
+Implement a new tool `ListFiles()` in #file:WorkshopTools.cs in module `02_Tools_FunctionCalling` that lists files in `assets/sample-data/`. Register it in `WorkshopTools.GetTools()`.
+```
