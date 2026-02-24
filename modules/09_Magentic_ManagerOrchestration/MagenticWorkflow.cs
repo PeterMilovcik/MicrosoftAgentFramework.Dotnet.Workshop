@@ -81,8 +81,12 @@ internal static class MagenticWorkflow
 
             // Build manager prompt with full shared history
             var historyText = string.Join("\n\n---\n\n", sharedHistory);
+            var urgencyHint = iteration >= MaxIterations - 1
+                ? "\nIMPORTANT: You are running low on iterations. If you have any evidence at all, route to \"scribe\" NOW to produce the final triage card. Do not gather more evidence.\n"
+                : "";
             var managerPrompt = "You are the Magentic Manager. Review the team's progress and decide what to do next.\n\n" +
                 $"Full conversation history so far:\n{historyText}\n\n" +
+                urgencyHint +
                 "Respond with a JSON object (no markdown fences):\n" +
                 "{\n" +
                 "  \"progress_summary\": \"brief summary of progress so far\",\n" +
@@ -92,6 +96,7 @@ internal static class MagenticWorkflow
                 "  \"confidence\": 0.0\n" +
                 "}\n\n" +
                 "Use \"DONE\" only if scribe has already produced a valid JSON triage card.\n" +
+                "Once the diagnostician and critic have both contributed, route to \"scribe\" to produce the final output. Do not keep gathering evidence indefinitely.\n" +
                 $"Set confidence >= {ConfidenceThreshold} when you believe the evidence is sufficient.";
 
             // Get manager decision
@@ -121,6 +126,16 @@ internal static class MagenticWorkflow
 
             // Get the next agent
             var agentName = decision.NextAgent?.Trim().ToLowerInvariant() ?? "";
+
+            // Force scribe on last iteration if not already called
+            if (iteration == MaxIterations && agentName != "scribe" && string.IsNullOrEmpty(finalScribeText))
+            {
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine($"  ⚠️ Last iteration reached without scribe. Forcing scribe to produce triage card.");
+                Console.ResetColor();
+                agentName = "scribe";
+            }
+
             if (!agentMap.TryGetValue(agentName, out var nextAgent))
             {
                 Console.ForegroundColor = ConsoleColor.Yellow;

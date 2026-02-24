@@ -34,8 +34,8 @@ Key constraints:
 | `AgentWorkflowBuilder.CreateHandoffBuilderWith` | Creates the handoff workflow builder starting with a given agent |
 | `HandoffsWorkflowBuilder.WithHandoff` | Adds a directed handoff relationship between two agents |
 | `HandoffsWorkflowBuilder.WithHandoffs` | Adds handoff from multiple sources to one target |
-| `InProcessExecution.RunStreamingAsync` | Runs the workflow and streams `WorkflowEvent`s |
-| `AgentResponseEvent` | Event fired when an agent completes a response |
+| `InProcessExecution.Lockstep.RunStreamingAsync` | Runs the workflow in lockstep mode and streams `WorkflowEvent`s |
+| `AgentResponseUpdateEvent` | Event fired when an agent produces a streaming response update |
 
 ---
 

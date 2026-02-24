@@ -86,7 +86,6 @@ internal static class HandoffWorkflow
         var workflow = handoffBuilder.Build();
 
         // Track agent turns for printing transitions
-        var lastAgentId = "";
         var lastScribeText = "";
 
         PrintHeader("HANDOFF WORKFLOW", "Starting handoff-based triage...");
@@ -95,32 +94,74 @@ internal static class HandoffWorkflow
         Console.ResetColor();
         Console.WriteLine();
 
-        // Run the workflow
-        await using var streamingRun = await InProcessExecution.RunStreamingAsync(workflow, context, Guid.NewGuid().ToString(), ct);
+        // Run the workflow using Lockstep mode with chat messages as input
+        List<ChatMessage> messages = [new(ChatRole.User, context)];
+        await using var streamingRun = await InProcessExecution.Lockstep.RunStreamingAsync(workflow, messages);
 
-        await foreach (var evt in streamingRun.WatchStreamAsync(ct))
+        // Start execution with event emission enabled
+        await streamingRun.TrySendMessageAsync(new TurnToken(emitEvents: true));
+
+        string? lastExecutorId = null;
+        var currentAgentText = new StringBuilder();
+
+        await foreach (var evt in streamingRun.WatchStreamAsync())
         {
-            if (evt is AgentResponseEvent agentEvt)
+            switch (evt)
             {
-                var agentName = agentEvt.ExecutorId ?? "unknown";
-                var text = agentEvt.Response?.Text ?? "";
-                if (string.IsNullOrWhiteSpace(text)) continue;
-
-                // Print handoff transition when agent changes
-                if (!string.IsNullOrEmpty(lastAgentId) && lastAgentId != agentName)
+                case AgentResponseUpdateEvent agentEvt:
                 {
-                    PrintHandoff(lastAgentId, agentName);
-                }
+                    var executorId = agentEvt.ExecutorId ?? "unknown";
+                    var agentRole = ResolveAgentRole(executorId);
+                    var text = agentEvt.Update.Text ?? "";
 
-                PrintAgentTurn(agentName, text);
-                lastAgentId = agentName;
+                    // When agent changes, flush previous agent's output
+                    if (executorId != lastExecutorId)
+                    {
+                        if (lastExecutorId is not null && currentAgentText.Length > 0)
+                        {
+                            var prevRole = ResolveAgentRole(lastExecutorId);
+                            if (prevRole == "scribe")
+                                lastScribeText = currentAgentText.ToString();
 
-                if (agentName.Equals("scribe", StringComparison.OrdinalIgnoreCase))
-                {
-                    lastScribeText = text;
+                            // Print handoff transition
+                            PrintHandoff(prevRole, agentRole);
+                        }
+                        currentAgentText.Clear();
+
+                        // Print agent header
+                        Console.WriteLine();
+                        var (color, prefix) = agentRole switch
+                        {
+                            "frontdesk" => (ConsoleColor.White, "[FRONTDESK]"),
+                            "infra-expert" => (ConsoleColor.Cyan, "[INFRA-EXPERT]"),
+                            "product-expert" => (ConsoleColor.Blue, "[PRODUCT-EXPERT]"),
+                            "test-expert" => (ConsoleColor.Magenta, "[TEST-EXPERT]"),
+                            "scribe" => (ConsoleColor.Green, "[SCRIBE]"),
+                            _ => (ConsoleColor.Gray, $"[{agentRole.ToUpper()}]"),
+                        };
+                        Console.ForegroundColor = color;
+                        Console.Write($"{prefix} ");
+                        Console.ResetColor();
+                        lastExecutorId = executorId;
+                    }
+
+                    Console.Write(text);
+                    currentAgentText.Append(text);
+                    break;
                 }
             }
         }
+
+        // Flush the last agent's output
+        if (lastExecutorId is not null && currentAgentText.Length > 0)
+        {
+            var lastRole = ResolveAgentRole(lastExecutorId);
+            if (lastRole == "scribe")
+                lastScribeText = currentAgentText.ToString();
+        }
+
+        Console.WriteLine();
+        Console.WriteLine();
 
         var card = ParseTriageCard(lastScribeText);
         return (lastScribeText, card);
@@ -166,23 +207,24 @@ internal static class HandoffWorkflow
         Console.WriteLine();
     }
 
-    private static void PrintAgentTurn(string agentName, string text)
-    {
-        var (color, prefix) = agentName.ToLowerInvariant() switch
-        {
-            "frontdesk" => (ConsoleColor.White, "[FRONTDESK]"),
-            "infra-expert" => (ConsoleColor.Cyan, "[INFRA-EXPERT]"),
-            "product-expert" => (ConsoleColor.Blue, "[PRODUCT-EXPERT]"),
-            "test-expert" => (ConsoleColor.Magenta, "[TEST-EXPERT]"),
-            "scribe" => (ConsoleColor.Green, "[SCRIBE]"),
-            _ => (ConsoleColor.Gray, $"[{agentName.ToUpper()}]"),
-        };
 
-        Console.ForegroundColor = color;
-        Console.Write($"\n{prefix} ");
-        Console.ResetColor();
-        Console.WriteLine(text);
-        Console.WriteLine();
+    /// <summary>
+    /// Extracts the agent role name from an ExecutorId that may contain a GUID suffix.
+    /// The framework converts hyphens to underscores in ExecutorIds
+    /// (e.g., "INFRA_EXPERT_34F80B7F00FC435C91613D6D2C81CA47" → "infra-expert").
+    /// </summary>
+    private static string ResolveAgentRole(string executorId)
+    {
+        var id = executorId.ToLowerInvariant();
+        foreach (var role in (ReadOnlySpan<string>)["frontdesk", "infra-expert", "product-expert", "test-expert", "scribe"])
+        {
+            // Check both original name and underscore variant since the framework
+            // may convert hyphens to underscores in ExecutorIds
+            if (id.StartsWith(role, StringComparison.Ordinal) ||
+                id.StartsWith(role.Replace('-', '_'), StringComparison.Ordinal))
+                return role;
+        }
+        return id;
     }
 
     private static void PrintHeader(string step, string desc)

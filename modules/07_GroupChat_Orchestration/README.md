@@ -27,8 +27,8 @@ Key constraints enforced at runtime:
 | Group Chat | Multiple agents share a conversation context |
 | `RoundRobinGroupChatManager` | Selects agents in fixed rotation |
 | `AgentWorkflowBuilder.CreateGroupChatBuilderWith` | Factory for the group chat orchestration |
-| `InProcessExecution.RunStreamingAsync` | Runs the workflow and streams `WorkflowEvent`s |
-| `AgentResponseEvent` | Event fired when an agent produces a complete response |
+| `InProcessExecution.Lockstep.RunStreamingAsync` | Runs the workflow in lockstep mode and streams `WorkflowEvent`s |
+| `AgentResponseUpdateEvent` | Event fired when an agent produces a streaming response update |
 | Tool enforcement | Only the investigator agent is created with tools |
 
 ---

@@ -62,28 +62,72 @@ internal static class GroupChatWorkflow
 
         PrintHeader("GROUP CHAT", $"Starting group chat with {participants.Length} agents (max {MaxIterations} turns)...");
 
-        // Run the workflow
-        await using var streamingRun = await InProcessExecution.RunStreamingAsync(workflow, context, Guid.NewGuid().ToString(), ct);
+        // Run the workflow using Lockstep mode with chat messages as input
+        List<ChatMessage> messages = [new(ChatRole.User, context)];
+        await using var streamingRun = await InProcessExecution.Lockstep.RunStreamingAsync(workflow, messages);
 
-        await foreach (var evt in streamingRun.WatchStreamAsync(ct))
+        // Start execution with event emission enabled
+        await streamingRun.TrySendMessageAsync(new TurnToken(emitEvents: true));
+
+        string? lastAgentName = null;
+        var currentAgentText = new StringBuilder();
+
+        await foreach (var evt in streamingRun.WatchStreamAsync())
         {
-            if (evt is AgentResponseEvent agentEvt)
+            switch (evt)
             {
-                var agentName = agentEvt.ExecutorId ?? "unknown";
-                var text = agentEvt.Response?.Text ?? "";
-                if (string.IsNullOrWhiteSpace(text)) continue;
-
-                // Print with colored prefix
-                PrintAgentTurn(agentName, text);
-
-                agentOutputs[agentName] = text;
-
-                if (agentName.Equals("scribe", StringComparison.OrdinalIgnoreCase))
+                case AgentResponseUpdateEvent agentEvt:
                 {
-                    lastScribeText = text;
+                    var executorId = agentEvt.ExecutorId ?? "unknown";
+                    var agentRole = ResolveAgentRole(executorId);
+                    var text = agentEvt.Update.Text ?? "";
+
+                    // When agent changes, flush previous agent's output
+                    if (executorId != lastAgentName)
+                    {
+                        if (lastAgentName is not null && currentAgentText.Length > 0)
+                        {
+                            var prevRole = ResolveAgentRole(lastAgentName);
+                            agentOutputs[prevRole] = currentAgentText.ToString();
+                            if (prevRole == "scribe")
+                                lastScribeText = currentAgentText.ToString();
+                        }
+                        currentAgentText.Clear();
+
+                        // Print agent header
+                        Console.WriteLine();
+                        var (color, prefix) = agentRole switch
+                        {
+                            "planner" => (ConsoleColor.Blue, "[PLANNER]"),
+                            "investigator" => (ConsoleColor.Cyan, "[INVESTIGATOR]"),
+                            "critic" => (ConsoleColor.Yellow, "[CRITIC]"),
+                            "scribe" => (ConsoleColor.Green, "[SCRIBE]"),
+                            _ => (ConsoleColor.White, $"[{agentRole.ToUpper()}]"),
+                        };
+                        Console.ForegroundColor = color;
+                        Console.Write($"{prefix} ");
+                        Console.ResetColor();
+                        lastAgentName = executorId;
+                    }
+
+                    Console.Write(text);
+                    currentAgentText.Append(text);
+                    break;
                 }
             }
         }
+
+        // Flush the last agent's output
+        if (lastAgentName is not null && currentAgentText.Length > 0)
+        {
+            var lastRole = ResolveAgentRole(lastAgentName);
+            agentOutputs[lastRole] = currentAgentText.ToString();
+            if (lastRole == "scribe")
+                lastScribeText = currentAgentText.ToString();
+        }
+
+        Console.WriteLine();
+        Console.WriteLine();
 
         // Parse triage card from scribe output
         var card = ParseTriageCard(lastScribeText);
@@ -132,22 +176,19 @@ internal static class GroupChatWorkflow
         return File.Exists(path) ? File.ReadAllText(path) : $"You are the {agentName} agent.";
     }
 
-    private static void PrintAgentTurn(string agentName, string text)
+    /// <summary>
+    /// Extracts the agent role name from an ExecutorId that may contain a GUID suffix
+    /// (e.g., "PLANNER_4F7606FF25CE41C2BAD54BDE277359D6" → "planner").
+    /// </summary>
+    private static string ResolveAgentRole(string executorId)
     {
-        var (color, prefix) = agentName.ToLowerInvariant() switch
+        var id = executorId.ToLowerInvariant();
+        foreach (var role in (ReadOnlySpan<string>)["planner", "investigator", "critic", "scribe"])
         {
-            "planner" => (ConsoleColor.Blue, "[PLANNER]"),
-            "investigator" => (ConsoleColor.Cyan, "[INVESTIGATOR]"),
-            "critic" => (ConsoleColor.Yellow, "[CRITIC]"),
-            "scribe" => (ConsoleColor.Green, "[SCRIBE]"),
-            _ => (ConsoleColor.White, $"[{agentName.ToUpper()}]"),
-        };
-
-        Console.ForegroundColor = color;
-        Console.Write($"\n{prefix} ");
-        Console.ResetColor();
-        Console.WriteLine(text);
-        Console.WriteLine();
+            if (id.StartsWith(role, StringComparison.Ordinal))
+                return role;
+        }
+        return id;
     }
 
     private static void PrintHeader(string step, string desc)
