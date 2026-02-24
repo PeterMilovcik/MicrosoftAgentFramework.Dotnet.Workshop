@@ -1,0 +1,21 @@
+2026-02-23T08:14:02Z [INFO]  Build pipeline started for branch: feature/user-auth-refactor
+2026-02-23T08:14:05Z [INFO]  Restoring NuGet packages...
+2026-02-23T08:14:18Z [INFO]  Restore completed. 142 packages restored.
+2026-02-23T08:14:18Z [INFO]  Building solution: AuthService.sln
+2026-02-23T08:14:22Z [WARN]  CS0618: 'LegacyTokenProvider' is obsolete. Use 'ModernTokenProvider' instead. (AuthService/TokenHelper.cs:47)
+2026-02-23T08:14:23Z [INFO]  Build succeeded with 1 warning.
+2026-02-23T08:14:23Z [INFO]  Running unit tests...
+2026-02-23T08:15:01Z [INFO]  Test run started. 347 tests discovered.
+2026-02-23T08:16:44Z [ERROR] Test failed: AuthService.Tests.Integration.UserLoginFlowTest.ShouldIssueTokenOnValidCredentials
+               Expected: 200 OK
+               Actual:   503 Service Unavailable
+               Inner exception: System.Net.Http.HttpRequestException: Connection refused (127.0.0.1:5432)
+2026-02-23T08:16:44Z [ERROR] Test failed: AuthService.Tests.Integration.UserLoginFlowTest.ShouldRefreshExpiredToken
+               Expected: token_refreshed = true
+               Actual:   HttpRequestException: Connection refused (127.0.0.1:5432)
+2026-02-23T08:16:44Z [ERROR] Test failed: AuthService.Tests.Integration.AdminRoleAssignmentTest.ShouldAssignRoleToNewUser
+               Expected: role = admin
+               Actual:   HttpRequestException: Connection refused (127.0.0.1:5432)
+2026-02-23T08:17:02Z [INFO]  Test run complete: 344 passed, 3 failed, 0 skipped.
+2026-02-23T08:17:02Z [ERROR] Build pipeline FAILED. Exit code: 1
+2026-02-23T08:17:02Z [INFO]  Artifacts not published due to failure.

@@ -1,0 +1,12 @@
+<Project>
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>preview</LangVersion>
+    <!-- Keep it comfortable for workshop - don't treat warnings as errors -->
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <!-- Suppress nullable warnings for workshop readability -->
+    <NoWarn>$(NoWarn);CS8618;CS8600;CS8601;CS8602;CS8603</NoWarn>
+  </PropertyGroup>
+</Project>
