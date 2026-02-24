@@ -38,6 +38,8 @@ A **hands-on workshop** (3 hours core + 1 hour advanced) that takes your team fr
 
 ## Environment Variables
 
+Your workshop facilitator will provide the values below. If you already have your own Azure OpenAI resource, you can use that instead. (Setting up Azure OpenAI / Azure AI Foundry resources is outside the scope of this workshop.)
+
 All modules use the same four environment variables:
 
 | Variable | Required | Example |
