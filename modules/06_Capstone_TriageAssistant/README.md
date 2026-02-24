@@ -180,3 +180,9 @@ In #file:TriageCard.cs for module 06_Capstone_TriageAssistant, add a `severity` 
 
 - [Prompt engineering techniques (Azure OpenAI)](https://learn.microsoft.com/azure/ai-services/openai/concepts/prompt-engineering)
 - [Structured output with JSON mode](https://learn.microsoft.com/azure/ai-services/openai/how-to/structured-outputs)
+
+---
+
+🎉 **Core workshop complete!** Continue with the advanced modules:
+
+**[Next: Module 07 — Group Chat Orchestration →](../07_GroupChat_Orchestration/README.md)**

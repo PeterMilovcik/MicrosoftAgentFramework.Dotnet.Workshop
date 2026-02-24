@@ -199,3 +199,7 @@ In #file:ToolPolicy.cs for module 05_HumanInLoop_Guards, change the policy for R
 
 - [Responsible AI practices for Azure OpenAI](https://learn.microsoft.com/azure/ai-services/openai/concepts/safety-system-message-templates)
 - [Human-in-the-loop patterns for AI agents](https://learn.microsoft.com/azure/ai-services/openai/how-to/responsible-ai-overview)
+
+---
+
+**[Next: Module 06 — Capstone Triage Assistant →](../06_Capstone_TriageAssistant/README.md)**

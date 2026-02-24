@@ -182,3 +182,7 @@ In #file:GroupChatWorkflow.cs for module 07, change MaxIterations from 8 to 12 a
 
 - [Multi-agent design patterns](https://learn.microsoft.com/azure/ai-services/openai/concepts/advanced-prompt-engineering)
 - [Microsoft Agent Framework Workflows (GitHub)](https://github.com/microsoft/Agents)
+
+---
+
+**[Next: Module 08 — Handoff Orchestration →](../08_Handoff_Orchestration/README.md)**

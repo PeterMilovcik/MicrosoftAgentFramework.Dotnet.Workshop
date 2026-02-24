@@ -407,6 +407,12 @@ When running the workshop with many participants sharing one Azure OpenAI deploy
 
 ---
 
+## Ready? Start the Workshop!
+
+**[Begin with Module 00 — Connectivity Check →](modules/00_ConnectivityCheck/README.md)**
+
+---
+
 ## License
 
 MIT - see [LICENSE](LICENSE).

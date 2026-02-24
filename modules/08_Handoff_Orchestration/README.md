@@ -182,3 +182,7 @@ In #file:HandoffWorkflow.cs for module 08, add a counter that tracks how many ag
 
 - [Agent handoff patterns in multi-agent systems](https://learn.microsoft.com/azure/ai-services/openai/concepts/advanced-prompt-engineering)
 - [Microsoft Agent Framework Workflows (GitHub)](https://github.com/microsoft/Agents)
+
+---
+
+**[Next: Module 09 — Magentic Manager Orchestration →](../09_Magentic_ManagerOrchestration/README.md)**

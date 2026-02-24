@@ -166,3 +166,7 @@ Module `04_Workflows_MultiStep`: In #file:AnalysisWorkflow.cs add a new step. Ex
 
 - [Structured output with Azure OpenAI](https://learn.microsoft.com/azure/ai-services/openai/how-to/structured-outputs)
 - [Chain-of-thought prompting patterns](https://learn.microsoft.com/azure/ai-services/openai/concepts/advanced-prompt-engineering)
+
+---
+
+**[Next: Module 05 — Human-in-the-Loop & Guards →](../05_HumanInLoop_Guards/README.md)**
