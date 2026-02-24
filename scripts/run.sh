@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# run.sh – Run a workshop module by number or name
+# run.sh - Run a workshop module by number or name
 #
 # Usage:
 #   ./scripts/run.sh 00              # runs 00_ConnectivityCheck
@@ -36,7 +36,7 @@ for d in "$MODULES_DIR"/*/; do
 done
 
 if [ -z "$MATCH" ]; then
-  echo "❌ No module found matching: $MODULE_ARG"
+  echo "[ERROR] No module found matching: $MODULE_ARG"
   echo ""
   echo "Available modules:"
   for d in "$MODULES_DIR"/*/; do
@@ -48,7 +48,7 @@ fi
 MOD_NAME="$(basename "$MATCH")"
 CSPROJ="$MATCH$MOD_NAME.csproj"
 
-echo "🚀 Running module: $MOD_NAME"
+echo ">> Running module: $MOD_NAME"
 echo "   Project: $CSPROJ"
 echo "-------------------------------------------"
 

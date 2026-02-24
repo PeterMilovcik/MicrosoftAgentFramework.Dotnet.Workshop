@@ -1,4 +1,4 @@
-# run.ps1 – Run a workshop module by number or name
+# run.ps1 - Run a workshop module by number or name
 #
 # Usage:
 #   ./scripts/run.ps1 00              # runs 00_ConnectivityCheck
@@ -36,7 +36,7 @@ Get-ChildItem -Directory $ModulesDir | ForEach-Object {
 }
 
 if (-not $Match) {
-    Write-Host "❌ No module found matching: $Module" -ForegroundColor Red
+    Write-Host "[ERROR] No module found matching: $Module" -ForegroundColor Red
     Write-Host ""
     Write-Host "Available modules:"
     Get-ChildItem -Directory $ModulesDir | ForEach-Object { Write-Host "  $($_.Name)" }
@@ -46,7 +46,7 @@ if (-not $Match) {
 $ModName = $Match.Name
 $CsProjPath = Join-Path $Match.FullName "$ModName.csproj"
 
-Write-Host "🚀 Running module: $ModName" -ForegroundColor Cyan
+Write-Host ">> Running module: $ModName" -ForegroundColor Cyan
 Write-Host "   Project: $CsProjPath"
 Write-Host "-------------------------------------------"
 

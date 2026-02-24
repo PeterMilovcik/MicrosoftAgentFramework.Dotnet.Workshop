@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# set-env.sh – Set Azure OpenAI environment variables for the workshop
+# set-env.sh - Set Azure OpenAI environment variables for the workshop
 
 set -euo pipefail
 
 echo "============================================="
-echo " Azure Agent Framework Workshop – Set Env"
+echo " Azure Agent Framework Workshop - Set Env"
 echo "============================================="
 echo ""
 
@@ -27,7 +27,7 @@ for var in "${REQUIRED_VARS[@]}"; do
 done
 
 if [ ${#MISSING[@]} -eq 0 ]; then
-  echo "✅ All required environment variables are set."
+  echo "[OK] All required environment variables are set."
   echo ""
   echo "Current values:"
   echo "  AZURE_OPENAI_ENDPOINT    = $AZURE_OPENAI_ENDPOINT"
@@ -39,7 +39,7 @@ if [ ${#MISSING[@]} -eq 0 ]; then
   exit 0
 fi
 
-echo "❌ Missing required environment variables:"
+echo "[ERROR] Missing required environment variables:"
 for var in "${MISSING[@]}"; do
   echo "   - $var"
 done
