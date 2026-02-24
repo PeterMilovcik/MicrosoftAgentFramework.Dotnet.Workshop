@@ -54,34 +54,42 @@ Query> Analyze build-log-01.txt and identify the likely root cause
 🚀 Starting workflow...
 
 ━━━ Step: PLAN ━━━
-[PLAN] I'll analyze the build log to identify what failed.
-       Plan:
-       • Read build-log-01.txt to examine error messages
-       • Search KB for relevant guidelines
-       ...
+  Producing a concise plan and risk notes...
+[PLAN] ### Analysis Plan:
+...
 
 ━━━ Step: EVIDENCE ━━━
-[EVIDENCE] Reading build-log-01.txt...
-           Key findings:
-           • 3 tests failed with "Connection refused (127.0.0.1:5432)"
-           • Suggests PostgreSQL is not running in the test environment
-           ...
+  Gathering facts using available tools...
+[EVIDENCE] ### Analysis Results:
+...
 
 ━━━ Step: CRITIQUE ━━━
-[CRITIQUE] Evidence is clear. Missing: confirmation of DB configuration.
-           Recommendation: also check docker-compose or test setup scripts.
+  Identifying gaps and evaluating evidence quality...
+[CRITIQUE] ### Critique of the Analysis
+...
 
 ━━━ Step: FINAL ━━━
-[FINAL] { "summary": "Three integration tests failed because..." }
+  Producing final answer and structured JSON output...
+[FINAL] {
+   ...
+}
 
 ══════════════════════════════════════════
  STRUCTURED OUTPUT (JSON)
 ══════════════════════════════════════════
 {
-  "summary": "Three integration tests failed because the PostgreSQL database...",
-  "evidence": ["Connection refused on port 5432", "3 test failures"],
-  "recommendations": ["Start PostgreSQL before running integration tests", "..."],
-  "confidence": 0.92
+  "Summary": "The build failed due to integration tests experiencing connection issues to a service believed to be a local PostgreSQL database on 127.0.0.1:5432. This was likely caused by the database service not being available during test execution, misconfigurations in the environment, or CI pipeline isolation issues.",
+  "Evidence": [
+    "Error in log: \u0027HttpRequestException: Connection refused (127.0.0.1:5432)\u0027 during three integration tests.",
+    "344 tests passed, 3 failed affecting critical integration flow functionalities."
+  ],
+  "Recommendations": [
+    "Verify that the PostgreSQL database is running on 127.0.0.1:5432 during test execution.",
+    "Inspect and validate test environment configuration, including database connection settings and initialization scripts.",
+    "Enhance the CI pipeline with pre-checks for essential services like databases before running tests.",
+    "Investigate if isolated or containerized testing environments restrict communication with localhost."
+  ],
+  "Confidence": 0.85
 }
 ```
 
