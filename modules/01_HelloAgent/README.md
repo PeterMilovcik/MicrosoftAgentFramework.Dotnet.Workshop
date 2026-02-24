@@ -54,8 +54,15 @@ Commands:
 Type any message to chat with the agent.
 
 You> Hello! What can you do?
-Agent> I'm a helpful AI assistant. I can answer questions, help analyze information,
-       and assist with technical topics. How can I help you today?
+Agent> Hello! I'm designed to help with a variety of tasks, including:
+
+- **Answering questions**: I can provide information or explanations on a wide range of topics.
+- **Reading files**: If you provide me with a file (such as `.txt` or `.md` within a specific folder), I can analyze or summarize its content.
+- **Analyzing logs**: I can help pinpoint issues by reviewing log files and offering interpretations.
+- **Knowledge base search**: If a relevant keyword or topic exists in a predefined knowledge base, I can search it for useful information.
+- **Providing recommendations**: Based on the information you provide (e.g., logs or data), I can suggest next steps or possible solutions.
+
+Let me know how I can assist you today!
 
 You> /reset
 🔄 Conversation history cleared.
