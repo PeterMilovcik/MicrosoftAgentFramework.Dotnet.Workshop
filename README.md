@@ -410,3 +410,9 @@ When running the workshop with many participants sharing one Azure OpenAI deploy
 ## License
 
 MIT - see [LICENSE](LICENSE).
+
+## ☕ Support
+
+If you appreciate the content and find it useful, consider supporting me by "buying me a coffee".
+
+[![ko-fi|400](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/H2H2X917V)
