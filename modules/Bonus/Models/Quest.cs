@@ -8,7 +8,7 @@ namespace RPGGameMaster.Models;
 internal sealed class Quest
 {
     [JsonPropertyName("id")]
-    public string Id { get; set; } = Guid.NewGuid().ToString("N")[..8];
+    public string Id { get; set; } = EntityId.New();
 
     [JsonPropertyName("title")]
     public string Title { get; set; } = "";
@@ -21,7 +21,7 @@ internal sealed class Quest
 
     /// <summary>fetch, defeat, explore</summary>
     [JsonPropertyName("type")]
-    public string Type { get; set; } = "fetch";
+    public QuestType Type { get; set; } = QuestType.Fetch;
 
     /// <summary>The target item, creature, or location id.</summary>
     [JsonPropertyName("target_id")]

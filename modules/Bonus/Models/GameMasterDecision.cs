@@ -36,7 +36,7 @@ internal sealed class GameOption
 
     /// <summary>move, talk, fight, pickup, use_item, examine, rest, look_around, check_quests, inventory, map, trade, save_game, quit</summary>
     [JsonPropertyName("action_type")]
-    public string ActionType { get; set; } = "";
+    public ActionType ActionType { get; set; }
 
     /// <summary>Optional target identifier (location exit direction, NPC id, creature id, item name).</summary>
     [JsonPropertyName("target")]

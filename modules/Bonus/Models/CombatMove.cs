@@ -25,7 +25,7 @@ internal sealed class CombatMove
 
     /// <summary>attack, heavy, defensive, flee, item</summary>
     [JsonPropertyName("type")]
-    public string Type { get; set; } = "attack";
+    public MoveType Type { get; set; } = MoveType.Attack;
 
     /// <summary>Bonus/penalty to the d20 attack roll. Clamped to [-3, +5].</summary>
     [JsonPropertyName("attack_bonus")]

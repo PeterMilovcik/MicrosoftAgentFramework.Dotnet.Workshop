@@ -118,7 +118,7 @@ internal static class GameMasterWorkflow
                 }
                 else if (decision.NextAgent.Equals("creature_forger", StringComparison.OrdinalIgnoreCase) && state.CurrentLocation is not null)
                 {
-                    var diff = state.Player.Level <= 2 ? "easy" : state.Player.Level <= 4 ? "medium" : "hard";
+                    var diff = EnumExtensions.FromPlayerLevel(state.Player.Level);
                     subPrompt = BuildCreatureGenerationContext(state, state.CurrentLocation, diff) + "\n\n" +
                         $"Your task:\n{decision.Task}\n\n" +
                         "Output ONLY the raw Creature JSON object, no markdown fences, no explanation.";
@@ -174,7 +174,7 @@ internal static class GameMasterWorkflow
             {
                 Console.ForegroundColor = ConsoleColor.Yellow;
                 Console.WriteLine($"\n{UIStrings.Format(state.Language, "level_up", state.Player.Level)}");
-                Console.WriteLine($"   {UIStrings.Format(state.Language, "level_stats", state.Player.HP, state.Player.MaxHP, state.Player.Attack, state.Player.Defense)}");
+                Console.WriteLine($"   {UIStrings.Format(state.Language, "level_stats", state.Player.Health.Current, state.Player.Health.Max, state.Player.Attack, state.Player.Defense)}");
                 Console.ResetColor();
                 state.AddLog($"Player leveled up to {state.Player.Level}!");
             }
@@ -197,53 +197,53 @@ internal static class GameMasterWorkflow
         Func<string, string> loadPrompt,
         CancellationToken ct)
     {
-        switch (choice.ActionType.ToLowerInvariant())
+        switch (choice.ActionType)
         {
-            case "move":
+            case ActionType.Move:
                 return await HandleMove(choice, state, config, agentMap, loadPrompt, ct);
 
-            case "talk":
+            case ActionType.Talk:
                 return await HandleTalk(choice, state, config, ct);
 
-            case "fight":
+            case ActionType.Fight:
                 var fightResult = await HandleFight(choice, state, config, loadPrompt, ct);
                 if (fightResult == "__GAME_OVER__")
                     return HandleDeath(state);
                 return fightResult;
 
-            case "pickup":
+            case ActionType.Pickup:
                 return HandlePickup(choice, state);
 
-            case "use_item":
+            case ActionType.Use_Item:
                 return await HandleUseItem(choice, state, agentMap, ct);
 
-            case "rest":
+            case ActionType.Rest:
                 return HandleRest(state);
 
-            case "look_around":
+            case ActionType.Look_Around:
                 return $"Player looks around the current location: {state.CurrentLocation?.Name ?? "unknown"}.";
 
-            case "examine":
+            case ActionType.Examine:
                 return await HandleExamine(choice, state, agentMap, ct);
 
-            case "check_quests":
+            case ActionType.Check_Quests:
                 PrintQuests(state);
                 return "Player reviewed their active quests.";
 
-            case "inventory":
+            case ActionType.Inventory:
                 return HandleInventory(state);
 
-            case "map":
+            case ActionType.Map:
                 return HandleMap(state);
 
-            case "trade":
+            case ActionType.Trade:
                 return await HandleTrade(choice, state, config, ct);
 
-            case "save_game":
+            case ActionType.Save_Game:
                 SaveGameToDisk(state);
                 return "Player saved the game.";
 
-            case "quit":
+            case ActionType.Quit:
                 SaveGameToDisk(state);
                 return "__QUIT__";
 
@@ -354,7 +354,7 @@ internal static class GameMasterWorkflow
             {
                 if (state.NPCs.TryGetValue(npcId, out var nearbyNpc))
                 {
-                    nearbyNpc.DispositionTowardPlayer = Math.Min(100, nearbyNpc.DispositionTowardPlayer + 10);
+                    nearbyNpc.DispositionTowardPlayer = nearbyNpc.DispositionTowardPlayer.Improve(10);
                     if (nearbyNpc.Mood is "anxious" or "fearful" or "wary" or "suspicious")
                         nearbyNpc.Mood = "relieved";
                 }
@@ -403,14 +403,13 @@ internal static class GameMasterWorkflow
             return $"You don't have '{choice.Target}' in your inventory.";
 
         // Potions: direct handling (no LLM call needed for simple heal math)
-        if (item.Type == "potion")
+        if (item.Type == ItemType.Potion)
         {
-            var healed = Math.Min(item.EffectValue, state.Player.MaxHP - state.Player.HP);
-            state.Player.HP += healed;
+            state.Player.Health = state.Player.Health.Heal(item.EffectValue, out var healed);
             state.Player.Inventory.Remove(item);
 
             Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine($"\n{UIStrings.Format(state.Language, "used_item", item.Name, healed, state.Player.HP, state.Player.MaxHP)}");
+            Console.WriteLine($"\n{UIStrings.Format(state.Language, "used_item", item.Name, healed, state.Player.Health.Current, state.Player.Health.Max)}");
             Console.ResetColor();
 
             state.AddLog($"Used {item.Name}, healed {healed} HP.");
@@ -418,7 +417,7 @@ internal static class GameMasterWorkflow
         }
 
         // Non-usable items (weapons, armor without IsUsable flag)
-        if (!item.IsUsable && item.Type is "weapon" or "armor")
+        if (!item.IsUsable && item.Type.IsEquippable())
         {
             Console.ForegroundColor = ConsoleColor.DarkGray;
             Console.WriteLine($"\n  {UIStrings.Format(state.Language, "item_equipped", item.Name)}");
@@ -433,7 +432,7 @@ internal static class GameMasterWorkflow
 
             var usePrompt = $"The player wants to USE this item.\n\n" +
                 $"Item: {JsonSerializer.Serialize(item, AgentHelper.JsonOpts)}\n" +
-                $"Player HP: {state.Player.HP}/{state.Player.MaxHP}\n" +
+                $"Player HP: {state.Player.Health}\n" +
                 $"World theme: {state.WorldTheme}\n" +
                 $"Location: {state.CurrentLocation?.Name ?? "unknown"}\n\n" +
                 "Determine the effect and narrate what happens. Call ApplyItemEffect with the result.";
@@ -561,12 +560,11 @@ internal static class GameMasterWorkflow
 
     private static string HandleRest(GameState state)
     {
-        var healAmount = state.Player.MaxHP / 4;
-        var healed = Math.Min(healAmount, state.Player.MaxHP - state.Player.HP);
-        state.Player.HP += healed;
+        var healAmount = state.Player.Health.Max / 4;
+        state.Player.Health = state.Player.Health.Heal(healAmount, out var healed);
 
         Console.ForegroundColor = ConsoleColor.Green;
-        Console.WriteLine($"\n{UIStrings.Format(state.Language, "rest_healed", healed, state.Player.HP, state.Player.MaxHP)}");
+        Console.WriteLine($"\n{UIStrings.Format(state.Language, "rest_healed", healed, state.Player.Health.Current, state.Player.Health.Max)}");
         Console.ResetColor();
 
         state.AddLog($"Rested, healed {healed} HP.");
@@ -596,9 +594,9 @@ internal static class GameMasterWorkflow
             var item = player.Inventory[i];
             var bonus = item.Type switch
             {
-                "weapon" => UIStrings.Format(state.Language, "inv_atk_bonus", item.EffectValue),
-                "armor" => UIStrings.Format(state.Language, "inv_def_bonus", item.EffectValue),
-                "potion" => UIStrings.Format(state.Language, "inv_heals", item.EffectValue),
+                ItemType.Weapon => UIStrings.Format(state.Language, "inv_atk_bonus", item.EffectValue),
+                ItemType.Armor => UIStrings.Format(state.Language, "inv_def_bonus", item.EffectValue),
+                ItemType.Potion => UIStrings.Format(state.Language, "inv_heals", item.EffectValue),
                 _ => "",
             };
             Console.ForegroundColor = ConsoleColor.White;
@@ -609,8 +607,8 @@ internal static class GameMasterWorkflow
         }
 
         // Offer to use a potion
-        var potions = player.Inventory.Where(i => i.Type == "potion").ToList();
-        if (potions.Count > 0 && player.HP < player.MaxHP)
+        var potions = player.Inventory.Where(i => i.Type == ItemType.Potion).ToList();
+        if (potions.Count > 0 && player.Health.Current < player.Health.Max)
         {
             Console.ForegroundColor = ConsoleColor.DarkCyan;
             Console.Write($"\n   {UIStrings.Get(state.Language, "inventory_use_prompt")}");
@@ -620,13 +618,12 @@ internal static class GameMasterWorkflow
             if (int.TryParse(input, out var idx) && idx >= 1 && idx <= player.Inventory.Count)
             {
                 var chosen = player.Inventory[idx - 1];
-                if (chosen.Type == "potion")
+                if (chosen.Type == ItemType.Potion)
                 {
-                    var healed = Math.Min(chosen.EffectValue, player.MaxHP - player.HP);
-                    player.HP += healed;
+                    player.Health = player.Health.Heal(chosen.EffectValue, out var healed);
                     player.Inventory.RemoveAt(idx - 1);
                     Console.ForegroundColor = ConsoleColor.Green;
-                    Console.WriteLine($"   {UIStrings.Format(state.Language, "used_item", chosen.Name, healed, player.HP, player.MaxHP)}");
+                    Console.WriteLine($"   {UIStrings.Format(state.Language, "used_item", chosen.Name, healed, player.Health.Current, player.Health.Max)}");
                     Console.ResetColor();
                     state.AddLog($"Used {chosen.Name}, healed {healed} HP.");
                     return $"Player used {chosen.Name}, healed {healed} HP.";
@@ -669,8 +666,7 @@ internal static class GameMasterWorkflow
             var tags = new List<string>();
             if (!string.IsNullOrWhiteSpace(loc.Type))
                 tags.Add(loc.Type);
-            if (!string.IsNullOrWhiteSpace(loc.DangerLevel))
-                tags.Add(loc.DangerLevel);
+            tags.Add(loc.DangerLevel.ToString().ToLowerInvariant());
             var tagStr = tags.Count > 0 ? $" [{string.Join(", ", tags)}]" : "";
 
             var exitNames = loc.Exits.Select(e =>
@@ -701,13 +697,12 @@ internal static class GameMasterWorkflow
         Console.ResetColor();
 
         // Penalty: lose 50% gold, 25% XP
-        var goldLost = state.Player.Gold / 2;
+        state.Player.Gold = state.Player.Gold.ApplyPenalty(0.5, out var goldLost);
         var xpLost = state.Player.XP / 4;
-        state.Player.Gold -= goldLost;
         state.Player.XP = Math.Max(0, state.Player.XP - xpLost);
 
         // Full HP restore
-        state.Player.HP = state.Player.MaxHP;
+        state.Player.Health = state.Player.Health.RestoreToMax();
 
         // Teleport to first discovered location (starting area)
         var startLoc = state.Locations.Values.FirstOrDefault();
@@ -717,7 +712,7 @@ internal static class GameMasterWorkflow
         Console.ForegroundColor = ConsoleColor.DarkYellow;
         Console.WriteLine($"\n  {UIStrings.Format(state.Language, "death_respawn", startLoc?.Name ?? "the starting area")}");
         Console.WriteLine($"  {UIStrings.Format(state.Language, "death_penalty", goldLost, xpLost)}");
-        Console.WriteLine($"  {UIStrings.Format(state.Language, "death_restored", state.Player.HP, state.Player.MaxHP)}");
+        Console.WriteLine($"  {UIStrings.Format(state.Language, "death_restored", state.Player.Health.Current, state.Player.Health.Max)}");
         Console.ResetColor();
 
         state.AddLog($"Fell in battle. Lost {goldLost}g and {xpLost}xp. Respawned at {startLoc?.Name ?? "start"}.");
@@ -784,7 +779,7 @@ internal static class GameMasterWorkflow
                         {
                             Name = el.TryGetProperty("name", out var n) ? n.GetString() ?? "" : "",
                             Description = el.TryGetProperty("description", out var d) ? d.GetString() ?? "" : "",
-                            Type = el.TryGetProperty("type", out var t) ? t.GetString() ?? "misc" : "misc",
+                            Type = ParseItemType(el.TryGetProperty("type", out var t) ? t.GetString() : null),
                             EffectValue = el.TryGetProperty("effect_value", out var ev) ? ev.GetInt32() : 0,
                             Price = el.TryGetProperty("price", out var p) ? p.GetInt32() : 10,
                         });
@@ -847,7 +842,7 @@ internal static class GameMasterWorkflow
             for (var i = 0; i < state.Player.Inventory.Count; i++)
             {
                 var inv = state.Player.Inventory[i];
-                var sellPrice = Math.Max(1, (inv.Type == "weapon" || inv.Type == "armor" ? inv.EffectValue * 3 : inv.EffectValue));
+                var sellPrice = inv.SellPrice;
                 Console.ForegroundColor = ConsoleColor.White;
                 Console.Write($"  [{i + 1}] {inv.Name}");
                 Console.ForegroundColor = ConsoleColor.DarkGray;
@@ -861,7 +856,7 @@ internal static class GameMasterWorkflow
             if (int.TryParse(sellInput, out var si) && si >= 1 && si <= state.Player.Inventory.Count)
             {
                 var sold = state.Player.Inventory[si - 1];
-                var price = Math.Max(1, (sold.Type == "weapon" || sold.Type == "armor" ? sold.EffectValue * 3 : sold.EffectValue));
+                var price = sold.SellPrice;
                 state.Player.Inventory.RemoveAt(si - 1);
                 state.Player.Gold += price;
                 Console.ForegroundColor = ConsoleColor.Green;
@@ -874,9 +869,9 @@ internal static class GameMasterWorkflow
         else if (int.TryParse(input, out var buyIdx) && buyIdx >= 1 && buyIdx <= shopItems.Count)
         {
             var toBuy = shopItems[buyIdx - 1];
-            if (state.Player.Gold >= toBuy.Price)
+            if (state.Player.Gold.TrySpend(toBuy.Price, out var remaining))
             {
-                state.Player.Gold -= toBuy.Price;
+                state.Player.Gold = remaining;
                 state.Player.Inventory.Add(new Item
                 {
                     Name = toBuy.Name,
@@ -906,10 +901,13 @@ internal static class GameMasterWorkflow
     {
         public string Name { get; set; } = "";
         public string Description { get; set; } = "";
-        public string Type { get; set; } = "misc";
+        public ItemType Type { get; set; } = ItemType.Misc;
         public int EffectValue { get; set; }
         public int Price { get; set; }
     }
+
+    private static ItemType ParseItemType(string? raw)
+        => Enum.TryParse<ItemType>(raw, ignoreCase: true, out var result) ? result : ItemType.Misc;
 
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     // Generation context builders
@@ -929,7 +927,7 @@ internal static class GameMasterWorkflow
         sb.AppendLine($"World theme: {state.WorldTheme}");
         if (state.Language != "English")
             sb.AppendLine($"Language: {state.Language} — all player-facing text MUST be in this language. JSON keys stay English.");
-        sb.AppendLine($"Player: {state.Player.Name} | Level {state.Player.Level} | HP {state.Player.HP}/{state.Player.MaxHP} | Gold {state.Player.Gold}");
+        sb.AppendLine($"Player: {state.Player.Name} | Level {state.Player.Level} | HP {state.Player.Health} | Gold {state.Player.Gold}");
         sb.AppendLine($"Locations explored: {state.Locations.Count}");
         sb.AppendLine();
 
@@ -955,8 +953,7 @@ internal static class GameMasterWorkflow
                 sb.AppendLine($"  Type: {fromLoc.Type}");
             if (!string.IsNullOrWhiteSpace(fromLoc.Atmosphere))
                 sb.AppendLine($"  Atmosphere: {fromLoc.Atmosphere}");
-            if (!string.IsNullOrWhiteSpace(fromLoc.DangerLevel))
-                sb.AppendLine($"  Danger: {fromLoc.DangerLevel}");
+            sb.AppendLine($"  Danger: {fromLoc.DangerLevel}");
             sb.AppendLine();
         }
 
@@ -1027,7 +1024,7 @@ internal static class GameMasterWorkflow
         sb.AppendLine($"World theme: {state.WorldTheme}");
         if (state.Language != "English")
             sb.AppendLine($"Language: {state.Language} — all player-facing text MUST be in this language. JSON keys stay English.");
-        sb.AppendLine($"Player: {state.Player.Name} | Level {state.Player.Level} | HP {state.Player.HP}/{state.Player.MaxHP} | Gold {state.Player.Gold}");
+        sb.AppendLine($"Player: {state.Player.Name} | Level {state.Player.Level} | HP {state.Player.Health} | Gold {state.Player.Gold}");
         sb.AppendLine($"Locations explored: {state.Locations.Count}");
         sb.AppendLine();
 
@@ -1039,8 +1036,7 @@ internal static class GameMasterWorkflow
             sb.AppendLine($"Location type: {location.Type}");
         if (!string.IsNullOrWhiteSpace(location.Atmosphere))
             sb.AppendLine($"Atmosphere: {location.Atmosphere}");
-        if (!string.IsNullOrWhiteSpace(location.DangerLevel))
-            sb.AppendLine($"Danger level: {location.DangerLevel}");
+        sb.AppendLine($"Danger level: {location.DangerLevel}");
         if (!string.IsNullOrWhiteSpace(location.Lore))
             sb.AppendLine($"Location lore: {location.Lore}");
         sb.AppendLine();
@@ -1111,7 +1107,7 @@ internal static class GameMasterWorkflow
     /// Builds a rich context block for creature generation so the Creature Forger can
     /// avoid duplicates, match the location, and scale to the player's actual stats.
     /// </summary>
-    private static string BuildCreatureGenerationContext(GameState state, Location location, string difficulty)
+    private static string BuildCreatureGenerationContext(GameState state, Location location, Difficulty difficulty)
     {
         var sb = new StringBuilder();
         sb.AppendLine("## GENERATION CONTEXT\n");
@@ -1120,7 +1116,7 @@ internal static class GameMasterWorkflow
         sb.AppendLine($"World theme: {state.WorldTheme}");
         if (state.Language != "English")
             sb.AppendLine($"Language: {state.Language} — all player-facing text MUST be in this language. JSON keys stay English.");
-        sb.AppendLine($"Player: {state.Player.Name} | Level {state.Player.Level} | HP {state.Player.HP}/{state.Player.MaxHP} | " +
+        sb.AppendLine($"Player: {state.Player.Name} | Level {state.Player.Level} | HP {state.Player.Health} | " +
             $"EffAtk {state.Player.EffectiveAttack} | EffDef {state.Player.EffectiveDefense}");
         sb.AppendLine();
 
@@ -1129,8 +1125,7 @@ internal static class GameMasterWorkflow
         sb.AppendLine($"Description: {location.Description}");
         sb.AppendLine($"Location id: {location.Id}");
         sb.AppendLine($"Difficulty: {difficulty}");
-        if (!string.IsNullOrWhiteSpace(location.DangerLevel))
-            sb.AppendLine($"Location danger level: {location.DangerLevel}");
+        sb.AppendLine($"Location danger level: {location.DangerLevel}");
         if (!string.IsNullOrWhiteSpace(location.Atmosphere))
             sb.AppendLine($"Location atmosphere: {location.Atmosphere}");
         sb.AppendLine();
@@ -1163,7 +1158,7 @@ internal static class GameMasterWorkflow
 
         // Active defeat quests (opportunity to spawn quest target)
         var defeatQuests = state.Player.ActiveQuests
-            .Where(q => !q.IsComplete && q.Type.Equals("defeat", StringComparison.OrdinalIgnoreCase))
+            .Where(q => !q.IsComplete && q.Type == QuestType.Defeat)
             .ToList();
         if (defeatQuests.Count > 0)
         {
@@ -1217,14 +1212,8 @@ internal static class GameMasterWorkflow
         state.AddLog($"Discovered new location: {newLoc.Name}");
 
         // DangerLevel-driven spawn probabilities
-        var (npcChance, creatureChance) = newLoc.DangerLevel.ToLowerInvariant() switch
-        {
-            "safe" => (0.90, 0.10),
-            "moderate" => (0.60, 0.40),
-            "dangerous" => (0.30, 0.70),
-            "deadly" => (0.15, 0.90),
-            _ => (0.60, 0.40),
-        };
+        var npcChance = newLoc.DangerLevel.NpcSpawnChance();
+        var creatureChance = newLoc.DangerLevel.CreatureSpawnChance();
 
         // Generate NPCs (probability driven by danger level; always for starting location)
         var shouldGenNPC = fromLocationId is null || Random.Shared.NextDouble() < npcChance;
@@ -1262,7 +1251,7 @@ internal static class GameMasterWorkflow
             var forge = config.CreateAgent(creaturePromptText);
             AgentHelper.PrintSubAgentWork("creature_forger", "Spawning creature...");
 
-            var difficulty = state.Player.Level <= 2 ? "easy" : state.Player.Level <= 4 ? "medium" : "hard";
+            var difficulty = EnumExtensions.FromPlayerLevel(state.Player.Level);
             var creatureContext = BuildCreatureGenerationContext(state, newLoc, difficulty);
             var creaturePrompt = creatureContext + "\n\n" +
                 "Generate a creature for this location. Output ONLY the raw Creature JSON object, no markdown fences, no explanation.";
@@ -1375,12 +1364,12 @@ internal static class GameMasterWorkflow
     {
         foreach (var quest in state.Player.ActiveQuests.Where(q => !q.IsComplete))
         {
-            var completed = quest.Type.ToLowerInvariant() switch
+            var completed = quest.Type switch
             {
-                "defeat" => state.Creatures.TryGetValue(quest.TargetId, out var c) && c.IsDefeated,
-                "fetch" => state.Player.Inventory.Any(i =>
+                QuestType.Defeat => state.Creatures.TryGetValue(quest.TargetId, out var c) && c.IsDefeated,
+                QuestType.Fetch => state.Player.Inventory.Any(i =>
                     i.Name.Equals(quest.TargetId, StringComparison.OrdinalIgnoreCase)),
-                "explore" => state.Locations.TryGetValue(quest.TargetId, out var loc) && loc.Visited,
+                QuestType.Explore => state.Locations.TryGetValue(quest.TargetId, out var loc) && loc.Visited,
                 _ => false,
             };
 
@@ -1409,7 +1398,7 @@ internal static class GameMasterWorkflow
             // Boost quest giver's disposition and mood
             if (!string.IsNullOrWhiteSpace(quest.GiverNPCId) && state.NPCs.TryGetValue(quest.GiverNPCId, out var giver))
             {
-                giver.DispositionTowardPlayer = Math.Min(100, giver.DispositionTowardPlayer + 20);
+                giver.DispositionTowardPlayer = giver.DispositionTowardPlayer.Improve(20);
                 giver.Mood = "grateful";
             }
         }
@@ -1420,7 +1409,7 @@ internal static class GameMasterWorkflow
         var sb = new StringBuilder();
         sb.AppendLine($"World Theme: {state.WorldTheme}");
         sb.AppendLine($"Turn: {state.TurnCount}");
-        sb.AppendLine($"Player: {state.Player.Name} | HP: {state.Player.HP}/{state.Player.MaxHP} | " +
+        sb.AppendLine($"Player: {state.Player.Name} | HP: {state.Player.Health} | " +
             $"Atk: {state.Player.EffectiveAttack} | Def: {state.Player.EffectiveDefense} | " +
             $"Level: {state.Player.Level} | Gold: {state.Player.Gold} | XP: {state.Player.XP}/{state.Player.XPToNextLevel}");
 
@@ -1438,8 +1427,7 @@ internal static class GameMasterWorkflow
                 sb.AppendLine($"Type: {loc.Type}");
             if (!string.IsNullOrWhiteSpace(loc.Atmosphere))
                 sb.AppendLine($"Atmosphere: {loc.Atmosphere}");
-            if (!string.IsNullOrWhiteSpace(loc.DangerLevel))
-                sb.AppendLine($"Danger level: {loc.DangerLevel}");
+            sb.AppendLine($"Danger level: {loc.DangerLevel}");
             sb.AppendLine($"Description: {loc.Description}");
             if (!string.IsNullOrWhiteSpace(loc.Lore))
                 sb.AppendLine($"Lore: {loc.Lore}");
@@ -1486,34 +1474,34 @@ internal static class GameMasterWorkflow
         if (loc is not null)
         {
             foreach (var exit in loc.Exits)
-                options.Add(new() { Number = n++, Description = $"Go {exit.Direction} — {exit.Description}", ActionType = "move", Target = exit.Direction });
+                options.Add(new() { Number = n++, Description = $"Go {exit.Direction} — {exit.Description}", ActionType = ActionType.Move, Target = exit.Direction });
 
             // NPCs
             foreach (var npcId in loc.NPCIds)
             {
                 if (state.NPCs.TryGetValue(npcId, out var npc))
-                    options.Add(new() { Number = n++, Description = $"Talk to {npc.Name} ({npc.Occupation})", ActionType = "talk", Target = npc.Id });
+                    options.Add(new() { Number = n++, Description = $"Talk to {npc.Name} ({npc.Occupation})", ActionType = ActionType.Talk, Target = npc.Id });
             }
 
             // Creatures
             foreach (var cId in loc.CreatureIds)
             {
                 if (state.Creatures.TryGetValue(cId, out var creature) && !creature.IsDefeated)
-                    options.Add(new() { Number = n++, Description = $"Fight {creature.Name}", ActionType = "fight", Target = creature.Id });
+                    options.Add(new() { Number = n++, Description = $"Fight {creature.Name}", ActionType = ActionType.Fight, Target = creature.Id });
             }
 
             // Items on ground
             foreach (var item in loc.Items)
-                options.Add(new() { Number = n++, Description = $"Pick up {item.Name}", ActionType = "pickup", Target = item.Name });
+                options.Add(new() { Number = n++, Description = $"Pick up {item.Name}", ActionType = ActionType.Pickup, Target = item.Name });
         }
 
-        options.Add(new() { Number = n++, Description = UIStrings.Get(state.Language, "opt_look_around"), ActionType = "look_around" });
+        options.Add(new() { Number = n++, Description = UIStrings.Get(state.Language, "opt_look_around"), ActionType = ActionType.Look_Around });
         if (state.Player.Inventory.Count > 0)
-            options.Add(new() { Number = n++, Description = UIStrings.Get(state.Language, "opt_inventory"), ActionType = "inventory" });
-        options.Add(new() { Number = n++, Description = UIStrings.Get(state.Language, "opt_quests"), ActionType = "check_quests" });
-        options.Add(new() { Number = n++, Description = UIStrings.Get(state.Language, "opt_map"), ActionType = "map" });
-        options.Add(new() { Number = n++, Description = UIStrings.Get(state.Language, "opt_save"), ActionType = "save_game" });
-        options.Add(new() { Number = n++, Description = UIStrings.Get(state.Language, "opt_quit"), ActionType = "quit" });
+            options.Add(new() { Number = n++, Description = UIStrings.Get(state.Language, "opt_inventory"), ActionType = ActionType.Inventory });
+        options.Add(new() { Number = n++, Description = UIStrings.Get(state.Language, "opt_quests"), ActionType = ActionType.Check_Quests });
+        options.Add(new() { Number = n++, Description = UIStrings.Get(state.Language, "opt_map"), ActionType = ActionType.Map });
+        options.Add(new() { Number = n++, Description = UIStrings.Get(state.Language, "opt_save"), ActionType = ActionType.Save_Game });
+        options.Add(new() { Number = n++, Description = UIStrings.Get(state.Language, "opt_quit"), ActionType = ActionType.Quit });
 
         return new PlayerPresentation
         {
@@ -1684,8 +1672,8 @@ internal static class GameMasterWorkflow
             {
                 // End of input stream — treat as quit
                 Console.WriteLine();
-                return options.FirstOrDefault(o => o.ActionType.Equals("quit", StringComparison.OrdinalIgnoreCase))
-                    ?? new GameOption { Number = 0, Description = "Quit", ActionType = "quit", Target = "" };
+                return options.FirstOrDefault(o => o.ActionType == ActionType.Quit)
+                    ?? new GameOption { Number = 0, Description = "Quit", ActionType = ActionType.Quit, Target = "" };
             }
 
             input = input.Trim();
@@ -1710,7 +1698,7 @@ internal static class GameMasterWorkflow
                     PrintHelp(state.Language);
                     continue;
                 case "exit" or "quit":
-                    return new GameOption { Number = 0, Description = "Quit", ActionType = "quit", Target = "" };
+                    return new GameOption { Number = 0, Description = "Quit", ActionType = ActionType.Quit, Target = "" };
             }
 
             if (int.TryParse(input, out var num))
@@ -1736,9 +1724,9 @@ internal static class GameMasterWorkflow
         Console.WriteLine($"   {UIStrings.Format(state.Language, "stat_name", p.Name)}");
         Console.WriteLine($"   {UIStrings.Format(state.Language, "stat_level", p.Level)}");
         Console.Write($"   ");
-        Console.ForegroundColor = p.HP <= p.MaxHP / 4 ? ConsoleColor.Red
-            : p.HP <= p.MaxHP / 2 ? ConsoleColor.Yellow : ConsoleColor.Green;
-        Console.WriteLine(UIStrings.Format(state.Language, "stat_hp", p.HP, p.MaxHP));
+        Console.ForegroundColor = p.Health.Percentage <= 25 ? ConsoleColor.Red
+            : p.Health.Percentage <= 50 ? ConsoleColor.Yellow : ConsoleColor.Green;
+        Console.WriteLine(UIStrings.Format(state.Language, "stat_hp", p.Health.Current, p.Health.Max));
         Console.ForegroundColor = ConsoleColor.White;
         Console.WriteLine($"   {UIStrings.Format(state.Language, "stat_attack", p.EffectiveAttack, p.Attack)}");
         Console.WriteLine($"   {UIStrings.Format(state.Language, "stat_defense", p.EffectiveDefense, p.Defense)}");

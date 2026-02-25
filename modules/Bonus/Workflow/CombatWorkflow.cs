@@ -31,7 +31,7 @@ internal static class CombatWorkflow
         Console.ResetColor();
         Console.ForegroundColor = ConsoleColor.DarkGray;
         Console.WriteLine($"  {creature.Description}");
-        Console.WriteLine($"  {UIStrings.Format(state.Language, "combat_stats", creature.HP, creature.MaxHP, creature.Attack, creature.Defense, creature.Difficulty)}");
+        Console.WriteLine($"  {UIStrings.Format(state.Language, "combat_stats", creature.Health.Current, creature.Health.Max, creature.Attack, creature.Defense, creature.Difficulty)}");
         Console.ResetColor();
 
         // Create combat agents (tool-free — no UpdatePlayerStats double-mutation)
@@ -43,7 +43,7 @@ internal static class CombatWorkflow
         var locationName = state.CurrentLocation?.Name ?? "the battlefield";
         var locationAtmosphere = state.CurrentLocation?.Atmosphere ?? "";
 
-        while (creature.HP > 0 && state.Player.HP > 0)
+        while (creature.Health.IsAlive && state.Player.Health.IsAlive)
         {
             round++;
 
@@ -70,15 +70,15 @@ internal static class CombatWorkflow
 
             // ── Find potion if item move ──
             Item? potionToUse = null;
-            if (chosen.Type.Equals("item", StringComparison.OrdinalIgnoreCase))
+            if (chosen.Type == MoveType.Item)
             {
-                potionToUse = state.Player.Inventory.FirstOrDefault(i => i.Type == "potion");
+                potionToUse = state.Player.Inventory.FirstOrDefault(i => i.Type == ItemType.Potion);
                 if (potionToUse is null)
                 {
                     Console.ForegroundColor = ConsoleColor.DarkYellow;
                     Console.WriteLine($"  {UIStrings.Get(state.Language, "combat_no_potions")}");
                     Console.ResetColor();
-                    chosen = new CombatMove { Number = 1, Name = "Quick Strike", Type = "attack", Icon = "⚔️" };
+                    chosen = new CombatMove { Number = 1, Name = "Quick Strike", Type = MoveType.Attack, Icon = "⚔️" };
                 }
             }
 
@@ -86,13 +86,13 @@ internal static class CombatWorkflow
             var result = CombatResolver.Resolve(state.Player, creature, chosen, potionToUse);
 
             // ── Apply results to game state ──
-            creature.HP = Math.Max(0, creature.HP - result.TotalDamageToCreature);
-            state.Player.HP = Math.Clamp(state.Player.HP - result.TotalDamageToPlayer, 0, state.Player.MaxHP);
+            creature.Health = creature.Health.TakeDamage(result.TotalDamageToCreature);
+            state.Player.Health = state.Player.Health.TakeDamage(result.TotalDamageToPlayer);
 
             // Apply healing
             if (result.HealAmount > 0 && potionToUse is not null)
             {
-                state.Player.HP = Math.Min(state.Player.HP + result.HealAmount, state.Player.MaxHP);
+                state.Player.Health = state.Player.Health.Heal(result.HealAmount);
                 state.Player.Inventory.Remove(potionToUse);
             }
 
@@ -123,7 +123,7 @@ internal static class CombatWorkflow
             }
 
             // ── Check creature defeated ──
-            if (creature.HP <= 0)
+            if (creature.Health.IsDead)
             {
                 creature.HP = 0;
                 creature.IsDefeated = true;
@@ -157,7 +157,7 @@ internal static class CombatWorkflow
             }
 
             // ── Check player defeated ──
-            if (state.Player.HP <= 0)
+            if (state.Player.Health.IsDead)
             {
                 state.Player.HP = 0;
                 Console.ForegroundColor = ConsoleColor.Red;
@@ -168,7 +168,7 @@ internal static class CombatWorkflow
             }
         }
 
-        return creature.HP <= 0 ? CombatResult.CreatureDefeated : CombatResult.PlayerDefeated;
+        return creature.Health.IsDead ? CombatResult.CreatureDefeated : CombatResult.PlayerDefeated;
     }
 
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -185,19 +185,19 @@ internal static class CombatWorkflow
             sb.AppendLine($"Language: {language} — all move names and descriptions MUST be in this language. JSON keys and type values stay English.\n");
 
         // Player state
-        var weapon = player.Inventory.FirstOrDefault(i => i.Type == "weapon");
+        var weapon = player.Inventory.FirstOrDefault(i => i.Type == ItemType.Weapon);
         var weaponDesc = weapon is not null ? $"{weapon.Name} (+{weapon.EffectValue} atk)" : "bare hands";
-        var armor = player.Inventory.FirstOrDefault(i => i.Type == "armor");
+        var armor = player.Inventory.FirstOrDefault(i => i.Type == ItemType.Armor);
         var armorDesc = armor is not null ? $"{armor.Name} (+{armor.EffectValue} def)" : "no armor";
-        var hpPct = (int)(100.0 * player.HP / player.MaxHP);
+        var hpPct = player.Health.Percentage;
 
-        sb.AppendLine($"Player: {player.Name} | HP: {player.HP}/{player.MaxHP} ({hpPct}%) | " +
+        sb.AppendLine($"Player: {player.Name} | HP: {player.Health} ({hpPct}%) | " +
             $"EffAtk: {player.EffectiveAttack} | EffDef: {player.EffectiveDefense}");
         sb.AppendLine($"Weapon: {weaponDesc} | Armor: {armorDesc}");
 
         // Creature state
-        var creatureHpPct = (int)(100.0 * creature.HP / creature.MaxHP);
-        sb.AppendLine($"\nCreature: {creature.Name} | HP: {creature.HP}/{creature.MaxHP} ({creatureHpPct}%) | " +
+        var creatureHpPct = creature.Health.Percentage;
+        sb.AppendLine($"\nCreature: {creature.Name} | HP: {creature.Health} ({creatureHpPct}%) | " +
             $"Atk: {creature.Attack} | Def: {creature.Defense} | Difficulty: {creature.Difficulty}");
         sb.AppendLine($"Description: {creature.Description}");
         if (!string.IsNullOrWhiteSpace(creature.Behavior))
@@ -209,8 +209,8 @@ internal static class CombatWorkflow
         sb.AppendLine($"Round: {round}");
 
         // Potions check
-        var potions = player.Inventory.Where(i => i.Type == "potion").ToList();
-        if (potions.Count > 0 && player.HP < player.MaxHP)
+        var potions = player.Inventory.Where(i => i.Type == ItemType.Potion).ToList();
+        if (potions.Count > 0 && player.Health.Current < player.Health.Max)
         {
             sb.AppendLine($"\nPOTION AVAILABLE: {potions[0].Name} (heals {potions[0].EffectValue}) — " +
                 "include an 'item' type move.");
@@ -244,8 +244,8 @@ internal static class CombatWorkflow
             sb.AppendLine($"Language: {language} — narration MUST be in this language.\n");
 
         sb.AppendLine($"Round: {round}");
-        sb.AppendLine($"Player: {player.Name} (HP: {player.HP}/{player.MaxHP})");
-        sb.AppendLine($"Creature: {creature.Name} (HP: {creature.HP}/{creature.MaxHP})");
+        sb.AppendLine($"Player: {player.Name} (HP: {player.Health})");
+        sb.AppendLine($"Creature: {creature.Name} (HP: {creature.Health})");
         if (!string.IsNullOrWhiteSpace(creature.Behavior))
             sb.AppendLine($"Creature behavior: {creature.Behavior}");
         if (!string.IsNullOrWhiteSpace(locationName))
@@ -329,28 +329,28 @@ internal static class CombatWorkflow
         {
             new()
             {
-                Number = 1, Name = UIStrings.Get(language, "move_quick_strike"), Icon = "⚔️", Type = "attack",
+                Number = 1, Name = UIStrings.Get(language, "move_quick_strike"), Icon = "⚔️", Type = MoveType.Attack,
                 Description = UIStrings.Format(language, "move_quick_strike_desc", creature.Name),
                 AttackBonus = 1, DamageBonus = 0,
             },
             new()
             {
-                Number = 2, Name = UIStrings.Get(language, "move_defensive"), Icon = "🛡️", Type = "defensive",
+                Number = 2, Name = UIStrings.Get(language, "move_defensive"), Icon = "🛡️", Type = MoveType.Defensive,
                 Description = UIStrings.Get(language, "move_defensive_desc"),
                 DefenseBonus = 2, AttackBonus = 0,
             },
             new()
             {
-                Number = 3, Name = UIStrings.Get(language, "move_disengage"), Icon = "🏃", Type = "flee",
+                Number = 3, Name = UIStrings.Get(language, "move_disengage"), Icon = "🏃", Type = MoveType.Flee,
                 Description = UIStrings.Get(language, "move_disengage_desc"),
             },
         };
 
-        if (player.Inventory.Any(i => i.Type == "potion") && player.HP < player.MaxHP)
+        if (player.Inventory.Any(i => i.Type == ItemType.Potion) && player.Health.Current < player.Health.Max)
         {
             moves.Add(new CombatMove
             {
-                Number = 4, Name = UIStrings.Get(language, "move_drink_potion"), Icon = "🧪", Type = "item",
+                Number = 4, Name = UIStrings.Get(language, "move_drink_potion"), Icon = "🧪", Type = MoveType.Item,
                 Description = UIStrings.Get(language, "move_drink_potion_desc"),
             });
         }
@@ -417,11 +417,11 @@ internal static class CombatWorkflow
     private static void PrintCombatStatus(PlayerCharacter player, Creature creature, string language)
     {
         Console.ForegroundColor = ConsoleColor.Green;
-        Console.Write($"  {UIStrings.Format(language, "combat_you_hp", player.HP, player.MaxHP)}");
+        Console.Write($"  {UIStrings.Format(language, "combat_you_hp", player.Health.Current, player.Health.Max)}");
         Console.ResetColor();
         Console.Write("  |  ");
         Console.ForegroundColor = ConsoleColor.Red;
-        Console.WriteLine($"{UIStrings.Format(language, "combat_creature_hp", creature.Name, creature.HP, creature.MaxHP)}");
+        Console.WriteLine($"{UIStrings.Format(language, "combat_creature_hp", creature.Name, creature.Health.Current, creature.Health.Max)}");
         Console.ResetColor();
     }
 
@@ -558,7 +558,7 @@ internal static class CombatWorkflow
             if (input is null)
             {
                 Console.WriteLine();
-                return moves.FirstOrDefault(m => m.Type.Equals("flee", StringComparison.OrdinalIgnoreCase))
+                return moves.FirstOrDefault(m => m.Type == MoveType.Flee)
                     ?? moves[0];
             }
 

@@ -81,12 +81,11 @@ internal static class ItemTools
             switch (effectType.ToLowerInvariant())
             {
                 case "heal":
-                    var healAmt = Math.Min(Math.Max(0, value), _gameState.Player.MaxHP - _gameState.Player.HP);
-                    _gameState.Player.HP += healAmt;
+                    _gameState.Player.Health = _gameState.Player.Health.Heal(Math.Max(0, value), out var healAmt);
                     // Remove consumable
                     if (item is { IsConsumable: true })
                         _gameState.Player.Inventory.Remove(item);
-                    return $"OK: Healed {healAmt} HP (now {_gameState.Player.HP}/{_gameState.Player.MaxHP}).{(item?.IsConsumable == true ? $" {item.Name} consumed." : "")}";
+                    return $"OK: Healed {healAmt} HP (now {_gameState.Player.Health}).{(item?.IsConsumable == true ? $" {item.Name} consumed." : "")}";
 
                 case "unlock":
                     // Log the unlock — actual gate/door logic is handled by the GM narrative

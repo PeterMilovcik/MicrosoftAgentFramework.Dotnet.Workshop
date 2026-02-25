@@ -40,38 +40,38 @@ internal static class CombatResolver
 
         var result = new CombatRoundResult
         {
-            MoveType = move.Type.ToLowerInvariant(),
+            MoveType = move.Type.ToString().ToLowerInvariant(),
             MoveName = move.Name,
         };
 
-        switch (move.Type.ToLowerInvariant())
+        switch (move.Type)
         {
-            case "attack":
+            case MoveType.Attack:
                 ResolvePlayerAttack(result, player, creature, atkBonus, dmgBonus, HitThreshold);
                 ResolveCreatureAttack(result, creature, player, defBonus);
                 result.SelfDamage = 0;
                 break;
 
-            case "heavy":
+            case MoveType.Heavy:
                 ResolvePlayerAttack(result, player, creature, atkBonus, dmgBonus, HeavyHitThreshold, doubleDamage: true);
                 ResolveCreatureAttack(result, creature, player, defBonus);
                 result.SelfDamage = selfDmg;
                 break;
 
-            case "defensive":
+            case MoveType.Defensive:
                 ResolveDefensiveCounter(result, player, creature, atkBonus);
                 ResolveCreatureAttack(result, creature, player, defBonus, halfDamage: true);
                 result.SelfDamage = 0;
                 break;
 
-            case "flee":
+            case MoveType.Flee:
                 ResolveFlee(result);
                 if (!result.FledSuccessfully)
                     ResolveCreatureAttack(result, creature, player, 0); // free attack on failed flee
                 result.SelfDamage = 0;
                 break;
 
-            case "item":
+            case MoveType.Item:
                 ResolveItemUse(result, player, potionToUse);
                 ResolveCreatureAttack(result, creature, player, 0);
                 result.SelfDamage = 0;
@@ -165,7 +165,7 @@ internal static class CombatResolver
     {
         if (potion is null) return;
         result.ItemUsed = potion.Name;
-        result.HealAmount = Math.Min(potion.EffectValue, player.MaxHP - player.HP);
+        result.HealAmount = Math.Min(potion.EffectValue, player.Health.Max - player.Health.Current);
     }
 
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

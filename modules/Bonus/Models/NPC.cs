@@ -8,7 +8,7 @@ namespace RPGGameMaster.Models;
 internal sealed class NPC
 {
     [JsonPropertyName("id")]
-    public string Id { get; set; } = Guid.NewGuid().ToString("N")[..8];
+    public string Id { get; set; } = EntityId.New();
 
     [JsonPropertyName("name")]
     public string Name { get; set; } = "";
@@ -46,7 +46,7 @@ internal sealed class NPC
     /// Shifts via quest completion, dialogue, and combat near the NPC.
     /// </summary>
     [JsonPropertyName("disposition_toward_player")]
-    public int DispositionTowardPlayer { get; set; }
+    public Disposition DispositionTowardPlayer { get; set; }
 
     /// <summary>
     /// Full system prompt for this NPC's dynamically created conversation agent.

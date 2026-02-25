@@ -9,7 +9,7 @@ internal sealed class GameState
 {
     /// <summary>Unique save identifier (8-char hex), generated at new game creation.</summary>
     [JsonPropertyName("save_id")]
-    public string SaveId { get; set; } = "";
+    public string SaveId { get; set; } = EntityId.New();
 
     /// <summary>UTC timestamp of the last save.</summary>
     [JsonPropertyName("last_saved_at")]

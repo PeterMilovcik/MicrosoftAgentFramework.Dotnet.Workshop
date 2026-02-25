@@ -16,6 +16,14 @@ internal sealed class PlayerCharacter
     [JsonPropertyName("max_hp")]
     public int MaxHP { get; set; } = 100;
 
+    /// <summary>Value-object accessor for HP/MaxHP with clamped domain arithmetic.</summary>
+    [JsonIgnore]
+    public HitPoints Health
+    {
+        get => new(HP, MaxHP);
+        set { HP = value.Current; MaxHP = value.Max; }
+    }
+
     [JsonPropertyName("attack")]
     public int Attack { get; set; } = 5;
 
@@ -32,7 +40,7 @@ internal sealed class PlayerCharacter
     public int XPToNextLevel { get; set; } = 100;
 
     [JsonPropertyName("gold")]
-    public int Gold { get; set; }
+    public Gold Gold { get; set; }
 
     [JsonPropertyName("inventory")]
     public List<Item> Inventory { get; set; } = [];
@@ -46,8 +54,7 @@ internal sealed class PlayerCharacter
         if (XP < XPToNextLevel) return false;
         XP -= XPToNextLevel;
         Level++;
-        MaxHP += 10;
-        HP = MaxHP;
+        Health = Health.IncreaseMax(10, restoreToMax: true);
         Attack += 2;
         Defense += 1;
         XPToNextLevel = Level * 100;
@@ -56,9 +63,9 @@ internal sealed class PlayerCharacter
 
     /// <summary>Compute effective attack (base + best weapon bonus).</summary>
     public int EffectiveAttack
-        => Attack + Inventory.Where(i => i.Type == "weapon").Select(i => i.EffectValue).DefaultIfEmpty(0).Max();
+        => Attack + Inventory.Where(i => i.Type == ItemType.Weapon).Select(i => i.EffectValue).DefaultIfEmpty(0).Max();
 
     /// <summary>Compute effective defense (base + best armor bonus).</summary>
     public int EffectiveDefense
-        => Defense + Inventory.Where(i => i.Type == "armor").Select(i => i.EffectValue).DefaultIfEmpty(0).Max();
+        => Defense + Inventory.Where(i => i.Type == ItemType.Armor).Select(i => i.EffectValue).DefaultIfEmpty(0).Max();
 }

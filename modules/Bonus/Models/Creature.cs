@@ -8,7 +8,7 @@ namespace RPGGameMaster.Models;
 internal sealed class Creature
 {
     [JsonPropertyName("id")]
-    public string Id { get; set; } = Guid.NewGuid().ToString("N")[..8];
+    public string Id { get; set; } = EntityId.New();
 
     [JsonPropertyName("name")]
     public string Name { get; set; } = "";
@@ -25,6 +25,14 @@ internal sealed class Creature
     [JsonPropertyName("max_hp")]
     public int MaxHP { get; set; } = 20;
 
+    /// <summary>Value-object accessor for HP/MaxHP with clamped domain arithmetic.</summary>
+    [JsonIgnore]
+    public HitPoints Health
+    {
+        get => new(HP, MaxHP);
+        set { HP = value.Current; MaxHP = value.Max; }
+    }
+
     [JsonPropertyName("attack")]
     public int Attack { get; set; } = 4;
 
@@ -33,7 +41,7 @@ internal sealed class Creature
 
     /// <summary>easy, medium, hard, boss</summary>
     [JsonPropertyName("difficulty")]
-    public string Difficulty { get; set; } = "easy";
+    public Difficulty Difficulty { get; set; } = Difficulty.Easy;
 
     /// <summary>Combat personality (e.g., "ambush predator, retreats when wounded"). Fed to Combat Strategist/Narrator.</summary>
     [JsonPropertyName("behavior")]

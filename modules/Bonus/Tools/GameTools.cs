@@ -55,13 +55,13 @@ internal static class GameTools
             var root = doc.RootElement;
 
             if (root.TryGetProperty("hp", out var hpProp))
-                _gameState.Player.HP = Math.Clamp(hpProp.GetInt32(), 0, _gameState.Player.MaxHP);
+                _gameState.Player.Health = new HitPoints(hpProp.GetInt32(), _gameState.Player.Health.Max);
             if (root.TryGetProperty("gold", out var goldProp))
-                _gameState.Player.Gold = Math.Max(0, goldProp.GetInt32());
+                _gameState.Player.Gold = new Gold(goldProp.GetInt32());
             if (root.TryGetProperty("xp", out var xpProp))
                 _gameState.Player.XP = Math.Max(0, xpProp.GetInt32());
 
-            return $"OK: Player stats updated. HP={_gameState.Player.HP}/{_gameState.Player.MaxHP}, Gold={_gameState.Player.Gold}, XP={_gameState.Player.XP}";
+            return $"OK: Player stats updated. HP={_gameState.Player.Health}, Gold={_gameState.Player.Gold}, XP={_gameState.Player.XP}";
         }
         catch (Exception ex)
         {

@@ -28,15 +28,7 @@ internal static class DialogueWorkflow
             : $"You are {npc.Name}, a {npc.Occupation}. {npc.Personality}. Keep responses to 2-3 sentences. Stay in character.";
 
         // Inject dynamic mood and disposition (not baked into AgentInstructions — changes between conversations)
-        var dispositionLabel = npc.DispositionTowardPlayer switch
-        {
-            <= -50 => "hostile",
-            <= -20 => "unfriendly",
-            <= 10  => "neutral",
-            <= 40  => "friendly",
-            <= 70  => "warm",
-            _      => "devoted",
-        };
+        var dispositionLabel = npc.DispositionTowardPlayer.Label;
         var dynamicContext = $"\n\nCURRENT STATE (override any conflicting instructions):\n" +
             $"Your current mood is: {npc.Mood}.\n" +
             $"Your attitude toward this player is: {dispositionLabel} (disposition score: {npc.DispositionTowardPlayer}).\n" +
@@ -219,7 +211,7 @@ internal static class DialogueWorkflow
             npc.AddDialogue(entry);
 
         // Small disposition bump for having a conversation (capped at 100)
-        npc.DispositionTowardPlayer = Math.Min(100, npc.DispositionTowardPlayer + 5);
+        npc.DispositionTowardPlayer = npc.DispositionTowardPlayer.Improve(5);
 
         state.AddLog($"Spoke with {npc.Name}.");
     }

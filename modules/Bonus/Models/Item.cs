@@ -15,7 +15,7 @@ internal sealed class Item
 
     /// <summary>weapon, armor, potion, scroll, food, key, misc</summary>
     [JsonPropertyName("type")]
-    public string Type { get; set; } = "misc";
+    public ItemType Type { get; set; } = ItemType.Misc;
 
     /// <summary>
     /// Positive number: damage bonus (weapon), armor bonus (armor), heal amount (potion/food).
@@ -26,7 +26,11 @@ internal sealed class Item
 
     /// <summary>common, uncommon, rare, legendary — affects lore richness and examine detail.</summary>
     [JsonPropertyName("rarity")]
-    public string Rarity { get; set; } = "common";
+    public ItemRarity Rarity { get; set; } = ItemRarity.Common;
+
+    /// <summary>Compute sell price based on item type and effect value.</summary>
+    [JsonIgnore]
+    public int SellPrice => Type.SellPrice(EffectValue);
 
     /// <summary>Whether the item can be actively used (scrolls, food, keys). Weapons/armor are passive.</summary>
     [JsonPropertyName("is_usable")]

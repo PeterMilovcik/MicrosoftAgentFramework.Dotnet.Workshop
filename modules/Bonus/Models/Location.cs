@@ -28,7 +28,7 @@ internal sealed class Exit
 internal sealed class Location
 {
     [JsonPropertyName("id")]
-    public string Id { get; set; } = Guid.NewGuid().ToString("N")[..8];
+    public string Id { get; set; } = EntityId.New();
 
     [JsonPropertyName("name")]
     public string Name { get; set; } = "";
@@ -50,7 +50,7 @@ internal sealed class Location
 
     /// <summary>Threat level: safe, moderate, dangerous, or deadly. Drives NPC/creature spawn probabilities.</summary>
     [JsonPropertyName("danger_level")]
-    public string DangerLevel { get; set; } = "moderate";
+    public DangerLevel DangerLevel { get; set; } = DangerLevel.Moderate;
 
     /// <summary>1-2 sentences of location history — origin, past events, legends.</summary>
     [JsonPropertyName("lore")]

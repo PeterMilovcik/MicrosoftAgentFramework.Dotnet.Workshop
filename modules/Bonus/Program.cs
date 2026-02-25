@@ -96,9 +96,9 @@ while (true)
             Console.Write($" — {themeShort}");
             Console.ForegroundColor = ConsoleColor.Cyan;
             Console.Write($" (Lvl {s.Player.Level}, Turn {s.TurnCount}");
-            Console.ForegroundColor = s.Player.HP <= s.Player.MaxHP / 4 ? ConsoleColor.Red
-                : s.Player.HP <= s.Player.MaxHP / 2 ? ConsoleColor.Yellow : ConsoleColor.Green;
-            Console.Write($", HP {s.Player.HP}/{s.Player.MaxHP}");
+            Console.ForegroundColor = s.Player.Health.Percentage <= 25 ? ConsoleColor.Red
+                : s.Player.Health.Percentage <= 50 ? ConsoleColor.Yellow : ConsoleColor.Green;
+            Console.Write($", HP {s.Player.Health}");
             Console.ForegroundColor = ConsoleColor.DarkGray;
             Console.WriteLine($", {ago})");
             Console.ResetColor();
@@ -315,7 +315,7 @@ static GameState CreateNewGame()
 
     var state = new GameState
     {
-        SaveId = Guid.NewGuid().ToString("N")[..8],
+        SaveId = EntityId.New(),
         LastSavedAt = DateTime.UtcNow,
         Player = new PlayerCharacter
         {
@@ -330,8 +330,8 @@ static GameState CreateNewGame()
             Gold = 10,
             Inventory =
             [
-                new Item { Name = UIStrings.Get(language, "item_rusty_sword"), Description = UIStrings.Get(language, "item_rusty_sword_desc"), Type = "weapon", EffectValue = 2 },
-                new Item { Name = UIStrings.Get(language, "item_healing_potion"), Description = UIStrings.Get(language, "item_healing_potion_desc"), Type = "potion", EffectValue = 20 },
+                new Item { Name = UIStrings.Get(language, "item_rusty_sword"), Description = UIStrings.Get(language, "item_rusty_sword_desc"), Type = ItemType.Weapon, EffectValue = 2 },
+                new Item { Name = UIStrings.Get(language, "item_healing_potion"), Description = UIStrings.Get(language, "item_healing_potion_desc"), Type = ItemType.Potion, EffectValue = 20 },
             ],
         },
         WorldTheme = theme,
@@ -343,7 +343,7 @@ static GameState CreateNewGame()
     Console.WriteLine($"  ✅ {name} is ready for adventure!");
     Console.ResetColor();
     Console.ForegroundColor = ConsoleColor.DarkGray;
-    Console.WriteLine($"  HP: {state.Player.HP} | Atk: {state.Player.Attack} | Def: {state.Player.Defense} | Gold: {state.Player.Gold}");
+    Console.WriteLine($"  HP: {state.Player.Health} | Atk: {state.Player.Attack} | Def: {state.Player.Defense} | Gold: {state.Player.Gold}");
     Console.WriteLine($"  Inventory: {string.Join(", ", state.Player.Inventory.Select(i => i.Name))}");
     Console.WriteLine($"  World: {theme}");
     Console.ResetColor();
