@@ -10,7 +10,7 @@ namespace RPGGameMaster.Models;
 /// </summary>
 internal sealed class GameMasterDecision
 {
-    /// <summary>world_architect, npc_weaver, creature_forger, combat_narrator, npc_dialogue, PRESENT_TO_PLAYER</summary>
+    /// <summary>world_architect, npc_weaver, creature_forger, combat_narrator, npc_dialogue, item_sage, PRESENT_TO_PLAYER</summary>
     [JsonPropertyName("next_agent")]
     public string NextAgent { get; set; } = "";
 
@@ -34,7 +34,7 @@ internal sealed class GameOption
     [JsonPropertyName("description")]
     public string Description { get; set; } = "";
 
-    /// <summary>move, talk, fight, pickup, use_item, rest, look_around, check_quests, inventory, map, trade, save_game, quit</summary>
+    /// <summary>move, talk, fight, pickup, use_item, examine, rest, look_around, check_quests, inventory, map, trade, save_game, quit</summary>
     [JsonPropertyName("action_type")]
     public string ActionType { get; set; } = "";
 

@@ -20,7 +20,7 @@ When asked to generate a location, produce a **single JSON object** matching thi
   "npc_ids": [],
   "creature_ids": [],
   "items": [
-    {"name": "Dusty Scroll", "description": "A scroll with faded ink, partially legible", "type": "misc", "effect_value": 0}
+    {"name": "Dusty Scroll", "description": "A scroll with faded ink, partially legible", "type": "scroll", "effect_value": 5, "rarity": "uncommon", "is_usable": true, "is_consumable": true}
   ],
   "visited": false
 }
@@ -38,3 +38,5 @@ When asked to generate a location, produce a **single JSON object** matching thi
 8. Exit descriptions should **hint at what lies beyond** to build anticipation.
 9. Output **only the JSON object**. No commentary, no markdown fences.
 10. When given a "back" direction and location id, include it as an exit with the matching `target_location_id`.
+11. For items, set `rarity` (`"common"`, `"uncommon"`, `"rare"`, `"legendary"`). Safe areas → common, dangerous areas → uncommon/rare. Legendary items are extremely rare.
+12. Scrolls and food should have `"is_usable": true, "is_consumable": true`. Keys should have `"is_usable": true, "is_consumable": false`. Misc flavor items omit these fields.

@@ -31,6 +31,7 @@ internal static class GameMasterWorkflow
         var npcWeaver = config.CreateAgent(LoadPrompt("npc-weaver"), tools: NPCTools.GetTools());
         var creatureForger = config.CreateAgent(LoadPrompt("creature-forger"), tools: CreatureTools.GetTools());
         var combatNarrator = config.CreateAgent(LoadPrompt("combat-narrator"));
+        var itemSage = config.CreateAgent(LoadPrompt("item-sage"), tools: ItemTools.GetTools());
 
         var agentMap = new Dictionary<string, AIAgent>(StringComparer.OrdinalIgnoreCase)
         {
@@ -38,10 +39,12 @@ internal static class GameMasterWorkflow
             ["npc_weaver"] = npcWeaver,
             ["creature_forger"] = creatureForger,
             ["combat_narrator"] = combatNarrator,
+            ["item_sage"] = itemSage,
         };
 
-        // Set game state reference for GameTools
+        // Set game state references for tool classes
         GameTools.SetGameState(state);
+        ItemTools.SetGameState(state);
 
         // ── First turn: generate starting location ──
         if (state.Locations.Count == 0)
@@ -189,13 +192,16 @@ internal static class GameMasterWorkflow
                 return HandlePickup(choice, state);
 
             case "use_item":
-                return HandleUseItem(choice, state);
+                return await HandleUseItem(choice, state, agentMap, ct);
 
             case "rest":
                 return HandleRest(state);
 
             case "look_around":
                 return $"Player looks around the current location: {state.CurrentLocation?.Name ?? "unknown"}.";
+
+            case "examine":
+                return await HandleExamine(choice, state, agentMap, ct);
 
             case "check_quests":
                 PrintQuests(state);
@@ -343,14 +349,23 @@ internal static class GameMasterWorkflow
         return $"Player picked up {item.Name}.";
     }
 
-    private static string HandleUseItem(GameOption choice, GameState state)
+    private static async Task<string> HandleUseItem(
+        GameOption choice, GameState state,
+        Dictionary<string, AIAgent> agentMap,
+        CancellationToken ct)
     {
         var item = state.Player.Inventory.FirstOrDefault(i =>
             i.Name.Equals(choice.Target, StringComparison.OrdinalIgnoreCase));
 
+        // Fuzzy fallback
+        item ??= state.Player.Inventory.FirstOrDefault(i =>
+            i.Name.Contains(choice.Target, StringComparison.OrdinalIgnoreCase) ||
+            choice.Target.Contains(i.Name, StringComparison.OrdinalIgnoreCase));
+
         if (item is null)
             return $"You don't have '{choice.Target}' in your inventory.";
 
+        // Potions: direct handling (no LLM call needed for simple heal math)
         if (item.Type == "potion")
         {
             var healed = Math.Min(item.EffectValue, state.Player.MaxHP - state.Player.HP);
@@ -365,7 +380,146 @@ internal static class GameMasterWorkflow
             return $"Player used {item.Name}, healed {healed} HP.";
         }
 
+        // Non-usable items (weapons, armor without IsUsable flag)
+        if (!item.IsUsable && item.Type is "weapon" or "armor")
+        {
+            Console.ForegroundColor = ConsoleColor.DarkGray;
+            Console.WriteLine($"\n  {item.Name} is equipped passively — it's already boosting your stats.");
+            Console.ResetColor();
+            return $"{item.Name} is equipped passively.";
+        }
+
+        // Route to Item Sage for scrolls, food, keys, misc, and other usable items
+        if (agentMap.TryGetValue("item_sage", out var itemSage))
+        {
+            AgentHelper.PrintStatus($"Using {item.Name}...");
+
+            var usePrompt = $"The player wants to USE this item.\n\n" +
+                $"Item: {JsonSerializer.Serialize(item, AgentHelper.JsonOpts)}\n" +
+                $"Player HP: {state.Player.HP}/{state.Player.MaxHP}\n" +
+                $"World theme: {state.WorldTheme}\n" +
+                $"Location: {state.CurrentLocation?.Name ?? "unknown"}\n\n" +
+                "Determine the effect and narrate what happens. Call ApplyItemEffect with the result.";
+
+            var response = await AgentHelper.RunAgent(itemSage, usePrompt, ct,
+                "{\"action\": \"use\", \"narrative\": \"Nothing happens.\", \"effect\": {\"type\": \"narrative_only\"}}");
+
+            var narrative = ParseItemSageNarrative(response);
+
+            Console.ForegroundColor = ConsoleColor.Cyan;
+            Console.WriteLine($"\n  {narrative}");
+            Console.ResetColor();
+
+            state.AddLog($"Used {item.Name}.");
+            return $"Player used {item.Name}.";
+        }
+
         return $"You can't use {item.Name} right now.";
+    }
+
+    // ── Examine ──
+
+    private static async Task<string> HandleExamine(
+        GameOption choice, GameState state,
+        Dictionary<string, AIAgent> agentMap,
+        CancellationToken ct)
+    {
+        var item = state.Player.Inventory.FirstOrDefault(i =>
+            i.Name.Equals(choice.Target, StringComparison.OrdinalIgnoreCase));
+
+        item ??= state.Player.Inventory.FirstOrDefault(i =>
+            i.Name.Contains(choice.Target, StringComparison.OrdinalIgnoreCase) ||
+            choice.Target.Contains(i.Name, StringComparison.OrdinalIgnoreCase));
+
+        // Also check location items
+        if (item is null && state.CurrentLocation is not null)
+        {
+            item = state.CurrentLocation.Items.FirstOrDefault(i =>
+                i.Name.Equals(choice.Target, StringComparison.OrdinalIgnoreCase));
+            item ??= state.CurrentLocation.Items.FirstOrDefault(i =>
+                i.Name.Contains(choice.Target, StringComparison.OrdinalIgnoreCase) ||
+                choice.Target.Contains(i.Name, StringComparison.OrdinalIgnoreCase));
+        }
+
+        if (item is null)
+            return $"Cannot find '{choice.Target}' to examine.";
+
+        // If lore is already cached, display it directly
+        if (!string.IsNullOrWhiteSpace(item.Lore))
+        {
+            Console.ForegroundColor = ConsoleColor.White;
+            Console.WriteLine($"\n  🔍 {item.Name}");
+            Console.ResetColor();
+            Console.ForegroundColor = ConsoleColor.Cyan;
+            Console.WriteLine($"  {item.Lore}");
+            Console.ResetColor();
+            return $"Player examined {item.Name} (cached lore).";
+        }
+
+        // Route to Item Sage for lore generation
+        if (agentMap.TryGetValue("item_sage", out var itemSage))
+        {
+            AgentHelper.PrintStatus($"Examining {item.Name}...");
+
+            var examinePrompt = $"The player wants to EXAMINE this item. Generate a rich lore description.\n\n" +
+                $"Item: {JsonSerializer.Serialize(item, AgentHelper.JsonOpts)}\n" +
+                $"World theme: {state.WorldTheme}\n" +
+                $"Location: {state.CurrentLocation?.Name ?? "unknown"}\n\n" +
+                "Generate lore and call SetItemLore to cache it.";
+
+            var response = await AgentHelper.RunAgent(itemSage, examinePrompt, ct,
+                "{\"action\": \"examine\", \"lore\": \"An unremarkable item.\"}");
+
+            var lore = ParseItemSageLore(response);
+
+            // Cache it ourselves as fallback if the agent didn't call SetItemLore
+            if (string.IsNullOrWhiteSpace(item.Lore))
+                item.Lore = lore;
+
+            Console.ForegroundColor = ConsoleColor.White;
+            Console.WriteLine($"\n  🔍 {item.Name}");
+            Console.ResetColor();
+            Console.ForegroundColor = ConsoleColor.Cyan;
+            Console.WriteLine($"  {lore}");
+            Console.ResetColor();
+
+            state.AddLog($"Examined {item.Name}.");
+            return $"Player examined {item.Name}.";
+        }
+
+        // Fallback: show the basic description
+        Console.ForegroundColor = ConsoleColor.DarkGray;
+        Console.WriteLine($"\n  {item.Description}");
+        Console.ResetColor();
+        return $"Player examined {item.Name}.";
+    }
+
+    private static string ParseItemSageNarrative(string text)
+    {
+        var json = AgentHelper.ExtractJson(text);
+        if (json is null) return text.Trim();
+        try
+        {
+            using var doc = JsonDocument.Parse(json);
+            if (doc.RootElement.TryGetProperty("narrative", out var n))
+                return n.GetString() ?? text.Trim();
+        }
+        catch { /* fall through */ }
+        return text.Trim();
+    }
+
+    private static string ParseItemSageLore(string text)
+    {
+        var json = AgentHelper.ExtractJson(text);
+        if (json is null) return text.Trim();
+        try
+        {
+            using var doc = JsonDocument.Parse(json);
+            if (doc.RootElement.TryGetProperty("lore", out var l))
+                return l.GetString() ?? text.Trim();
+        }
+        catch { /* fall through */ }
+        return text.Trim();
     }
 
     private static string HandleRest(GameState state)

@@ -18,8 +18,8 @@ When asked to generate a creature, produce a **single JSON object** matching thi
   "defense": 4,
   "difficulty": "medium",
   "loot": [
-    {"name": "Shadow Essence", "description": "A vial of swirling darkness, cold to the touch", "type": "misc", "effect_value": 0},
-    {"name": "Dark Fang", "description": "A razor-sharp tooth that pulses with faint energy", "type": "weapon", "effect_value": 3}
+    {"name": "Shadow Essence", "description": "A vial of swirling darkness, cold to the touch", "type": "misc", "effect_value": 0, "rarity": "uncommon"},
+    {"name": "Dark Fang", "description": "A razor-sharp tooth that pulses with faint energy", "type": "weapon", "effect_value": 3, "rarity": "common"}
   ],
   "xp_reward": 50,
   "is_defeated": false
@@ -47,3 +47,5 @@ When asked to generate a creature, produce a **single JSON object** matching thi
 8. Armor loot `effect_value` should be 1-2 for easy, 2-4 for medium, 4-6 for hard, 6-8 for boss.
 9. Potion loot `effect_value` (heal amount) should be 10-20 for easy, 20-35 for medium, 35-50 for hard, 50+ for boss.
 10. Output **only the JSON object**. No commentary, no markdown fences.
+11. Set `rarity` on loot: easy→`"common"`, medium→`"common"`/`"uncommon"`, hard→`"uncommon"`/`"rare"`, boss→`"rare"`/`"legendary"`.
+12. Scrolls and food items should include `"is_usable": true, "is_consumable": true`. Weapons and armor omit these (they default to false).
