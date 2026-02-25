@@ -65,7 +65,7 @@ Agents & Tools:
 
 ```powershell
 # From the repository root
-dotnet run --project modules/Bonus_RPG_GameMaster
+dotnet run --project modules/Bonus
 ```
 
 Or using the run script:
@@ -146,39 +146,46 @@ Your choice > 2
 ## File Structure
 
 ```
-modules/Bonus_RPG_GameMaster/
-  Bonus_RPG_GameMaster.csproj   ← Project file (net10.0)
+modules/Bonus/
+  Bonus.csproj                   ← Project file (net10.0)
   AgentConfig.cs                 ← Azure OpenAI config + token tracking
   Program.cs                     ← Entry: menu, character creation, game launch
 
   Models/
-    PlayerCharacter.cs           ← Player stats, inventory, quests
+    CombatMove.cs                ← Combat move definitions
+    CombatRoundResult.cs         ← Combat round outcome data
+    Creature.cs                  ← Creatures with combat stats
+    GameMasterDecision.cs        ← GM routing + player presentation POCOs
+    GameState.cs                 ← Full serializable game state
+    Item.cs                      ← Weapons, armor, potions, misc
     Location.cs                  ← World locations with exits
     NPC.cs                       ← NPCs with AgentInstructions for dynamic agents
-    Creature.cs                  ← Creatures with combat stats
-    Item.cs                      ← Weapons, armor, potions, misc
+    PlayerCharacter.cs           ← Player stats, inventory, quests
     Quest.cs                     ← Fetch/defeat/explore quests
-    GameState.cs                 ← Full serializable game state
-    GameMasterDecision.cs        ← GM routing + player presentation POCOs
 
   Tools/
-    LocationTools.cs             ← Save/load/list locations (JSON files)
-    NPCTools.cs                  ← Save/load/query NPCs
     CreatureTools.cs             ← Save/load/query creatures
     GameTools.cs                 ← Dice rolls, player stats, save/load game
+    ItemTools.cs                 ← Save/load/query items
+    LocationTools.cs             ← Save/load/list locations (JSON files)
+    NPCTools.cs                  ← Save/load/query NPCs
 
   Workflow/
-    GameMasterWorkflow.cs        ← Core orchestration (two-tier loop)
+    AgentHelper.cs               ← Shared agent creation utilities
+    CombatResolver.cs            ← Combat resolution logic
     CombatWorkflow.cs            ← Round-by-round combat sub-loop
     DialogueWorkflow.cs          ← NPC conversation with dynamic agents
+    GameMasterWorkflow.cs        ← Core orchestration (two-tier loop)
 
   assets/
     prompts/
-      game-master.md             ← GM routing + presentation rules
-      world-architect.md         ← Location generation prompt
-      npc-weaver.md              ← NPC + agent instructions generation
-      creature-forger.md         ← Creature + stats generation
       combat-narrator.md         ← Combat narration + dice formulas
+      combat-strategist.md       ← Combat strategy decisions
+      creature-forger.md         ← Creature + stats generation
+      game-master.md             ← GM routing + presentation rules
+      item-sage.md               ← Item generation prompt
+      npc-weaver.md              ← NPC + agent instructions generation
+      world-architect.md         ← Location generation prompt
     game-data/                   ← Runtime-generated (locations/, npcs/, creatures/, saves/)
 ```
 

@@ -7,6 +7,14 @@ namespace RPGGameMaster.Models;
 /// </summary>
 internal sealed class GameState
 {
+    /// <summary>Unique save identifier (8-char hex), generated at new game creation.</summary>
+    [JsonPropertyName("save_id")]
+    public string SaveId { get; set; } = "";
+
+    /// <summary>UTC timestamp of the last save.</summary>
+    [JsonPropertyName("last_saved_at")]
+    public DateTime LastSavedAt { get; set; } = DateTime.UtcNow;
+
     [JsonPropertyName("player")]
     public PlayerCharacter Player { get; set; } = new();
 
@@ -43,4 +51,13 @@ internal sealed class GameState
 
     public Location? CurrentLocation
         => Locations.TryGetValue(CurrentLocationId, out var loc) ? loc : null;
+
+    /// <summary>Generates the save filename based on sanitized player name + SaveId.</summary>
+    public string GetSaveFileName()
+    {
+        var safeName = string.Concat(Player.Name.Where(c => char.IsLetterOrDigit(c) || c == '-'))
+            .ToLowerInvariant();
+        if (string.IsNullOrEmpty(safeName)) safeName = "hero";
+        return $"save_{safeName}_{SaveId}.json";
+    }
 }

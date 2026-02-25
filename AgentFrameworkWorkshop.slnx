@@ -10,6 +10,6 @@
     <Project Path="modules/07_GroupChat_Orchestration/07_GroupChat_Orchestration.csproj" />
     <Project Path="modules/08_Handoff_Orchestration/08_Handoff_Orchestration.csproj" />
     <Project Path="modules/09_Magentic_ManagerOrchestration/09_Magentic_ManagerOrchestration.csproj" />
-    <Project Path="modules/Bonus_RPG_GameMaster/Bonus_RPG_GameMaster.csproj" />
+    <Project Path="modules/Bonus/Bonus.csproj" />
   </Folder>
 </Solution>

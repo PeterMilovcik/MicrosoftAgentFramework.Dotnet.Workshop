@@ -193,7 +193,7 @@ All modules use the same four environment variables:
 ```bash
 export AZURE_OPENAI_ENDPOINT="https://myresource.openai.azure.com/"
 export AZURE_OPENAI_API_KEY="your-api-key"
-export AZURE_OPENAI_DEPLOYMENT="gpt-4o"
+export AZURE_OPENAI_DEPLOYMENT="gpt-4o-mini"
 
 # Check / diagnose
 ./scripts/set-env.sh
@@ -203,7 +203,7 @@ export AZURE_OPENAI_DEPLOYMENT="gpt-4o"
 ```powershell
 $env:AZURE_OPENAI_ENDPOINT = "https://myresource.openai.azure.com/"
 $env:AZURE_OPENAI_API_KEY = "your-api-key"
-$env:AZURE_OPENAI_DEPLOYMENT = "gpt-4o"
+$env:AZURE_OPENAI_DEPLOYMENT = "gpt-4o-mini"
 
 # Check / diagnose
 ./scripts/set-env.ps1
@@ -276,6 +276,7 @@ agent-framework-dotnet-workshop/
     07_GroupChat_Orchestration/  ← Round-robin multi-agent group chat
     08_Handoff_Orchestration/    ← Directed agent-to-agent routing
     09_Magentic_ManagerOrchestration/ ← LLM-managed dynamic orchestration
+    Bonus/                        ← Bonus: RPG Game Master (Magentic-One pattern)
 ```
 
 ---

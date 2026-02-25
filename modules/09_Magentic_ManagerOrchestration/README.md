@@ -213,4 +213,4 @@ In #file:MagenticWorkflow.cs for module 09, add a counter that tracks consecutiv
 
 🎉 **Full workshop complete!**
 
-**[← Back to Workshop Overview](../../README.md)** · **[☕ Support](../../README.md#-support)**
+**[← Back to Workshop Overview](../../README.md)** · **[🎮 Bonus: RPG Game Master →](../Bonus/README.md)** · **[☕ Support](../../README.md#-support)**

@@ -39,6 +39,12 @@ internal static class AgentHelper
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             if (sb.Length > 0) return sb.ToString().Trim();
+
+            // Log the error so transient API failures are visible
+            Console.ForegroundColor = ConsoleColor.DarkRed;
+            Console.WriteLine($"  ⚡ Agent error: {ex.Message.Split('\n')[0]}");
+            Console.ResetColor();
+
             return fallbackJson ?? $"[Error: {ex.Message.Split('\n')[0]}]";
         }
         return sb.ToString().Trim();

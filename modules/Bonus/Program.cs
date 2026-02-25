@@ -9,7 +9,7 @@ Console.WriteLine("""
 
                   />
      (           //------------------------------------------------------\
-    (*)OXOXOXOXO(*>      ~ * ~ R P G  G A M E  M A S T E R ~ * ~          \
+    (*)OXOXOXOXO(*>        ~ * ~ A I  G A M E  M A S T E R ~ * ~          \
      (           \\--------------------------------------------------------\
                   \>
 
@@ -17,8 +17,8 @@ Console.WriteLine("""
 Console.ForegroundColor = ConsoleColor.DarkGray;
 Console.WriteLine("""
     ╔══════════════════════════════════════════════════════════╗
-    ║  Bonus Module — AI-Driven RPG with Dynamic Agents       ║
-    ║  Powered by Microsoft Agent Framework + Azure OpenAI    ║
+    ║    Bonus Module — AI-Driven RPG with Dynamic Agents      ║
+    ║    Powered by Microsoft Agent Framework + Azure OpenAI   ║
     ╚══════════════════════════════════════════════════════════╝
     """);
 Console.ResetColor();
@@ -63,20 +63,115 @@ while (true)
 
     if (menuInput == "2")
     {
-        state = GameMasterWorkflow.LoadGameFromDisk();
-        if (state is null)
+        var saves = GameMasterWorkflow.ListSaves();
+        if (saves.Count == 0)
         {
             Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine("  No save file found. Start a new game first.");
+            Console.WriteLine("  No saved games found. Start a new game first.");
             Console.ResetColor();
             Console.WriteLine();
             continue;
         }
 
-        Console.ForegroundColor = ConsoleColor.Green;
-        Console.WriteLine($"\n  ✅ Game loaded! {state.Player.Name} — Level {state.Player.Level} — Turn {state.TurnCount}");
+        // Display saved games
+        Console.WriteLine();
+        Console.ForegroundColor = ConsoleColor.Yellow;
+        Console.WriteLine("  📂 Saved Games:");
         Console.ResetColor();
-        break;
+        Console.WriteLine();
+
+        for (var i = 0; i < saves.Count; i++)
+        {
+            var s = saves[i].State;
+            var themeShort = s.WorldTheme.Contains('—')
+                ? s.WorldTheme[..s.WorldTheme.IndexOf('—')].Trim()
+                : (s.WorldTheme.Length > 25 ? s.WorldTheme[..25] + "…" : s.WorldTheme);
+            var ago = FormatTimeAgo(s.LastSavedAt);
+
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.Write($"  [{i + 1}] ");
+            Console.ForegroundColor = ConsoleColor.White;
+            Console.Write($"{s.Player.Name}");
+            Console.ForegroundColor = ConsoleColor.DarkGray;
+            Console.Write($" — {themeShort}");
+            Console.ForegroundColor = ConsoleColor.Cyan;
+            Console.Write($" (Lvl {s.Player.Level}, Turn {s.TurnCount}");
+            Console.ForegroundColor = s.Player.HP <= s.Player.MaxHP / 4 ? ConsoleColor.Red
+                : s.Player.HP <= s.Player.MaxHP / 2 ? ConsoleColor.Yellow : ConsoleColor.Green;
+            Console.Write($", HP {s.Player.HP}/{s.Player.MaxHP}");
+            Console.ForegroundColor = ConsoleColor.DarkGray;
+            Console.WriteLine($", {ago})");
+            Console.ResetColor();
+        }
+
+        Console.WriteLine();
+        Console.ForegroundColor = ConsoleColor.DarkGray;
+        Console.WriteLine("  [D] 🗑️  Delete a save");
+        Console.WriteLine("  [B] ← Back to menu");
+        Console.ResetColor();
+        Console.WriteLine();
+
+        Console.ForegroundColor = ConsoleColor.DarkGray;
+        Console.Write("  Choose > ");
+        Console.ResetColor();
+        var loadInput = Console.ReadLine()?.Trim();
+
+        if (string.IsNullOrEmpty(loadInput) ||
+            loadInput.Equals("B", StringComparison.OrdinalIgnoreCase))
+        {
+            Console.WriteLine();
+            continue;
+        }
+
+        // Delete flow
+        if (loadInput.Equals("D", StringComparison.OrdinalIgnoreCase))
+        {
+            Console.ForegroundColor = ConsoleColor.DarkGray;
+            Console.Write("  Enter save number to delete > ");
+            Console.ResetColor();
+            var delInput = Console.ReadLine()?.Trim();
+            if (int.TryParse(delInput, out var delNum) && delNum >= 1 && delNum <= saves.Count)
+            {
+                var target = saves[delNum - 1];
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.Write($"  Delete {target.State.Player.Name}'s save? (y/n) > ");
+                Console.ResetColor();
+                var confirm = Console.ReadLine()?.Trim();
+                if (confirm?.Equals("y", StringComparison.OrdinalIgnoreCase) == true)
+                {
+                    GameMasterWorkflow.DeleteSave(target.Path);
+                    Console.ForegroundColor = ConsoleColor.DarkGray;
+                    Console.WriteLine("  Save deleted.");
+                    Console.ResetColor();
+                }
+            }
+            Console.WriteLine();
+            continue;
+        }
+
+        // Load selected save
+        if (int.TryParse(loadInput, out var idx) && idx >= 1 && idx <= saves.Count)
+        {
+            var (savePath, loadedState) = saves[idx - 1];
+            state = loadedState;
+
+            // Migrate legacy saves (no SaveId) to new naming
+            if (string.IsNullOrEmpty(state.SaveId))
+            {
+                GameMasterWorkflow.MigrateLegacySave(state, savePath);
+            }
+
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine($"\n  ✅ Game loaded! {state.Player.Name} — Level {state.Player.Level} — Turn {state.TurnCount}");
+            Console.ResetColor();
+            break;
+        }
+
+        Console.ForegroundColor = ConsoleColor.DarkYellow;
+        Console.WriteLine("  Invalid selection.");
+        Console.ResetColor();
+        Console.WriteLine();
+        continue;
     }
 
     if (menuInput == "1")
@@ -171,6 +266,8 @@ static GameState CreateNewGame()
 
     var state = new GameState
     {
+        SaveId = Guid.NewGuid().ToString("N")[..8],
+        LastSavedAt = DateTime.UtcNow,
         Player = new PlayerCharacter
         {
             Name = name,
@@ -203,4 +300,14 @@ static GameState CreateNewGame()
     Console.WriteLine();
 
     return state;
+}
+
+static string FormatTimeAgo(DateTime utcTime)
+{
+    var span = DateTime.UtcNow - utcTime;
+    if (span.TotalMinutes < 1) return "just now";
+    if (span.TotalMinutes < 60) return $"{(int)span.TotalMinutes}m ago";
+    if (span.TotalHours < 24) return $"{(int)span.TotalHours}h ago";
+    if (span.TotalDays < 7) return $"{(int)span.TotalDays}d ago";
+    return utcTime.ToLocalTime().ToString("MMM dd");
 }

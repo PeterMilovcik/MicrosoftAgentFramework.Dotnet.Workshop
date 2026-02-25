@@ -13,16 +13,6 @@ namespace RPGGameMaster.Tools;
 internal static class GameTools
 {
 
-    private static string SavesDir
-    {
-        get
-        {
-            var dir = Path.Combine(AppContext.BaseDirectory, "game-data", "saves");
-            Directory.CreateDirectory(dir);
-            return dir;
-        }
-    }
-
     // ── Dice ──
 
     [Description("Rolls dice and returns results. Example: count=2, sides=6 rolls 2d6.")]
@@ -79,23 +69,7 @@ internal static class GameTools
         }
     }
 
-    // ── Load Game ──
-
-    [Description("Loads a previously saved game state from disk.")]
-    public static string LoadGame()
-    {
-        try
-        {
-            var path = Path.Combine(SavesDir, "save.json");
-            if (!File.Exists(path))
-                return "ERROR: No save file found.";
-            return File.ReadAllText(path);
-        }
-        catch (Exception ex)
-        {
-            return $"ERROR: {ex.Message}";
-        }
-    }
+    // ── Load Game (removed — multi-save managed by workflow) ──
 
     public static IList<AITool> GetCombatTools() =>
     [

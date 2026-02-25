@@ -1192,24 +1192,70 @@ internal static class GameMasterWorkflow
     }
 
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    // Save game
+    // Save / Load game — multi-save support
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+    private static string SavesDir
+    {
+        get
+        {
+            var dir = Path.Combine(AppContext.BaseDirectory, "game-data", "saves");
+            Directory.CreateDirectory(dir);
+            return dir;
+        }
+    }
 
     public static void SaveGameToDisk(GameState state)
     {
-        var dir = Path.Combine(AppContext.BaseDirectory, "game-data", "saves");
-        Directory.CreateDirectory(dir);
+        state.LastSavedAt = DateTime.UtcNow;
         var json = JsonSerializer.Serialize(state, AgentHelper.JsonOpts);
-        File.WriteAllText(Path.Combine(dir, "save.json"), json);
+        File.WriteAllText(Path.Combine(SavesDir, state.GetSaveFileName()), json);
 
         Console.ForegroundColor = ConsoleColor.Green;
         Console.WriteLine("\n💾 Game saved!");
         Console.ResetColor();
     }
 
-    public static GameState? LoadGameFromDisk()
+    /// <summary>
+    /// Lists all saved games found on disk.
+    /// Returns a list of (filePath, GameState) tuples, sorted by LastSavedAt descending.
+    /// </summary>
+    public static List<(string Path, GameState State)> ListSaves()
     {
-        var path = Path.Combine(AppContext.BaseDirectory, "game-data", "saves", "save.json");
+        var results = new List<(string, GameState)>();
+
+        foreach (var file in Directory.GetFiles(SavesDir, "save_*.json"))
+        {
+            try
+            {
+                var json = File.ReadAllText(file);
+                var state = JsonSerializer.Deserialize<GameState>(json, AgentHelper.JsonOpts);
+                if (state is not null)
+                    results.Add((file, state));
+            }
+            catch { /* skip corrupt saves */ }
+        }
+
+        // Also load legacy save.json if it exists (migration)
+        var legacyPath = Path.Combine(SavesDir, "save.json");
+        if (File.Exists(legacyPath) && !results.Any(r => r.Item1 == legacyPath))
+        {
+            try
+            {
+                var json = File.ReadAllText(legacyPath);
+                var state = JsonSerializer.Deserialize<GameState>(json, AgentHelper.JsonOpts);
+                if (state is not null)
+                    results.Add((legacyPath, state));
+            }
+            catch { /* skip */ }
+        }
+
+        return results.OrderByDescending(r => r.Item2.LastSavedAt).ToList();
+    }
+
+    /// <summary>Loads a specific save file from disk.</summary>
+    public static GameState? LoadGameFromFile(string path)
+    {
         if (!File.Exists(path)) return null;
         try
         {
@@ -1219,15 +1265,43 @@ internal static class GameMasterWorkflow
         catch { return null; }
     }
 
+    /// <summary>Deletes a save file from disk.</summary>
+    public static bool DeleteSave(string path)
+    {
+        try { File.Delete(path); return true; }
+        catch { return false; }
+    }
+
+    /// <summary>
+    /// Migrates a legacy save (no SaveId) to the new naming scheme.
+    /// Assigns a SaveId, re-saves under the new filename, and deletes the old file.
+    /// </summary>
+    public static void MigrateLegacySave(GameState state, string legacyPath)
+    {
+        if (!string.IsNullOrEmpty(state.SaveId)) return; // already migrated
+
+        state.SaveId = Guid.NewGuid().ToString("N")[..8];
+        state.LastSavedAt = DateTime.UtcNow;
+
+        var json = JsonSerializer.Serialize(state, AgentHelper.JsonOpts);
+        var newPath = Path.Combine(SavesDir, state.GetSaveFileName());
+        File.WriteAllText(newPath, json);
+
+        // Remove old legacy file if different
+        if (Path.GetFullPath(legacyPath) != Path.GetFullPath(newPath))
+        {
+            try { File.Delete(legacyPath); } catch { /* best-effort */ }
+        }
+    }
+
     /// <summary>Silent auto-save — no console output to avoid cluttering gameplay.</summary>
     private static void AutoSave(GameState state)
     {
         try
         {
-            var dir = Path.Combine(AppContext.BaseDirectory, "game-data", "saves");
-            Directory.CreateDirectory(dir);
+            state.LastSavedAt = DateTime.UtcNow;
             var json = JsonSerializer.Serialize(state, AgentHelper.JsonOpts);
-            File.WriteAllText(Path.Combine(dir, "save.json"), json);
+            File.WriteAllText(Path.Combine(SavesDir, state.GetSaveFileName()), json);
         }
         catch { /* best-effort — don't crash the game loop */ }
     }
@@ -1261,7 +1335,7 @@ internal static class GameMasterWorkflow
             Console.WriteLine(opt.Description);
         }
         Console.ForegroundColor = ConsoleColor.DarkGray;
-        Console.WriteLine("  (type map, inv, quests, stats, or ? for help)");
+        Console.WriteLine("  (type map, inv, quests, stats, exit, or ? for help)");
         Console.ResetColor();
         Console.WriteLine();
     }
@@ -1304,6 +1378,8 @@ internal static class GameMasterWorkflow
                 case "help" or "?":
                     PrintHelp();
                     continue;
+                case "exit" or "quit":
+                    return new GameOption { Number = 0, Description = "Quit", ActionType = "quit", Target = "" };
             }
 
             if (int.TryParse(input, out var num))
@@ -1356,6 +1432,8 @@ internal static class GameMasterWorkflow
         Console.Write("   stats      "); Console.ForegroundColor = ConsoleColor.DarkGray; Console.WriteLine("Show player stats (also: s)");
         Console.ForegroundColor = ConsoleColor.White;
         Console.Write("   ?          "); Console.ForegroundColor = ConsoleColor.DarkGray; Console.WriteLine("Show this help (also: help)");
+        Console.ForegroundColor = ConsoleColor.White;
+        Console.Write("   exit       "); Console.ForegroundColor = ConsoleColor.DarkGray; Console.WriteLine("Save and quit the game (also: quit)");
         Console.ForegroundColor = ConsoleColor.DarkGray;
         Console.WriteLine("\n   Or enter a number to pick an option.");
         Console.ResetColor();

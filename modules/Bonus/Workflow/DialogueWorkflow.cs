@@ -32,6 +32,7 @@ internal static class DialogueWorkflow
             "IMPORTANT OUTPUT FORMAT: You MUST respond with ONLY a JSON object, no extra text. Format:\n" +
             "{\n" +
             "  \"speech\": \"Your in-character dialogue here (2-4 sentences).\",\n" +
+            "  \"quest_accepted\": false,\n" +
             "  \"options\": [\n" +
             "    {\"number\": 1, \"text\": \"A contextual player response option\"},\n" +
             "    {\"number\": 2, \"text\": \"Another option with a different tone\"},\n" +
@@ -39,12 +40,22 @@ internal static class DialogueWorkflow
             "    {\"number\": 4, \"text\": \"End conversation\"}\n" +
             "  ]\n" +
             "}\n" +
+            "Rules for quest_accepted:\n" +
+            "- Set to true ONLY when the player's PREVIOUS message clearly agreed, committed, or volunteered to help with a task/quest you offered\n" +
+            "- Examples of acceptance: 'I'll do it', 'Count me in', 'I'll help', 'I'll take the risk', 'I'll proceed', 'Deal', 'Where do I start?'\n" +
+            "- Set to false if the player is merely asking questions, hesitating, or hasn't been offered a task yet\n" +
             "Rules for options:\n" +
             "- Generate 3-5 options that are SPECIFIC to what was just discussed\n" +
             "- Vary the tone: curious, friendly, skeptical, direct, etc.\n" +
             "- Reference specific details from the conversation\n" +
             "- The LAST option must always be to end or leave the conversation\n" +
-            "- NEVER use generic options like 'Tell me more' — be specific!";
+            "- NEVER use generic options like 'Tell me more' — be specific!\n" +
+            "CRITICAL DIALOGUE BOUNDARIES:\n" +
+            "- You are having a CONVERSATION. All options must be things the player can SAY or ASK.\n" +
+            "- NEVER generate action/exploration options like 'Enter the room', 'Pick up item', 'Search the area', 'Head to X'. Those belong to the game, not to dialogue.\n" +
+            "- NEVER pretend the player has completed a task, found an item, or traveled somewhere during this conversation.\n" +
+            "- NEVER skip ahead in time. Everything happens in the present moment of this conversation.\n" +
+            "- If the player has accepted a task, give a brief farewell and wish them luck — do NOT roleplay them doing the task.";
 
         var npcAgent = config.CreateAgent(npcInstructions);
 
@@ -86,15 +97,41 @@ internal static class DialogueWorkflow
             if (unofferedQuests.Count > 0 && round >= 2)
             {
                 npcPrompt += $"\n\nYou also want to hint at asking for help with: {unofferedQuests[0].Title} — {unofferedQuests[0].Description}. " +
-                    "Work this naturally into your speech.";
+                    "Work this naturally into your speech. " +
+                    "If the player's last message agreed/committed to help with this task, set \"quest_accepted\": true in your response.";
             }
 
-            // NPC speaks (returns JSON with speech + options)
-            var npcResponse = await AgentHelper.RunAgent(npcAgent, npcPrompt, ct,
-                "{\"speech\": \"The NPC seems lost in thought.\", \"options\": []}");
+            // NPC speaks (returns JSON with speech + options) — retry once on failure
+            var npcResponse = await AgentHelper.RunAgent(npcAgent, npcPrompt, ct);
+
+            // If the response is empty or obviously a failure, retry once
+            if (string.IsNullOrWhiteSpace(npcResponse) || npcResponse.StartsWith("[Error"))
+            {
+                await Task.Delay(1000, ct);  // Brief pause before retry
+                npcResponse = await AgentHelper.RunAgent(npcAgent, npcPrompt, ct);
+            }
+
+            // Final fallback if still empty
+            if (string.IsNullOrWhiteSpace(npcResponse) || npcResponse.StartsWith("[Error"))
+                npcResponse = $"{{\"speech\": \"{npc.Name} pauses, collecting their thoughts.\", \"quest_accepted\": false, \"options\": []}}";
 
             // Parse the structured response
-            var (speech, options) = ParseNpcResponse(npcResponse);
+            var (speech, options, questAccepted) = ParseNpcResponse(npcResponse);
+
+            // Check for quest acceptance signaled by the NPC agent
+            if (questAccepted && unofferedQuests.Count > 0 && round >= 2)
+            {
+                var quest = unofferedQuests[0];
+                if (!state.Player.ActiveQuests.Any(aq => aq.Id == quest.Id))
+                {
+                    state.Player.ActiveQuests.Add(quest);
+                    Console.ForegroundColor = ConsoleColor.Green;
+                    Console.WriteLine($"\n  \U0001f4dc Quest accepted: {quest.Title}!");
+                    Console.WriteLine($"     {quest.Description}");
+                    Console.ResetColor();
+                    state.AddLog($"Accepted quest '{quest.Title}' from {npc.Name}.");
+                }
+            }
 
             // Display NPC speech
             Console.WriteLine();
@@ -104,6 +141,16 @@ internal static class DialogueWorkflow
             Console.WriteLine(speech);
 
             dialogueHistory.Add($"{npc.Name}: {speech}");
+
+            // Auto-end conversation after quest acceptance:
+            // Show the NPC's farewell speech, then exit the dialogue loop
+            if (questAccepted)
+            {
+                Console.ForegroundColor = ConsoleColor.DarkGray;
+                Console.WriteLine($"\n  You take your leave from {npc.Name}, ready to pursue the quest.");
+                Console.ResetColor();
+                break;
+            }
 
             // Fallback options if parsing failed
             if (options.Count == 0)
@@ -137,31 +184,18 @@ internal static class DialogueWorkflow
                   choice.Text.Contains("conversation", StringComparison.OrdinalIgnoreCase)) ||
                  choice.Text.Contains("goodbye", StringComparison.OrdinalIgnoreCase) ||
                  choice.Text.Contains("farewell", StringComparison.OrdinalIgnoreCase) ||
-                 choice.Text.Contains("leave", StringComparison.OrdinalIgnoreCase))
+                 choice.Text.Contains("leave", StringComparison.OrdinalIgnoreCase) ||
+                 choice.Text.Contains("walk away", StringComparison.OrdinalIgnoreCase) ||
+                 choice.Text.Contains("head to", StringComparison.OrdinalIgnoreCase) ||
+                 choice.Text.Contains("head off", StringComparison.OrdinalIgnoreCase) ||
+                 choice.Text.Contains("move on", StringComparison.OrdinalIgnoreCase) ||
+                 choice.Text.Contains("without further", StringComparison.OrdinalIgnoreCase) ||
+                 choice.Text.Contains("depart", StringComparison.OrdinalIgnoreCase))
             {
                 Console.ForegroundColor = ConsoleColor.DarkGray;
                 Console.WriteLine($"\n  You bid farewell to {npc.Name}.");
                 Console.ResetColor();
                 break;
-            }
-
-            // Check for quest acceptance — only if the NPC explicitly mentioned a quest
-            // and the player's chosen option contains clear acceptance language
-            if (unofferedQuests.Count > 0 && round >= 3 &&
-                (choice.Text.Contains("accept", StringComparison.OrdinalIgnoreCase) ||
-                 (choice.Text.Contains("quest", StringComparison.OrdinalIgnoreCase) &&
-                  (choice.Text.Contains("yes", StringComparison.OrdinalIgnoreCase) ||
-                   choice.Text.Contains("sure", StringComparison.OrdinalIgnoreCase) ||
-                   choice.Text.Contains("agree", StringComparison.OrdinalIgnoreCase) ||
-                   choice.Text.Contains("help", StringComparison.OrdinalIgnoreCase)))))
-            {
-                var quest = unofferedQuests[0];
-                state.Player.ActiveQuests.Add(quest);
-                Console.ForegroundColor = ConsoleColor.Green;
-                Console.WriteLine($"\n  📜 Quest accepted: {quest.Title}!");
-                Console.WriteLine($"     {quest.Description}");
-                Console.ResetColor();
-                state.AddLog($"Accepted quest '{quest.Title}' from {npc.Name}.");
             }
 
             dialogueHistory.Add($"Player: {choice.Text}");
@@ -174,10 +208,10 @@ internal static class DialogueWorkflow
         state.AddLog($"Spoke with {npc.Name}.");
     }
 
-    private static (string speech, List<DialogueOption> options) ParseNpcResponse(string text)
+    private static (string speech, List<DialogueOption> options, bool questAccepted) ParseNpcResponse(string text)
     {
         var json = AgentHelper.ExtractJson(text);
-        if (json is null) return (text, []);  // No JSON found — treat entire response as speech
+        if (json is null) return (text, [], false);  // No JSON found — treat entire response as speech
         try
         {
             using var doc = JsonDocument.Parse(json);
@@ -185,6 +219,10 @@ internal static class DialogueWorkflow
 
             // Extract speech
             var speech = root.TryGetProperty("speech", out var s) ? s.GetString() ?? text : text;
+
+            // Extract quest_accepted flag
+            var questAccepted = root.TryGetProperty("quest_accepted", out var qa)
+                && qa.ValueKind == JsonValueKind.True;
 
             // Extract options
             var options = new List<DialogueOption>();
@@ -199,11 +237,11 @@ internal static class DialogueWorkflow
                     });
                 }
             }
-            return (speech, options);
+            return (speech, options, questAccepted);
         }
         catch
         {
-            return (text, []);
+            return (text, [], false);
         }
     }
 
