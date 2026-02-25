@@ -48,10 +48,19 @@ internal static class DialogueWorkflow
 
         var npcAgent = config.CreateAgent(npcInstructions);
 
-        var dialogueHistory = new List<string>();
+        // Seed local history from persisted dialogue so the NPC "remembers" past conversations
+        var dialogueHistory = new List<string>(npc.DialogueHistory);
+
         var openingPrompt = npc.HasMet
             ? $"The adventurer {state.Player.Name} approaches you again. Greet them as someone you've met before."
             : $"An adventurer named {state.Player.Name} approaches you for the first time. Greet them in character.";
+
+        // If there's prior history, include a summary so the NPC can reference it
+        if (npc.HasMet && npc.DialogueHistory.Count > 0)
+        {
+            openingPrompt += $"\n\nPrevious conversations (for context — reference these naturally if relevant):\n" +
+                string.Join("\n", npc.DialogueHistory.TakeLast(10));
+        }
 
         // Mark as met (after constructing openingPrompt so first-meeting greeting fires)
         npc.HasMet = true;
@@ -158,7 +167,10 @@ internal static class DialogueWorkflow
             dialogueHistory.Add($"Player: {choice.Text}");
         }
 
-        // Save NPC state
+        // Persist dialogue history back to NPC model (trimmed to cap)
+        foreach (var entry in dialogueHistory.Skip(npc.DialogueHistory.Count))
+            npc.AddDialogue(entry);
+
         state.AddLog($"Spoke with {npc.Name}.");
     }
 

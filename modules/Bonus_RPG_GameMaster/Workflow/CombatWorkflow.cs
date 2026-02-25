@@ -2,7 +2,6 @@ using System.Text;
 using System.Text.Json;
 using Microsoft.Agents.AI;
 using RPGGameMaster.Models;
-using RPGGameMaster.Tools;
 
 namespace RPGGameMaster.Workflow;
 
@@ -152,10 +151,6 @@ internal static class CombatWorkflow
                 Console.ResetColor();
 
                 state.AddLog($"Defeated {creature.Name} (+{creature.XPReward} XP).");
-
-                // Save creature state
-                var creatureJson = JsonSerializer.Serialize(creature, AgentHelper.JsonOpts);
-                CreatureTools.SaveCreature(creatureJson);
 
                 return CombatResult.CreatureDefeated;
             }

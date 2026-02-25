@@ -133,7 +133,7 @@ internal static class GameMasterWorkflow
             PrintOptions(presentation.Options);
 
             // Get player choice
-            var choice = GetPlayerChoice(presentation.Options);
+            var choice = GetPlayerChoice(presentation.Options, state);
             if (choice is null) continue;
 
             state.AddLog($"Turn {state.TurnCount}: Player chose — {choice.Description}");
@@ -155,6 +155,9 @@ internal static class GameMasterWorkflow
 
             // Check quest completion
             CheckQuestCompletion(state);
+
+            // Auto-save after every turn
+            AutoSave(state);
         }
     }
 
@@ -245,9 +248,6 @@ internal static class GameMasterWorkflow
             if (newLoc is not null)
             {
                 exit.TargetLocationId = newLoc.Id;
-                // Save updated current location with the new exit link
-                var locJson = JsonSerializer.Serialize(currentLoc, AgentHelper.JsonOpts);
-                LocationTools.SaveLocation(locJson);
             }
         }
 
@@ -523,6 +523,9 @@ internal static class GameMasterWorkflow
         Console.ResetColor();
 
         state.AddLog($"Fell in battle. Lost {goldLost}g and {xpLost}xp. Respawned at {startLoc?.Name ?? "start"}.");
+
+        // Auto-save after death so penalties persist
+        AutoSave(state);
 
         return $"Player was defeated but respawned at {startLoc?.Name ?? "the starting area"} with penalties.";
     }
@@ -808,10 +811,6 @@ internal static class GameMasterWorkflow
             }
         }
 
-        // Persist the updated location with NPC/creature ids
-        var updatedLocJson = JsonSerializer.Serialize(newLoc, AgentHelper.JsonOpts);
-        LocationTools.SaveLocation(updatedLocJson);
-
         return newLoc;
     }
 
@@ -1066,6 +1065,19 @@ internal static class GameMasterWorkflow
         catch { return null; }
     }
 
+    /// <summary>Silent auto-save — no console output to avoid cluttering gameplay.</summary>
+    private static void AutoSave(GameState state)
+    {
+        try
+        {
+            var dir = Path.Combine(AppContext.BaseDirectory, "game-data", "saves");
+            Directory.CreateDirectory(dir);
+            var json = JsonSerializer.Serialize(state, AgentHelper.JsonOpts);
+            File.WriteAllText(Path.Combine(dir, "save.json"), json);
+        }
+        catch { /* best-effort — don't crash the game loop */ }
+    }
+
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     // Console UI helpers
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -1094,10 +1106,13 @@ internal static class GameMasterWorkflow
             Console.ResetColor();
             Console.WriteLine(opt.Description);
         }
+        Console.ForegroundColor = ConsoleColor.DarkGray;
+        Console.WriteLine("  (type map, inv, quests, stats, or ? for help)");
+        Console.ResetColor();
         Console.WriteLine();
     }
 
-    private static GameOption? GetPlayerChoice(List<GameOption> options)
+    private static GameOption? GetPlayerChoice(List<GameOption> options, GameState state)
     {
         while (true)
         {
@@ -1117,6 +1132,26 @@ internal static class GameMasterWorkflow
             input = input.Trim();
             if (string.IsNullOrEmpty(input)) continue;
 
+            // Text commands — display info and re-prompt (no turn consumed)
+            switch (input.ToLowerInvariant())
+            {
+                case "map":
+                    HandleMap(state);
+                    continue;
+                case "inv" or "inventory" or "i":
+                    HandleInventory(state);
+                    continue;
+                case "quests" or "q":
+                    PrintQuests(state);
+                    continue;
+                case "stats" or "s":
+                    PrintStats(state);
+                    continue;
+                case "help" or "?":
+                    PrintHelp();
+                    continue;
+            }
+
             if (int.TryParse(input, out var num))
             {
                 var match = options.FirstOrDefault(o => o.Number == num);
@@ -1124,9 +1159,52 @@ internal static class GameMasterWorkflow
             }
 
             Console.ForegroundColor = ConsoleColor.DarkYellow;
-            Console.WriteLine($"Please enter a number between {options.Min(o => o.Number)} and {options.Max(o => o.Number)}.");
+            Console.WriteLine($"Enter a number ({options.Min(o => o.Number)}-{options.Max(o => o.Number)}) or a command (type ? for help).");
             Console.ResetColor();
         }
+    }
+
+    private static void PrintStats(GameState state)
+    {
+        var p = state.Player;
+        Console.WriteLine();
+        Console.ForegroundColor = ConsoleColor.Yellow;
+        Console.WriteLine("📊 Player Stats:");
+        Console.ResetColor();
+        Console.ForegroundColor = ConsoleColor.White;
+        Console.WriteLine($"   Name:    {p.Name}");
+        Console.WriteLine($"   Level:   {p.Level}");
+        Console.Write($"   HP:      ");
+        Console.ForegroundColor = p.HP <= p.MaxHP / 4 ? ConsoleColor.Red
+            : p.HP <= p.MaxHP / 2 ? ConsoleColor.Yellow : ConsoleColor.Green;
+        Console.WriteLine($"{p.HP}/{p.MaxHP}");
+        Console.ForegroundColor = ConsoleColor.White;
+        Console.WriteLine($"   Attack:  {p.Attack} (effective: {p.EffectiveAttack})");
+        Console.WriteLine($"   Defense: {p.Defense} (effective: {p.EffectiveDefense})");
+        Console.WriteLine($"   XP:      {p.XP}/{p.XPToNextLevel}");
+        Console.WriteLine($"   Gold:    {p.Gold}");
+        Console.ResetColor();
+    }
+
+    private static void PrintHelp()
+    {
+        Console.WriteLine();
+        Console.ForegroundColor = ConsoleColor.Yellow;
+        Console.WriteLine("📖 Available Commands:");
+        Console.ResetColor();
+        Console.ForegroundColor = ConsoleColor.White;
+        Console.Write("   map        "); Console.ForegroundColor = ConsoleColor.DarkGray; Console.WriteLine("Show discovered locations");
+        Console.ForegroundColor = ConsoleColor.White;
+        Console.Write("   inv        "); Console.ForegroundColor = ConsoleColor.DarkGray; Console.WriteLine("Open inventory (also: inventory, i)");
+        Console.ForegroundColor = ConsoleColor.White;
+        Console.Write("   quests     "); Console.ForegroundColor = ConsoleColor.DarkGray; Console.WriteLine("Show active quests (also: q)");
+        Console.ForegroundColor = ConsoleColor.White;
+        Console.Write("   stats      "); Console.ForegroundColor = ConsoleColor.DarkGray; Console.WriteLine("Show player stats (also: s)");
+        Console.ForegroundColor = ConsoleColor.White;
+        Console.Write("   ?          "); Console.ForegroundColor = ConsoleColor.DarkGray; Console.WriteLine("Show this help (also: help)");
+        Console.ForegroundColor = ConsoleColor.DarkGray;
+        Console.WriteLine("\n   Or enter a number to pick an option.");
+        Console.ResetColor();
     }
 
     private static void PrintQuests(GameState state)

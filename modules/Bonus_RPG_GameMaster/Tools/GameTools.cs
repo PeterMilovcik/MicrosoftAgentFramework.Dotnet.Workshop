@@ -79,22 +79,7 @@ internal static class GameTools
         }
     }
 
-    // ── Save / Load Game ──
-
-    [Description("Saves the full game state to disk.")]
-    public static string SaveGame([Description("Full JSON of the GameState object")] string gameStateJson)
-    {
-        try
-        {
-            var path = Path.Combine(SavesDir, "save.json");
-            File.WriteAllText(path, gameStateJson);
-            return "OK: Game saved successfully.";
-        }
-        catch (Exception ex)
-        {
-            return $"ERROR: {ex.Message}";
-        }
-    }
+    // ── Load Game ──
 
     [Description("Loads a previously saved game state from disk.")]
     public static string LoadGame()

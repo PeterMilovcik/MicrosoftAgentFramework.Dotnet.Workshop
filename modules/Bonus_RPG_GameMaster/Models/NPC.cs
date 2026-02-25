@@ -37,4 +37,20 @@ internal sealed class NPC
 
     [JsonPropertyName("has_met")]
     public bool HasMet { get; set; }
+
+    /// <summary>
+    /// Rolling dialogue history so the NPC remembers past conversations.
+    /// Capped at <see cref="MaxDialogueEntries"/> to keep token budgets manageable.
+    /// </summary>
+    [JsonPropertyName("dialogue_history")]
+    public List<string> DialogueHistory { get; set; } = [];
+
+    public const int MaxDialogueEntries = 20;
+
+    public void AddDialogue(string entry)
+    {
+        DialogueHistory.Add(entry);
+        while (DialogueHistory.Count > MaxDialogueEntries)
+            DialogueHistory.RemoveAt(0);
+    }
 }
