@@ -122,6 +122,12 @@ internal static class GameMasterWorkflow
                         $"Your task:\n{decision.Task}\n\n" +
                         "Output ONLY the raw Creature JSON object, no markdown fences, no explanation.";
                 }
+                else if (decision.NextAgent.Equals("world_architect", StringComparison.OrdinalIgnoreCase))
+                {
+                    subPrompt = BuildLocationGenerationContext(state, state.CurrentLocationId, null) + "\n\n" +
+                        $"Your task:\n{decision.Task}\n\n" +
+                        "Output ONLY the raw Location JSON object, no markdown fences, no explanation.";
+                }
 
                 var subResponse = await AgentHelper.RunAgent(subAgent, subPrompt, ct);
                 turnContext.Add($"{decision.NextAgent.ToUpper()} OUTPUT:\n{subResponse}");
@@ -658,12 +664,19 @@ internal static class GameMasterWorkflow
             Console.Write($"   {(isCurrent ? "➤ " : "  ")}{loc.Name}");
             Console.ForegroundColor = ConsoleColor.DarkGray;
 
+            var tags = new List<string>();
+            if (!string.IsNullOrWhiteSpace(loc.Type))
+                tags.Add(loc.Type);
+            if (!string.IsNullOrWhiteSpace(loc.DangerLevel))
+                tags.Add(loc.DangerLevel);
+            var tagStr = tags.Count > 0 ? $" [{string.Join(", ", tags)}]" : "";
+
             var exitNames = loc.Exits.Select(e =>
             {
                 var explored = !string.IsNullOrEmpty(e.TargetLocationId) ? "✓" : "?";
                 return $"{e.Direction}[{explored}]";
             });
-            Console.WriteLine($" — exits: {string.Join(", ", exitNames)}");
+            Console.WriteLine($"{tagStr} — exits: {string.Join(", ", exitNames)}");
             Console.ResetColor();
         }
 
@@ -901,6 +914,103 @@ internal static class GameMasterWorkflow
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
     /// <summary>
+    /// Builds a rich context block for location generation so the World Architect can
+    /// avoid duplicates, match the world progression, and connect to existing lore.
+    /// </summary>
+    private static string BuildLocationGenerationContext(
+        GameState state, string? fromLocationId, Exit? entryExit)
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine("## GENERATION CONTEXT\n");
+
+        // World & player
+        sb.AppendLine($"World theme: {state.WorldTheme}");
+        sb.AppendLine($"Player: {state.Player.Name} | Level {state.Player.Level} | HP {state.Player.HP}/{state.Player.MaxHP} | Gold {state.Player.Gold}");
+        sb.AppendLine($"Locations explored: {state.Locations.Count}");
+        sb.AppendLine();
+
+        // Entry hint
+        if (entryExit is not null)
+            sb.AppendLine($"The player entered via an exit described as: \"{entryExit.Description}\". The new location should match that description.");
+        else
+            sb.AppendLine("Generate a suitable starting location for this adventure.");
+
+        // Back reference
+        if (fromLocationId is not null)
+            sb.AppendLine($"Include an exit with direction 'Back' and target_location_id '{fromLocationId}' (the way the player came from).");
+        else
+            sb.AppendLine("This is the starting location — no back exit needed.");
+        sb.AppendLine();
+
+        // Source location context (what the player is leaving)
+        if (fromLocationId is not null && state.Locations.TryGetValue(fromLocationId, out var fromLoc))
+        {
+            sb.AppendLine("Leaving from:");
+            sb.AppendLine($"  Name: {fromLoc.Name}");
+            if (!string.IsNullOrWhiteSpace(fromLoc.Type))
+                sb.AppendLine($"  Type: {fromLoc.Type}");
+            if (!string.IsNullOrWhiteSpace(fromLoc.Atmosphere))
+                sb.AppendLine($"  Atmosphere: {fromLoc.Atmosphere}");
+            if (!string.IsNullOrWhiteSpace(fromLoc.DangerLevel))
+                sb.AppendLine($"  Danger: {fromLoc.DangerLevel}");
+            sb.AppendLine();
+        }
+
+        // All existing locations (dedup + world awareness)
+        if (state.Locations.Count > 0)
+        {
+            sb.AppendLine("Existing locations in the world (DO NOT duplicate names or repeat the same type too often):");
+            foreach (var loc in state.Locations.Values)
+            {
+                var typeTag = !string.IsNullOrWhiteSpace(loc.Type) ? $" [{loc.Type}]" : "";
+                var atmoTag = !string.IsNullOrWhiteSpace(loc.Atmosphere) ? $" ({loc.Atmosphere})" : "";
+                sb.AppendLine($"  - {loc.Name}{typeTag}{atmoTag}");
+            }
+
+            // Flat type dedup signal
+            var usedTypes = state.Locations.Values
+                .Select(l => l.Type)
+                .Where(t => !string.IsNullOrWhiteSpace(t))
+                .Distinct()
+                .ToList();
+            if (usedTypes.Count > 0)
+                sb.AppendLine($"Types already used (prefer variety): {string.Join(", ", usedTypes)}");
+            sb.AppendLine();
+        }
+
+        // Active quests (quest-aware placement)
+        var activeQuests = state.Player.ActiveQuests.Where(q => !q.IsComplete).ToList();
+        if (activeQuests.Count > 0)
+        {
+            sb.AppendLine("Player's active quests (new location MAY serve as a quest destination if it fits naturally):");
+            foreach (var q in activeQuests)
+                sb.AppendLine($"  - {q.Title} ({q.Type})");
+            sb.AppendLine();
+        }
+
+        // Danger progression guidance
+        sb.AppendLine($"Danger level guidance for Level {state.Player.Level}:");
+        if (state.Player.Level <= 2)
+            sb.AppendLine("  Early game — prefer safe or moderate. Dangerous locations should be rare.");
+        else if (state.Player.Level <= 4)
+            sb.AppendLine("  Mid game — mix of moderate and dangerous. Occasional safe havens.");
+        else
+            sb.AppendLine("  Late game — dangerous and deadly become common. Safe locations are rare refuges.");
+        sb.AppendLine();
+
+        // Recent events (tonal continuity)
+        if (state.GameLog.Count > 0)
+        {
+            sb.AppendLine("Recent events:");
+            foreach (var entry in state.GameLog.TakeLast(6))
+                sb.AppendLine($"  - {entry}");
+        }
+
+        sb.AppendLine("\nGenerate a new location. Output ONLY the raw Location JSON object, no markdown fences, no explanation.");
+        return sb.ToString();
+    }
+
+    /// <summary>
     /// Builds a rich context block for NPC generation so the NPC Weaver can avoid
     /// duplicates, reference the world state, and scale rewards to the player's level.
     /// </summary>
@@ -919,6 +1029,14 @@ internal static class GameMasterWorkflow
         sb.AppendLine($"Location: {location.Name}");
         sb.AppendLine($"Description: {location.Description}");
         sb.AppendLine($"Location id: {location.Id}");
+        if (!string.IsNullOrWhiteSpace(location.Type))
+            sb.AppendLine($"Location type: {location.Type}");
+        if (!string.IsNullOrWhiteSpace(location.Atmosphere))
+            sb.AppendLine($"Atmosphere: {location.Atmosphere}");
+        if (!string.IsNullOrWhiteSpace(location.DangerLevel))
+            sb.AppendLine($"Danger level: {location.DangerLevel}");
+        if (!string.IsNullOrWhiteSpace(location.Lore))
+            sb.AppendLine($"Location lore: {location.Lore}");
         sb.AppendLine();
 
         // Existing NPCs at this location (dedup signal)
@@ -1003,6 +1121,10 @@ internal static class GameMasterWorkflow
         sb.AppendLine($"Description: {location.Description}");
         sb.AppendLine($"Location id: {location.Id}");
         sb.AppendLine($"Difficulty: {difficulty}");
+        if (!string.IsNullOrWhiteSpace(location.DangerLevel))
+            sb.AppendLine($"Location danger level: {location.DangerLevel}");
+        if (!string.IsNullOrWhiteSpace(location.Atmosphere))
+            sb.AppendLine($"Location atmosphere: {location.Atmosphere}");
         sb.AppendLine();
 
         // Existing creatures (global dedup)
@@ -1069,17 +1191,7 @@ internal static class GameMasterWorkflow
         var architectPrompt = loadPrompt("world-architect");
         var architect = config.CreateAgent(architectPrompt);
 
-        var backRef = fromLocationId is not null
-            ? $"Include an exit with direction 'Back' and target_location_id '{fromLocationId}' (the way the player came from)."
-            : "This is the starting location — no back exit needed.";
-
-        var exitHint = entryExit is not null
-            ? $"The player entered via an exit described as: \"{entryExit.Description}\". The new location should match that description."
-            : "Generate a suitable starting location for this adventure.";
-
-        var prompt = $"World theme: {state.WorldTheme}\n\n" +
-            $"{exitHint}\n{backRef}\n\n" +
-            "Generate a new location. Output ONLY the raw Location JSON object, no markdown fences, no explanation.";
+        var prompt = BuildLocationGenerationContext(state, fromLocationId, entryExit);
 
         AgentHelper.PrintSubAgentWork("world_architect", "Generating location...");
         var locResponse = await AgentHelper.RunAgent(architect, prompt, ct);
@@ -1096,8 +1208,18 @@ internal static class GameMasterWorkflow
         state.CurrentLocationId = newLoc.Id;
         state.AddLog($"Discovered new location: {newLoc.Name}");
 
-        // Generate NPCs (~60% chance, at least 1 for starting location)
-        var shouldGenNPC = fromLocationId is null || Random.Shared.NextDouble() < 0.6;
+        // DangerLevel-driven spawn probabilities
+        var (npcChance, creatureChance) = newLoc.DangerLevel.ToLowerInvariant() switch
+        {
+            "safe" => (0.90, 0.10),
+            "moderate" => (0.60, 0.40),
+            "dangerous" => (0.30, 0.70),
+            "deadly" => (0.15, 0.90),
+            _ => (0.60, 0.40),
+        };
+
+        // Generate NPCs (probability driven by danger level; always for starting location)
+        var shouldGenNPC = fromLocationId is null || Random.Shared.NextDouble() < npcChance;
         if (shouldGenNPC)
         {
             // Use a tool-free NPC agent for clean JSON
@@ -1125,8 +1247,8 @@ internal static class GameMasterWorkflow
             }
         }
 
-        // Generate creatures (~40% chance, never for starting location)
-        if (fromLocationId is not null && Random.Shared.NextDouble() < 0.4)
+        // Generate creatures (probability driven by danger level; never for starting location)
+        if (fromLocationId is not null && Random.Shared.NextDouble() < creatureChance)
         {
             var creaturePromptText = loadPrompt("creature-forger");
             var forge = config.CreateAgent(creaturePromptText);
@@ -1304,7 +1426,17 @@ internal static class GameMasterWorkflow
         if (loc is not null)
         {
             sb.AppendLine($"\nCurrent Location: {loc.Name}");
+            if (!string.IsNullOrWhiteSpace(loc.Type))
+                sb.AppendLine($"Type: {loc.Type}");
+            if (!string.IsNullOrWhiteSpace(loc.Atmosphere))
+                sb.AppendLine($"Atmosphere: {loc.Atmosphere}");
+            if (!string.IsNullOrWhiteSpace(loc.DangerLevel))
+                sb.AppendLine($"Danger level: {loc.DangerLevel}");
             sb.AppendLine($"Description: {loc.Description}");
+            if (!string.IsNullOrWhiteSpace(loc.Lore))
+                sb.AppendLine($"Lore: {loc.Lore}");
+            if (loc.PointsOfInterest.Count > 0)
+                sb.AppendLine($"Points of interest: {string.Join("; ", loc.PointsOfInterest)}");
             sb.AppendLine($"Exits: {string.Join(", ", loc.Exits.Select(e => $"{e.Direction} ({(string.IsNullOrEmpty(e.TargetLocationId) ? "unexplored" : "visited")})"))}");
 
             var npcsHere = loc.NPCIds

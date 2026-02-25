@@ -40,6 +40,30 @@ internal sealed class Location
     [JsonPropertyName("theme")]
     public string Theme { get; set; } = "";
 
+    /// <summary>Location classification: village, dungeon, forest, cave, ruins, road, shrine, harbor, castle, swamp, mountain pass, etc.</summary>
+    [JsonPropertyName("type")]
+    public string Type { get; set; } = "";
+
+    /// <summary>Tone/mood of the location: peaceful, foreboding, lively, sacred, decayed, tense, haunted, etc.</summary>
+    [JsonPropertyName("atmosphere")]
+    public string Atmosphere { get; set; } = "";
+
+    /// <summary>Threat level: safe, moderate, dangerous, or deadly. Drives NPC/creature spawn probabilities.</summary>
+    [JsonPropertyName("danger_level")]
+    public string DangerLevel { get; set; } = "moderate";
+
+    /// <summary>1-2 sentences of location history — origin, past events, legends.</summary>
+    [JsonPropertyName("lore")]
+    public string Lore { get; set; } = "";
+
+    /// <summary>2-4 notable sub-features the player can examine or interact with.</summary>
+    [JsonPropertyName("points_of_interest")]
+    public List<string> PointsOfInterest { get; set; } = [];
+
+    /// <summary>A hidden discovery — treasure, passage, revelation — revealed through exploration.</summary>
+    [JsonPropertyName("secret")]
+    public string Secret { get; set; } = "";
+
     [JsonPropertyName("exits")]
     public List<Exit> Exits { get; set; } = [];
 

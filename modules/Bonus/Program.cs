@@ -16,10 +16,10 @@ Console.WriteLine("""
     """);
 Console.ForegroundColor = ConsoleColor.DarkGray;
 Console.WriteLine("""
-    ╔══════════════════════════════════════════════════════════╗
-    ║    Bonus Module — AI-Driven RPG with Dynamic Agents      ║
-    ║    Powered by Microsoft Agent Framework + Azure OpenAI   ║
-    ╚══════════════════════════════════════════════════════════╝
+    ╔═══════════════════════════════════════════════════════════╗
+    ║    Bonus Module — AI-Driven RPG with Dynamic Agents       ║
+    ║    Powered by Microsoft Agent Framework + Azure OpenAI    ║
+    ╚═══════════════════════════════════════════════════════════╝
     """);
 Console.ResetColor();
 

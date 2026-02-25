@@ -41,6 +41,7 @@ internal static class CombatWorkflow
         var round = 0;
         var combatLog = new List<string>();
         var locationName = state.CurrentLocation?.Name ?? "the battlefield";
+        var locationAtmosphere = state.CurrentLocation?.Atmosphere ?? "";
 
         while (creature.HP > 0 && state.Player.HP > 0)
         {
@@ -54,7 +55,7 @@ internal static class CombatWorkflow
             PrintCombatStatus(state.Player, creature);
 
             // ── Generate cinematic moves via Combat Strategist ──
-            var movesPrompt = BuildStrategistPrompt(state.Player, creature, round, combatLog, locationName);
+            var movesPrompt = BuildStrategistPrompt(state.Player, creature, round, combatLog, locationName, locationAtmosphere);
             var movesResponse = await AgentHelper.RunAgent(strategist, movesPrompt, ct,
                 "[]");
 
@@ -99,7 +100,7 @@ internal static class CombatWorkflow
             PrintDiceResults(result, creature.Name);
 
             // ── Narrate the outcome via Combat Narrator (LLM) ──
-            var narratorPrompt = BuildNarratorPrompt(result, state.Player, creature, round);
+            var narratorPrompt = BuildNarratorPrompt(result, state.Player, creature, round, locationName, locationAtmosphere);
             var narrativeResponse = await AgentHelper.RunAgent(narrator, narratorPrompt, ct,
                 "{\"narrative\": \"The clash of combat continues.\"}");
             var narrative = ParseNarrative(narrativeResponse);
@@ -176,7 +177,7 @@ internal static class CombatWorkflow
 
     private static string BuildStrategistPrompt(
         PlayerCharacter player, Creature creature, int round,
-        List<string> combatLog, string locationName)
+        List<string> combatLog, string locationName, string locationAtmosphere)
     {
         var sb = new StringBuilder();
         sb.AppendLine("Generate 3-4 combat moves for this round.\n");
@@ -201,6 +202,8 @@ internal static class CombatWorkflow
             sb.AppendLine($"Combat behavior: {creature.Behavior}");
 
         sb.AppendLine($"\nLocation: {locationName}");
+        if (!string.IsNullOrWhiteSpace(locationAtmosphere))
+            sb.AppendLine($"Location atmosphere: {locationAtmosphere}");
         sb.AppendLine($"Round: {round}");
 
         // Potions check
@@ -230,7 +233,8 @@ internal static class CombatWorkflow
     }
 
     private static string BuildNarratorPrompt(
-        CombatRoundResult result, PlayerCharacter player, Creature creature, int round)
+        CombatRoundResult result, PlayerCharacter player, Creature creature, int round,
+        string locationName, string locationAtmosphere)
     {
         var sb = new StringBuilder();
         sb.AppendLine("Narrate this combat round result dramatically in 2-4 sentences.\n");
@@ -240,6 +244,10 @@ internal static class CombatWorkflow
         sb.AppendLine($"Creature: {creature.Name} (HP: {creature.HP}/{creature.MaxHP})");
         if (!string.IsNullOrWhiteSpace(creature.Behavior))
             sb.AppendLine($"Creature behavior: {creature.Behavior}");
+        if (!string.IsNullOrWhiteSpace(locationName))
+            sb.AppendLine($"Location: {locationName}");
+        if (!string.IsNullOrWhiteSpace(locationAtmosphere))
+            sb.AppendLine($"Atmosphere: {locationAtmosphere}");
         sb.AppendLine($"Move used: {result.MoveName} (type: {result.MoveType})");
 
         switch (result.MoveType)
