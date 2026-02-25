@@ -40,7 +40,8 @@ When asked to generate an NPC, produce a **single JSON object** matching this sc
 
 ## Rules
 
-1. **`agent_instructions`** is the most important field. It must be a **80-150 word system prompt** that captures:
+1. **Language**: If the generation context specifies a language, ALL player-facing text (name, description, speaking_style, backstory, secret, agent_instructions, quest titles and descriptions, loot names and descriptions) MUST be written in that language. The `agent_instructions` field must also instruct the NPC to speak in that language. JSON keys always remain in English.
+2. **`agent_instructions`** is the most important field. It must be a **80-150 word system prompt** that captures:
    - The NPC's speech style (draw from `speaking_style`)
    - Their personality, emotional state, and backstory (weave `backstory` in naturally)
    - What they know and what they keep secret (integrate `secret` — tell the agent *when* to reveal it)

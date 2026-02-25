@@ -16,7 +16,7 @@ internal static class DialogueWorkflow
     {
         Console.WriteLine();
         Console.ForegroundColor = ConsoleColor.Magenta;
-        Console.WriteLine($"  💬 Conversation with {npc.Name}");
+        Console.WriteLine($"  {UIStrings.Format(state.Language, "dialogue_header", npc.Name)}");
         Console.ResetColor();
         Console.ForegroundColor = ConsoleColor.DarkGray;
         Console.WriteLine($"  {npc.Description}");
@@ -43,22 +43,31 @@ internal static class DialogueWorkflow
             $"Let your mood and attitude color your tone, word choice, and willingness to share information.";
 
         // Augment NPC instructions to also produce dialogue options in structured JSON
+        var langInstruction = state.Language != "English"
+            ? $"\nIMPORTANT: You MUST speak and generate ALL text (speech, option text) in {state.Language}. JSON keys stay in English.\n"
+            : "";
         var npcInstructions = npcBaseInstructions + dynamicContext + "\n\n" +
+            langInstruction +
             "IMPORTANT OUTPUT FORMAT: You MUST respond with ONLY a JSON object, no extra text. Format:\n" +
             "{\n" +
             "  \"speech\": \"Your in-character dialogue here (2-4 sentences).\",\n" +
             "  \"quest_accepted\": false,\n" +
+            "  \"is_farewell\": false,\n" +
             "  \"options\": [\n" +
-            "    {\"number\": 1, \"text\": \"A contextual player response option\"},\n" +
-            "    {\"number\": 2, \"text\": \"Another option with a different tone\"},\n" +
-            "    {\"number\": 3, \"text\": \"A third option\"},\n" +
-            "    {\"number\": 4, \"text\": \"End conversation\"}\n" +
+            "    {\"number\": 1, \"text\": \"A contextual player response option\", \"is_farewell\": false},\n" +
+            "    {\"number\": 2, \"text\": \"Another option with a different tone\", \"is_farewell\": false},\n" +
+            "    {\"number\": 3, \"text\": \"A third option\", \"is_farewell\": false},\n" +
+            "    {\"number\": 4, \"text\": \"End conversation\", \"is_farewell\": true}\n" +
             "  ]\n" +
             "}\n" +
             "Rules for quest_accepted:\n" +
             "- Set to true ONLY when the player's PREVIOUS message clearly agreed, committed, or volunteered to help with a task/quest you offered\n" +
             "- Examples of acceptance: 'I'll do it', 'Count me in', 'I'll help', 'I'll take the risk', 'I'll proceed', 'Deal', 'Where do I start?'\n" +
             "- Set to false if the player is merely asking questions, hesitating, or hasn't been offered a task yet\n" +
+            "Rules for is_farewell:\n" +
+            "- Set to true when the option is a goodbye, farewell, 'end conversation', 'leave', 'walk away', or similar.\n" +
+            "- Set to false for ALL other options.\n" +
+            "- ONLY the last option in the list should ever be a farewell option.\n" +
             "Rules for options:\n" +
             "- Generate 3-5 options that are SPECIFIC to what was just discussed\n" +
             "- Vary the tone: curious, friendly, skeptical, direct, etc.\n" +
@@ -141,7 +150,7 @@ internal static class DialogueWorkflow
                 {
                     state.Player.ActiveQuests.Add(quest);
                     Console.ForegroundColor = ConsoleColor.Green;
-                    Console.WriteLine($"\n  \U0001f4dc Quest accepted: {quest.Title}!");
+                    Console.WriteLine($"\n  {UIStrings.Format(state.Language, "dialogue_quest_accepted", quest.Title)}");
                     Console.WriteLine($"     {quest.Description}");
                     Console.ResetColor();
                     state.AddLog($"Accepted quest '{quest.Title}' from {npc.Name}.");
@@ -162,7 +171,7 @@ internal static class DialogueWorkflow
             if (questAccepted)
             {
                 Console.ForegroundColor = ConsoleColor.DarkGray;
-                Console.WriteLine($"\n  You take your leave from {npc.Name}, ready to pursue the quest.");
+                Console.WriteLine($"\n  {UIStrings.Format(state.Language, "dialogue_leave_quest", npc.Name)}");
                 Console.ResetColor();
                 break;
             }
@@ -172,9 +181,9 @@ internal static class DialogueWorkflow
             {
                 options =
                 [
-                    new DialogueOption { Number = 1, Text = $"Ask {npc.Name} to elaborate on what they just said." },
-                    new DialogueOption { Number = 2, Text = $"Ask about {npc.Name}'s role in this place." },
-                    new DialogueOption { Number = 3, Text = "End conversation." },
+                    new DialogueOption { Number = 1, Text = UIStrings.Format(state.Language, "dialogue_ask_elaborate", npc.Name) },
+                    new DialogueOption { Number = 2, Text = UIStrings.Format(state.Language, "dialogue_ask_role", npc.Name) },
+                    new DialogueOption { Number = 3, Text = UIStrings.Get(state.Language, "dialogue_end"), IsFarewell = true },
                 ];
             }
 
@@ -190,25 +199,14 @@ internal static class DialogueWorkflow
             Console.WriteLine();
 
             // Get player choice
-            var choice = GetDialogueChoice(options);
+            var choice = GetDialogueChoice(options, state.Language);
             if (choice is null) continue;
 
-            // Check for end conversation: last option is always exit, or text hints at leaving
-            if (choice.Number == options[^1].Number ||
-                 (choice.Text.Contains("end", StringComparison.OrdinalIgnoreCase) &&
-                  choice.Text.Contains("conversation", StringComparison.OrdinalIgnoreCase)) ||
-                 choice.Text.Contains("goodbye", StringComparison.OrdinalIgnoreCase) ||
-                 choice.Text.Contains("farewell", StringComparison.OrdinalIgnoreCase) ||
-                 choice.Text.Contains("leave", StringComparison.OrdinalIgnoreCase) ||
-                 choice.Text.Contains("walk away", StringComparison.OrdinalIgnoreCase) ||
-                 choice.Text.Contains("head to", StringComparison.OrdinalIgnoreCase) ||
-                 choice.Text.Contains("head off", StringComparison.OrdinalIgnoreCase) ||
-                 choice.Text.Contains("move on", StringComparison.OrdinalIgnoreCase) ||
-                 choice.Text.Contains("without further", StringComparison.OrdinalIgnoreCase) ||
-                 choice.Text.Contains("depart", StringComparison.OrdinalIgnoreCase))
+            // Check for end conversation: use structured is_farewell signal (language-agnostic)
+            if (choice.IsFarewell || choice.Number == options[^1].Number)
             {
                 Console.ForegroundColor = ConsoleColor.DarkGray;
-                Console.WriteLine($"\n  You bid farewell to {npc.Name}.");
+                Console.WriteLine($"\n  {UIStrings.Format(state.Language, "dialogue_farewell", npc.Name)}");
                 Console.ResetColor();
                 break;
             }
@@ -252,6 +250,7 @@ internal static class DialogueWorkflow
                     {
                         Number = el.TryGetProperty("number", out var n) ? n.GetInt32() : options.Count + 1,
                         Text = el.TryGetProperty("text", out var t) ? t.GetString() ?? "" : "",
+                        IsFarewell = el.TryGetProperty("is_farewell", out var fw) && fw.ValueKind == JsonValueKind.True,
                     });
                 }
             }
@@ -263,25 +262,22 @@ internal static class DialogueWorkflow
         }
     }
 
-    private static DialogueOption? GetDialogueChoice(List<DialogueOption> options)
+    private static DialogueOption? GetDialogueChoice(List<DialogueOption> options, string language)
     {
         while (true)
         {
             Console.ForegroundColor = ConsoleColor.DarkGray;
-            Console.Write("Say > ");
+            Console.Write(UIStrings.Get(language, "dialogue_prompt"));
             Console.ResetColor();
             var input = Console.ReadLine();
 
             if (input is null)
             {
-                // End of input stream — auto-leave dialogue
+                // End of input stream — auto-leave dialogue (use IsFarewell signal)
                 Console.WriteLine();
-                return options.FirstOrDefault(o => o.Text.Contains("end", StringComparison.OrdinalIgnoreCase)
-                    && o.Text.Contains("conversation", StringComparison.OrdinalIgnoreCase))
-                    ?? options.FirstOrDefault(o => o.Text.Contains("leave", StringComparison.OrdinalIgnoreCase)
-                        || o.Text.Contains("goodbye", StringComparison.OrdinalIgnoreCase)
-                        || o.Text.Contains("farewell", StringComparison.OrdinalIgnoreCase))
-                    ?? new DialogueOption { Number = 0, Text = "End conversation" };
+                return options.FirstOrDefault(o => o.IsFarewell)
+                    ?? options.LastOrDefault()
+                    ?? new DialogueOption { Number = 0, Text = "End conversation", IsFarewell = true };
             }
 
             input = input.Trim();
@@ -294,7 +290,7 @@ internal static class DialogueWorkflow
             }
 
             Console.ForegroundColor = ConsoleColor.DarkYellow;
-            Console.WriteLine($"Enter 1-{options.Count}.");
+            Console.WriteLine(UIStrings.Format(language, "dialogue_enter_num", options.Count));
             Console.ResetColor();
         }
     }

@@ -66,7 +66,8 @@ When asked to present to the player, output:
 
 ## Rules
 
-1. **Always provide 3-6 options** per turn. Include at least one safe option and one adventurous option.
+1. **Language**: If the context specifies a language, ALL player-facing text (narrative, option descriptions, names) MUST be written in that language. JSON keys (`next_agent`, `narrative`, `options`, `action_type`, `target`) always remain in English.
+2. **Always provide 3-6 options** per turn. Include at least one safe option and one adventurous option.
 2. **New locations**: When the player moves to an unexplored exit, route to `world_architect` to generate the new location, then to `npc_weaver` (50-70% chance to generate 1-2 NPCs), then optionally to `creature_forger` (30-50% chance based on location danger level).
 3. **First turn**: Route to `world_architect` to generate the starting location, then to `npc_weaver` to create 1-2 starting NPCs.
 4. **Context awareness**: Use the game state, game log, and conversation history to maintain narrative consistency.

@@ -78,4 +78,5 @@ After deciding the effect, call `ApplyItemEffect` with the effect JSON.
 
 - Output **only the JSON object**. No commentary, no markdown fences.
 - You will be told the **world theme** and **current location** for context.
+- **Language**: If the context specifies a language, ALL player-facing text (lore, narratives, effect descriptions) MUST be written in that language. JSON keys and `effect.type` values always remain in English.
 - If the item has cached lore (non-empty `lore` field), you may reference it in use narratives.

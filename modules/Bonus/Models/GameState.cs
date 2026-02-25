@@ -24,6 +24,10 @@ internal sealed class GameState
     [JsonPropertyName("world_theme")]
     public string WorldTheme { get; set; } = "";
 
+    /// <summary>Language for all LLM-generated content (e.g. "English", "German", "Slovak"). Persisted with saves.</summary>
+    [JsonPropertyName("language")]
+    public string Language { get; set; } = "English";
+
     [JsonPropertyName("turn_count")]
     public int TurnCount { get; set; }
 

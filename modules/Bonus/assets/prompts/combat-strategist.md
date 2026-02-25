@@ -67,7 +67,8 @@ Output **only** a raw JSON array (no markdown fences, no extra text):
 
 ## Rules for Generating Moves
 
-1. **Always generate exactly 3 or 4 moves.** No more, no less.
+1. **Language**: If the prompt specifies a language, ALL player-facing text (move names and descriptions) MUST be written in that language. JSON keys (`name`, `description`, `type`, etc.) and type values (`attack`, `heavy`, `defensive`, `flee`, `item`) always remain in English.
+2. **Always generate exactly 3 or 4 moves.** No more, no less.
 2. **Make moves specific to the situation:**
    - Reference the creature by name/type ("Slash at the wolf's flank", not "Attack")
    - Reference the player's weapon if known ("Swing your iron mace", not "Attack")

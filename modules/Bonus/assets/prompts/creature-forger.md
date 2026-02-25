@@ -39,7 +39,8 @@ When asked to generate a creature, produce a **single JSON object** matching thi
 
 ## Rules
 
-1. Creature difficulty should match the **location's danger level** as described in the task. Early/safe areas get easy creatures; deeper/darker areas get harder ones.
+1. **Language**: If the generation context specifies a language, ALL player-facing text (name, description, behavior, lore, loot item names and descriptions) MUST be written in that language. JSON keys always remain in English.
+2. Creature difficulty should match the **location's danger level** as described in the task. Early/safe areas get easy creatures; deeper/darker areas get harder ones.
 2. Descriptions should be **2-3 sentences**, vivid and menacing. Include sensory details (sounds, smells, movement patterns).
 3. **`behavior`** describes the creature's **combat personality** in 1-2 sentences. It drives how the Combat Strategist generates move options and how the Combat Narrator describes the fight. Include: attack patterns (ambush vs. charge vs. pack tactics), reaction to being wounded, and any special traits. Examples:
    - "Slow and deliberate, telegraphs heavy strikes. Roars in pain when hit, exposing weak points."

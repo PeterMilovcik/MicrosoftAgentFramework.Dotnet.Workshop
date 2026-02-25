@@ -18,7 +18,8 @@ Output **only** a raw JSON object (no markdown fences, no extra text):
 
 ## Rules
 
-1. **Write 2-4 sentences** of dramatic, second-person narration ("You lunge...", "Your sword...").
+1. **Language**: If the prompt specifies a language, ALL narration MUST be written in that language. The JSON key `narrative` remains in English.
+2. **Write 2-4 sentences** of dramatic, second-person narration ("You lunge...", "Your sword...").
 2. **Reference specifics from the resolved outcome:**
    - Name the move used ("Your sweeping blade arc...")
    - Mention hit/miss ("...the strike goes wide" vs "...connects solidly")

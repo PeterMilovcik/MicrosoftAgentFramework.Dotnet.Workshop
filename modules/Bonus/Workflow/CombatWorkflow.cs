@@ -27,11 +27,11 @@ internal static class CombatWorkflow
     {
         Console.WriteLine();
         Console.ForegroundColor = ConsoleColor.Red;
-        Console.WriteLine($"  ⚔  COMBAT: {creature.Name}");
+        Console.WriteLine($"  {UIStrings.Format(state.Language, "combat_header", creature.Name)}");
         Console.ResetColor();
         Console.ForegroundColor = ConsoleColor.DarkGray;
         Console.WriteLine($"  {creature.Description}");
-        Console.WriteLine($"  HP: {creature.HP}/{creature.MaxHP} | Atk: {creature.Attack} | Def: {creature.Defense} | Difficulty: {creature.Difficulty}");
+        Console.WriteLine($"  {UIStrings.Format(state.Language, "combat_stats", creature.HP, creature.MaxHP, creature.Attack, creature.Defense, creature.Difficulty)}");
         Console.ResetColor();
 
         // Create combat agents (tool-free — no UpdatePlayerStats double-mutation)
@@ -50,22 +50,22 @@ internal static class CombatWorkflow
             // ── Show combat status ──
             Console.WriteLine();
             Console.ForegroundColor = ConsoleColor.White;
-            Console.WriteLine($"── Round {round} ──");
+            Console.WriteLine($"{UIStrings.Format(state.Language, "combat_round", round)}");
             Console.ResetColor();
-            PrintCombatStatus(state.Player, creature);
+            PrintCombatStatus(state.Player, creature, state.Language);
 
             // ── Generate cinematic moves via Combat Strategist ──
-            var movesPrompt = BuildStrategistPrompt(state.Player, creature, round, combatLog, locationName, locationAtmosphere);
+            var movesPrompt = BuildStrategistPrompt(state.Player, creature, round, combatLog, locationName, locationAtmosphere, state.Language);
             var movesResponse = await AgentHelper.RunAgent(strategist, movesPrompt, ct,
                 "[]");
 
-            var moves = ParseMoves(movesResponse, state.Player, creature);
+            var moves = ParseMoves(movesResponse, state.Player, creature, state.Language);
 
             // ── Display moves ──
             PrintMoves(moves);
 
             // ── Player picks a move ──
-            var chosen = GetMoveChoice(moves);
+            var chosen = GetMoveChoice(moves, state.Language);
             if (chosen is null) continue;
 
             // ── Find potion if item move ──
@@ -76,7 +76,7 @@ internal static class CombatWorkflow
                 if (potionToUse is null)
                 {
                     Console.ForegroundColor = ConsoleColor.DarkYellow;
-                    Console.WriteLine("  No potions available! Using a basic attack instead.");
+                    Console.WriteLine($"  {UIStrings.Get(state.Language, "combat_no_potions")}");
                     Console.ResetColor();
                     chosen = new CombatMove { Number = 1, Name = "Quick Strike", Type = "attack", Icon = "⚔️" };
                 }
@@ -100,7 +100,7 @@ internal static class CombatWorkflow
             PrintDiceResults(result, creature.Name);
 
             // ── Narrate the outcome via Combat Narrator (LLM) ──
-            var narratorPrompt = BuildNarratorPrompt(result, state.Player, creature, round, locationName, locationAtmosphere);
+            var narratorPrompt = BuildNarratorPrompt(result, state.Player, creature, round, locationName, locationAtmosphere, state.Language);
             var narrativeResponse = await AgentHelper.RunAgent(narrator, narratorPrompt, ct,
                 "{\"narrative\": \"The clash of combat continues.\"}");
             var narrative = ParseNarrative(narrativeResponse);
@@ -116,7 +116,7 @@ internal static class CombatWorkflow
             if (result.FledSuccessfully)
             {
                 Console.ForegroundColor = ConsoleColor.Yellow;
-                Console.WriteLine("\n  🏃 You fled from combat!");
+                Console.WriteLine($"\n  {UIStrings.Get(state.Language, "combat_fled")}");
                 Console.ResetColor();
                 state.AddLog($"Fled from {creature.Name}.");
                 return CombatResult.PlayerFled;
@@ -129,14 +129,14 @@ internal static class CombatWorkflow
                 creature.IsDefeated = true;
 
                 Console.ForegroundColor = ConsoleColor.Green;
-                Console.WriteLine($"\n  🎉 {creature.Name} has been defeated!");
+                Console.WriteLine($"\n  {UIStrings.Format(state.Language, "combat_defeated", creature.Name)}");
                 Console.ResetColor();
 
                 // Award loot
                 if (creature.Loot.Count > 0)
                 {
                     Console.ForegroundColor = ConsoleColor.Yellow;
-                    Console.WriteLine("  Loot gained:");
+                    Console.WriteLine($"  {UIStrings.Get(state.Language, "combat_loot")}");
                     foreach (var loot in creature.Loot)
                     {
                         state.Player.Inventory.Add(loot);
@@ -148,7 +148,7 @@ internal static class CombatWorkflow
                 // Award XP
                 state.Player.XP += creature.XPReward;
                 Console.ForegroundColor = ConsoleColor.Cyan;
-                Console.WriteLine($"  +{creature.XPReward} XP (total: {state.Player.XP}/{state.Player.XPToNextLevel})");
+                Console.WriteLine($"  {UIStrings.Format(state.Language, "combat_xp", creature.XPReward, state.Player.XP, state.Player.XPToNextLevel)}");
                 Console.ResetColor();
 
                 state.AddLog($"Defeated {creature.Name} (+{creature.XPReward} XP).");
@@ -161,7 +161,7 @@ internal static class CombatWorkflow
             {
                 state.Player.HP = 0;
                 Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine($"\n  ☠ You have been slain by {creature.Name}...");
+                Console.WriteLine($"\n  {UIStrings.Format(state.Language, "combat_slain", creature.Name)}");
                 Console.ResetColor();
                 state.AddLog($"Slain by {creature.Name}.");
                 return CombatResult.PlayerDefeated;
@@ -177,10 +177,12 @@ internal static class CombatWorkflow
 
     private static string BuildStrategistPrompt(
         PlayerCharacter player, Creature creature, int round,
-        List<string> combatLog, string locationName, string locationAtmosphere)
+        List<string> combatLog, string locationName, string locationAtmosphere, string language)
     {
         var sb = new StringBuilder();
         sb.AppendLine("Generate 3-4 combat moves for this round.\n");
+        if (language != "English")
+            sb.AppendLine($"Language: {language} — all move names and descriptions MUST be in this language. JSON keys and type values stay English.\n");
 
         // Player state
         var weapon = player.Inventory.FirstOrDefault(i => i.Type == "weapon");
@@ -234,10 +236,12 @@ internal static class CombatWorkflow
 
     private static string BuildNarratorPrompt(
         CombatRoundResult result, PlayerCharacter player, Creature creature, int round,
-        string locationName, string locationAtmosphere)
+        string locationName, string locationAtmosphere, string language)
     {
         var sb = new StringBuilder();
         sb.AppendLine("Narrate this combat round result dramatically in 2-4 sentences.\n");
+        if (language != "English")
+            sb.AppendLine($"Language: {language} — narration MUST be in this language.\n");
 
         sb.AppendLine($"Round: {round}");
         sb.AppendLine($"Player: {player.Name} (HP: {player.HP}/{player.MaxHP})");
@@ -295,7 +299,7 @@ internal static class CombatWorkflow
     // Parsing
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-    private static List<CombatMove> ParseMoves(string text, PlayerCharacter player, Creature creature)
+    private static List<CombatMove> ParseMoves(string text, PlayerCharacter player, Creature creature, string language)
     {
         // Try to parse as JSON array
         var json = ExtractJsonArray(text);
@@ -316,29 +320,29 @@ internal static class CombatWorkflow
         }
 
         // Fallback: generate contextual default moves
-        return BuildFallbackMoves(player, creature);
+        return BuildFallbackMoves(player, creature, language);
     }
 
-    private static List<CombatMove> BuildFallbackMoves(PlayerCharacter player, Creature creature)
+    private static List<CombatMove> BuildFallbackMoves(PlayerCharacter player, Creature creature, string language)
     {
         var moves = new List<CombatMove>
         {
             new()
             {
-                Number = 1, Name = "Quick Strike", Icon = "⚔️", Type = "attack",
-                Description = $"A reliable strike aimed at {creature.Name}",
+                Number = 1, Name = UIStrings.Get(language, "move_quick_strike"), Icon = "⚔️", Type = "attack",
+                Description = UIStrings.Format(language, "move_quick_strike_desc", creature.Name),
                 AttackBonus = 1, DamageBonus = 0,
             },
             new()
             {
-                Number = 2, Name = "Defensive Stance", Icon = "🛡️", Type = "defensive",
-                Description = "Brace for impact and look for an opening to counter",
+                Number = 2, Name = UIStrings.Get(language, "move_defensive"), Icon = "🛡️", Type = "defensive",
+                Description = UIStrings.Get(language, "move_defensive_desc"),
                 DefenseBonus = 2, AttackBonus = 0,
             },
             new()
             {
-                Number = 3, Name = "Disengage", Icon = "🏃", Type = "flee",
-                Description = "Attempt to break away from combat",
+                Number = 3, Name = UIStrings.Get(language, "move_disengage"), Icon = "🏃", Type = "flee",
+                Description = UIStrings.Get(language, "move_disengage_desc"),
             },
         };
 
@@ -346,8 +350,8 @@ internal static class CombatWorkflow
         {
             moves.Add(new CombatMove
             {
-                Number = 4, Name = "Drink Potion", Icon = "🧪", Type = "item",
-                Description = "Quickly down a healing potion",
+                Number = 4, Name = UIStrings.Get(language, "move_drink_potion"), Icon = "🧪", Type = "item",
+                Description = UIStrings.Get(language, "move_drink_potion_desc"),
             });
         }
 
@@ -410,14 +414,14 @@ internal static class CombatWorkflow
     // Console UI
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-    private static void PrintCombatStatus(PlayerCharacter player, Creature creature)
+    private static void PrintCombatStatus(PlayerCharacter player, Creature creature, string language)
     {
         Console.ForegroundColor = ConsoleColor.Green;
-        Console.Write($"  ❤ You: {player.HP}/{player.MaxHP} HP");
+        Console.Write($"  {UIStrings.Format(language, "combat_you_hp", player.HP, player.MaxHP)}");
         Console.ResetColor();
         Console.Write("  |  ");
         Console.ForegroundColor = ConsoleColor.Red;
-        Console.WriteLine($"💀 {creature.Name}: {creature.HP}/{creature.MaxHP} HP");
+        Console.WriteLine($"{UIStrings.Format(language, "combat_creature_hp", creature.Name, creature.HP, creature.MaxHP)}");
         Console.ResetColor();
     }
 
@@ -542,12 +546,12 @@ internal static class CombatWorkflow
         }
     }
 
-    private static CombatMove? GetMoveChoice(List<CombatMove> moves)
+    private static CombatMove? GetMoveChoice(List<CombatMove> moves, string language)
     {
         while (true)
         {
             Console.ForegroundColor = ConsoleColor.DarkGray;
-            Console.Write("Combat > ");
+            Console.Write(UIStrings.Get(language, "combat_prompt"));
             Console.ResetColor();
             var input = Console.ReadLine();
 
@@ -568,7 +572,7 @@ internal static class CombatWorkflow
             }
 
             Console.ForegroundColor = ConsoleColor.DarkYellow;
-            Console.WriteLine($"Enter 1-{moves.Count}.");
+            Console.WriteLine(UIStrings.Format(language, "combat_enter_num", moves.Count));
             Console.ResetColor();
         }
     }

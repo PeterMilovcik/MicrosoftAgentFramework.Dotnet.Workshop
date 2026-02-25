@@ -274,6 +274,45 @@ static GameState CreateNewGame()
             theme = "High Fantasy — a classic world of knights, dragons, wizards, and ancient dungeons";
     }
 
+    // Language selection
+    Console.WriteLine();
+    Console.ForegroundColor = ConsoleColor.Yellow;
+    Console.WriteLine("  Choose a language for the game world:");
+    Console.WriteLine("  [1]  🇬🇧 English");
+    Console.WriteLine("  [2]  🇩🇪 Deutsch (German)");
+    Console.WriteLine("  [3]  🇫🇷 Français (French)");
+    Console.WriteLine("  [4]  🇪🇸 Español (Spanish)");
+    Console.WriteLine("  [5]  🇮🇹 Italiano (Italian)");
+    Console.WriteLine("  [6]  🇵🇹 Português (Portuguese)");
+    Console.WriteLine("  [7]  🇳🇱 Nederlands (Dutch)");
+    Console.WriteLine("  [8]  🇵🇱 Polski (Polish)");
+    Console.WriteLine("  [9]  🇨🇿 Čeština (Czech)");
+    Console.WriteLine("  [10] 🇸🇰 Slovenčina (Slovak)");
+    Console.WriteLine("  [11] 🇺🇦 Українська (Ukrainian)");
+    Console.WriteLine("  [12] 🇯🇵 日本語 (Japanese)");
+    Console.WriteLine("  [13] 🇰🇷 한국어 (Korean)");
+    Console.ResetColor();
+    Console.WriteLine();
+    Console.Write("  Language > ");
+    var langInput = Console.ReadLine()?.Trim();
+    var language = langInput switch
+    {
+        "1" => "English",
+        "2" => "German",
+        "3" => "French",
+        "4" => "Spanish",
+        "5" => "Italian",
+        "6" => "Portuguese",
+        "7" => "Dutch",
+        "8" => "Polish",
+        "9" => "Czech",
+        "10" => "Slovak",
+        "11" => "Ukrainian",
+        "12" => "Japanese",
+        "13" => "Korean",
+        _ => "English",
+    };
+
     var state = new GameState
     {
         SaveId = Guid.NewGuid().ToString("N")[..8],
@@ -291,11 +330,12 @@ static GameState CreateNewGame()
             Gold = 10,
             Inventory =
             [
-                new Item { Name = "Rusty Sword", Description = "A well-worn blade, still sharp enough", Type = "weapon", EffectValue = 2 },
-                new Item { Name = "Minor Healing Potion", Description = "A small vial of red liquid", Type = "potion", EffectValue = 20 },
+                new Item { Name = UIStrings.Get(language, "item_rusty_sword"), Description = UIStrings.Get(language, "item_rusty_sword_desc"), Type = "weapon", EffectValue = 2 },
+                new Item { Name = UIStrings.Get(language, "item_healing_potion"), Description = UIStrings.Get(language, "item_healing_potion_desc"), Type = "potion", EffectValue = 20 },
             ],
         },
         WorldTheme = theme,
+        Language = language,
     };
 
     Console.WriteLine();

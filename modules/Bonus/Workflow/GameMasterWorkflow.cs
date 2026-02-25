@@ -104,7 +104,8 @@ internal static class GameMasterWorkflow
 
                 AgentHelper.PrintSubAgentWork(decision.NextAgent, decision.Task);
 
-                var subPrompt = $"World theme: {state.WorldTheme}\n\n" +
+                var langHint = state.Language != "English" ? $"Language: {state.Language} — all player-facing text MUST be in this language. JSON keys stay English.\n" : "";
+                var subPrompt = $"World theme: {state.WorldTheme}\n{langHint}\n" +
                     $"Current game context:\n{string.Join("\n\n---\n\n", turnContext)}\n\n" +
                     $"Your task:\n{decision.Task}";
 
@@ -137,8 +138,9 @@ internal static class GameMasterWorkflow
             }
 
             // ── Present to player ──
+            var presentLangHint = state.Language != "English" ? $" The narrative and option descriptions MUST be in {state.Language}." : "";
             var presentPrompt = "Now present the current situation to the player. " +
-                "Output a PlayerPresentation JSON with a vivid narrative and 3-6 numbered options.\n\n" +
+                $"Output a PlayerPresentation JSON with a vivid narrative and 3-6 numbered options.{presentLangHint}\n\n" +
                 $"Game state:\n{BuildGameStateSummary(state)}\n\n" +
                 $"Turn context:\n{string.Join("\n\n---\n\n", turnContext)}\n\n" +
                 "Remember: output ONLY the JSON {\"narrative\": \"...\", \"options\": [...]}";
@@ -154,7 +156,7 @@ internal static class GameMasterWorkflow
 
             // Display to player
             PrintNarrative(presentation.Narrative);
-            PrintOptions(presentation.Options);
+            PrintOptions(presentation.Options, state.Language);
 
             // Get player choice
             var choice = GetPlayerChoice(presentation.Options, state);
@@ -171,8 +173,8 @@ internal static class GameMasterWorkflow
             if (state.Player.TryLevelUp())
             {
                 Console.ForegroundColor = ConsoleColor.Yellow;
-                Console.WriteLine($"\n⬆️  LEVEL UP! You are now level {state.Player.Level}!");
-                Console.WriteLine($"   HP: {state.Player.MaxHP} | Attack: {state.Player.Attack} | Defense: {state.Player.Defense}");
+                Console.WriteLine($"\n{UIStrings.Format(state.Language, "level_up", state.Player.Level)}");
+                Console.WriteLine($"   {UIStrings.Format(state.Language, "level_stats", state.Player.HP, state.Player.MaxHP, state.Player.Attack, state.Player.Defense)}");
                 Console.ResetColor();
                 state.AddLog($"Player leveled up to {state.Player.Level}!");
             }
@@ -377,7 +379,7 @@ internal static class GameMasterWorkflow
         state.Player.Inventory.Add(item);
 
         Console.ForegroundColor = ConsoleColor.Green;
-        Console.WriteLine($"\n🎒 Picked up: {item.Name} — {item.Description}");
+        Console.WriteLine($"\n{UIStrings.Format(state.Language, "picked_up", item.Name, item.Description)}");
         Console.ResetColor();
 
         state.AddLog($"Picked up {item.Name}.");
@@ -408,7 +410,7 @@ internal static class GameMasterWorkflow
             state.Player.Inventory.Remove(item);
 
             Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine($"\n🧪 Used {item.Name}: healed {healed} HP (now {state.Player.HP}/{state.Player.MaxHP})");
+            Console.WriteLine($"\n{UIStrings.Format(state.Language, "used_item", item.Name, healed, state.Player.HP, state.Player.MaxHP)}");
             Console.ResetColor();
 
             state.AddLog($"Used {item.Name}, healed {healed} HP.");
@@ -419,7 +421,7 @@ internal static class GameMasterWorkflow
         if (!item.IsUsable && item.Type is "weapon" or "armor")
         {
             Console.ForegroundColor = ConsoleColor.DarkGray;
-            Console.WriteLine($"\n  {item.Name} is equipped passively — it's already boosting your stats.");
+            Console.WriteLine($"\n  {UIStrings.Format(state.Language, "item_equipped", item.Name)}");
             Console.ResetColor();
             return $"{item.Name} is equipped passively.";
         }
@@ -483,7 +485,7 @@ internal static class GameMasterWorkflow
         if (!string.IsNullOrWhiteSpace(item.Lore))
         {
             Console.ForegroundColor = ConsoleColor.White;
-            Console.WriteLine($"\n  🔍 {item.Name}");
+            Console.WriteLine($"\n  {UIStrings.Format(state.Language, "examine_header", item.Name)}");
             Console.ResetColor();
             Console.ForegroundColor = ConsoleColor.Cyan;
             Console.WriteLine($"  {item.Lore}");
@@ -512,7 +514,7 @@ internal static class GameMasterWorkflow
                 item.Lore = lore;
 
             Console.ForegroundColor = ConsoleColor.White;
-            Console.WriteLine($"\n  🔍 {item.Name}");
+            Console.WriteLine($"\n  {UIStrings.Format(state.Language, "examine_header", item.Name)}");
             Console.ResetColor();
             Console.ForegroundColor = ConsoleColor.Cyan;
             Console.WriteLine($"  {lore}");
@@ -564,7 +566,7 @@ internal static class GameMasterWorkflow
         state.Player.HP += healed;
 
         Console.ForegroundColor = ConsoleColor.Green;
-        Console.WriteLine($"\n💤 You rest and recover {healed} HP (now {state.Player.HP}/{state.Player.MaxHP})");
+        Console.WriteLine($"\n{UIStrings.Format(state.Language, "rest_healed", healed, state.Player.HP, state.Player.MaxHP)}");
         Console.ResetColor();
 
         state.AddLog($"Rested, healed {healed} HP.");
@@ -578,13 +580,13 @@ internal static class GameMasterWorkflow
         var player = state.Player;
         Console.WriteLine();
         Console.ForegroundColor = ConsoleColor.Yellow;
-        Console.WriteLine("🎒 Inventory:");
+        Console.WriteLine(UIStrings.Get(state.Language, "inventory_header"));
         Console.ResetColor();
 
         if (player.Inventory.Count == 0)
         {
             Console.ForegroundColor = ConsoleColor.DarkGray;
-            Console.WriteLine("   (empty)");
+            Console.WriteLine($"   {UIStrings.Get(state.Language, "inventory_empty")}");
             Console.ResetColor();
             return "Player checked inventory — nothing to do.";
         }
@@ -594,9 +596,9 @@ internal static class GameMasterWorkflow
             var item = player.Inventory[i];
             var bonus = item.Type switch
             {
-                "weapon" => $" (+{item.EffectValue} atk)",
-                "armor" => $" (+{item.EffectValue} def)",
-                "potion" => $" (heals {item.EffectValue})",
+                "weapon" => UIStrings.Format(state.Language, "inv_atk_bonus", item.EffectValue),
+                "armor" => UIStrings.Format(state.Language, "inv_def_bonus", item.EffectValue),
+                "potion" => UIStrings.Format(state.Language, "inv_heals", item.EffectValue),
                 _ => "",
             };
             Console.ForegroundColor = ConsoleColor.White;
@@ -611,7 +613,7 @@ internal static class GameMasterWorkflow
         if (potions.Count > 0 && player.HP < player.MaxHP)
         {
             Console.ForegroundColor = ConsoleColor.DarkCyan;
-            Console.Write("\n   Use a potion? Enter item number or 0 to close > ");
+            Console.Write($"\n   {UIStrings.Get(state.Language, "inventory_use_prompt")}");
             Console.ResetColor();
 
             var input = Console.ReadLine()?.Trim();
@@ -624,7 +626,7 @@ internal static class GameMasterWorkflow
                     player.HP += healed;
                     player.Inventory.RemoveAt(idx - 1);
                     Console.ForegroundColor = ConsoleColor.Green;
-                    Console.WriteLine($"   🧪 Used {chosen.Name}: healed {healed} HP (now {player.HP}/{player.MaxHP})");
+                    Console.WriteLine($"   {UIStrings.Format(state.Language, "used_item", chosen.Name, healed, player.HP, player.MaxHP)}");
                     Console.ResetColor();
                     state.AddLog($"Used {chosen.Name}, healed {healed} HP.");
                     return $"Player used {chosen.Name}, healed {healed} HP.";
@@ -632,7 +634,7 @@ internal static class GameMasterWorkflow
                 else
                 {
                     Console.ForegroundColor = ConsoleColor.DarkGray;
-                    Console.WriteLine($"   {chosen.Name} is equipped passively.");
+                    Console.WriteLine($"   {UIStrings.Format(state.Language, "item_equipped", chosen.Name)}");
                     Console.ResetColor();
                 }
             }
@@ -640,7 +642,7 @@ internal static class GameMasterWorkflow
         else
         {
             Console.ForegroundColor = ConsoleColor.DarkGray;
-            Console.Write("\n   Press Enter to close inventory > ");
+            Console.Write($"\n   {UIStrings.Get(state.Language, "inventory_close")}");
             Console.ResetColor();
             Console.ReadLine();
         }
@@ -654,7 +656,7 @@ internal static class GameMasterWorkflow
     {
         Console.WriteLine();
         Console.ForegroundColor = ConsoleColor.Yellow;
-        Console.WriteLine("🗺️  Discovered Locations:");
+        Console.WriteLine(UIStrings.Get(state.Language, "map_header"));
         Console.ResetColor();
 
         foreach (var loc in state.Locations.Values)
@@ -681,7 +683,7 @@ internal static class GameMasterWorkflow
         }
 
         Console.ForegroundColor = ConsoleColor.DarkGray;
-        Console.WriteLine($"\n   Total: {state.Locations.Count} locations discovered.");
+        Console.WriteLine($"\n   {UIStrings.Format(state.Language, "map_total", state.Locations.Count)}");
         Console.ResetColor();
 
         return "Player viewed the map.";
@@ -694,7 +696,7 @@ internal static class GameMasterWorkflow
         Console.WriteLine();
         Console.ForegroundColor = ConsoleColor.Red;
         Console.WriteLine("╔══════════════════════════════════════════╗");
-        Console.WriteLine("║           ☠  YOU HAVE FALLEN  ☠         ║");
+        Console.WriteLine($"║   {UIStrings.Get(state.Language, "death_header"),36}   ║");
         Console.WriteLine("╚══════════════════════════════════════════╝");
         Console.ResetColor();
 
@@ -713,9 +715,9 @@ internal static class GameMasterWorkflow
             state.CurrentLocationId = startLoc.Id;
 
         Console.ForegroundColor = ConsoleColor.DarkYellow;
-        Console.WriteLine($"\n  You awaken back at {startLoc?.Name ?? "the starting area"}...");
-        Console.WriteLine($"  Lost: {goldLost} gold, {xpLost} XP");
-        Console.WriteLine($"  HP fully restored to {state.Player.HP}/{state.Player.MaxHP}");
+        Console.WriteLine($"\n  {UIStrings.Format(state.Language, "death_respawn", startLoc?.Name ?? "the starting area")}");
+        Console.WriteLine($"  {UIStrings.Format(state.Language, "death_penalty", goldLost, xpLost)}");
+        Console.WriteLine($"  {UIStrings.Format(state.Language, "death_restored", state.Player.HP, state.Player.MaxHP)}");
         Console.ResetColor();
 
         state.AddLog($"Fell in battle. Lost {goldLost}g and {xpLost}xp. Respawned at {startLoc?.Name ?? "start"}.");
@@ -747,7 +749,7 @@ internal static class GameMasterWorkflow
 
         Console.WriteLine();
         Console.ForegroundColor = ConsoleColor.Yellow;
-        Console.WriteLine($"  🪙 Trading with {npc.Name}");
+        Console.WriteLine($"  {UIStrings.Format(state.Language, "trade_header", npc.Name)}");
         Console.ResetColor();
 
         // Create a merchant agent
@@ -799,14 +801,14 @@ internal static class GameMasterWorkflow
         if (shopItems.Count == 0)
         {
             Console.ForegroundColor = ConsoleColor.DarkGray;
-            Console.WriteLine("  (No items available for trade.)");
+            Console.WriteLine($"  {UIStrings.Get(state.Language, "trade_no_items")}");
             Console.ResetColor();
             return $"Attempted to trade with {npc.Name} but no items were available.";
         }
 
         // Show shop
         Console.ForegroundColor = ConsoleColor.DarkGray;
-        Console.WriteLine($"  Your gold: {state.Player.Gold}");
+        Console.WriteLine($"  {UIStrings.Format(state.Language, "trade_gold", state.Player.Gold)}");
         Console.ResetColor();
         Console.WriteLine();
 
@@ -826,15 +828,15 @@ internal static class GameMasterWorkflow
         Console.ForegroundColor = ConsoleColor.Yellow;
         Console.Write($"  [S] ");
         Console.ForegroundColor = ConsoleColor.DarkGray;
-        Console.WriteLine("Sell an item from your inventory");
+        Console.WriteLine(UIStrings.Get(state.Language, "trade_sell"));
         Console.ForegroundColor = ConsoleColor.Yellow;
         Console.Write($"  [0] ");
         Console.ForegroundColor = ConsoleColor.DarkGray;
-        Console.WriteLine("Leave shop");
+        Console.WriteLine(UIStrings.Get(state.Language, "trade_leave"));
         Console.ResetColor();
 
         Console.ForegroundColor = ConsoleColor.DarkGray;
-        Console.Write("\n  Your choice > ");
+        Console.Write($"\n  {UIStrings.Get(state.Language, "trade_choice")}");
         Console.ResetColor();
         var input = Console.ReadLine()?.Trim();
 
@@ -849,11 +851,11 @@ internal static class GameMasterWorkflow
                 Console.ForegroundColor = ConsoleColor.White;
                 Console.Write($"  [{i + 1}] {inv.Name}");
                 Console.ForegroundColor = ConsoleColor.DarkGray;
-                Console.WriteLine($" — sells for {sellPrice}g");
+                Console.WriteLine($"{UIStrings.Format(state.Language, "trade_sells_for", sellPrice)}");
                 Console.ResetColor();
             }
             Console.ForegroundColor = ConsoleColor.DarkGray;
-            Console.Write("  Sell which? > ");
+            Console.Write($"  {UIStrings.Get(state.Language, "trade_sell_prompt")}");
             Console.ResetColor();
             var sellInput = Console.ReadLine()?.Trim();
             if (int.TryParse(sellInput, out var si) && si >= 1 && si <= state.Player.Inventory.Count)
@@ -863,7 +865,7 @@ internal static class GameMasterWorkflow
                 state.Player.Inventory.RemoveAt(si - 1);
                 state.Player.Gold += price;
                 Console.ForegroundColor = ConsoleColor.Green;
-                Console.WriteLine($"  Sold {sold.Name} for {price}g (now {state.Player.Gold}g)");
+                Console.WriteLine($"  {UIStrings.Format(state.Language, "trade_sold", sold.Name, price, state.Player.Gold)}");
                 Console.ResetColor();
                 state.AddLog($"Sold {sold.Name} for {price}g.");
                 return $"Player sold {sold.Name} for {price} gold.";
@@ -883,7 +885,7 @@ internal static class GameMasterWorkflow
                     EffectValue = toBuy.EffectValue,
                 });
                 Console.ForegroundColor = ConsoleColor.Green;
-                Console.WriteLine($"  Bought {toBuy.Name} for {toBuy.Price}g (remaining: {state.Player.Gold}g)");
+                Console.WriteLine($"  {UIStrings.Format(state.Language, "trade_bought", toBuy.Name, toBuy.Price, state.Player.Gold)}");
                 Console.ResetColor();
                 state.AddLog($"Bought {toBuy.Name} for {toBuy.Price}g.");
                 return $"Player bought {toBuy.Name} for {toBuy.Price} gold.";
@@ -891,7 +893,7 @@ internal static class GameMasterWorkflow
             else
             {
                 Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine($"  Not enough gold! Need {toBuy.Price}g, have {state.Player.Gold}g.");
+                Console.WriteLine($"  {UIStrings.Format(state.Language, "trade_no_gold", toBuy.Price, state.Player.Gold)}");
                 Console.ResetColor();
             }
         }
@@ -925,6 +927,8 @@ internal static class GameMasterWorkflow
 
         // World & player
         sb.AppendLine($"World theme: {state.WorldTheme}");
+        if (state.Language != "English")
+            sb.AppendLine($"Language: {state.Language} — all player-facing text MUST be in this language. JSON keys stay English.");
         sb.AppendLine($"Player: {state.Player.Name} | Level {state.Player.Level} | HP {state.Player.HP}/{state.Player.MaxHP} | Gold {state.Player.Gold}");
         sb.AppendLine($"Locations explored: {state.Locations.Count}");
         sb.AppendLine();
@@ -1021,6 +1025,8 @@ internal static class GameMasterWorkflow
 
         // World & player
         sb.AppendLine($"World theme: {state.WorldTheme}");
+        if (state.Language != "English")
+            sb.AppendLine($"Language: {state.Language} — all player-facing text MUST be in this language. JSON keys stay English.");
         sb.AppendLine($"Player: {state.Player.Name} | Level {state.Player.Level} | HP {state.Player.HP}/{state.Player.MaxHP} | Gold {state.Player.Gold}");
         sb.AppendLine($"Locations explored: {state.Locations.Count}");
         sb.AppendLine();
@@ -1112,6 +1118,8 @@ internal static class GameMasterWorkflow
 
         // World & player stats
         sb.AppendLine($"World theme: {state.WorldTheme}");
+        if (state.Language != "English")
+            sb.AppendLine($"Language: {state.Language} — all player-facing text MUST be in this language. JSON keys stay English.");
         sb.AppendLine($"Player: {state.Player.Name} | Level {state.Player.Level} | HP {state.Player.HP}/{state.Player.MaxHP} | " +
             $"EffAtk {state.Player.EffectiveAttack} | EffDef {state.Player.EffectiveDefense}");
         sb.AppendLine();
@@ -1388,12 +1396,12 @@ internal static class GameMasterWorkflow
 
             Console.WriteLine();
             Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine($"  ✅ Quest Complete: {quest.Title}!");
+            Console.WriteLine($"  {UIStrings.Format(state.Language, "quest_complete", quest.Title)}");
             Console.ResetColor();
             Console.ForegroundColor = ConsoleColor.Yellow;
-            if (quest.RewardGold > 0) Console.WriteLine($"     +{quest.RewardGold} gold");
-            if (quest.RewardXP > 0) Console.WriteLine($"     +{quest.RewardXP} XP");
-            if (quest.RewardItem is not null) Console.WriteLine($"     +{quest.RewardItem.Name}");
+            if (quest.RewardGold > 0) Console.WriteLine($"     {UIStrings.Format(state.Language, "quest_gold", quest.RewardGold)}");
+            if (quest.RewardXP > 0) Console.WriteLine($"     {UIStrings.Format(state.Language, "quest_xp", quest.RewardXP)}");
+            if (quest.RewardItem is not null) Console.WriteLine($"     {UIStrings.Format(state.Language, "quest_item", quest.RewardItem.Name)}");
             Console.ResetColor();
 
             state.AddLog($"Quest '{quest.Title}' completed! (+{quest.RewardGold}g, +{quest.RewardXP}xp)");
@@ -1499,13 +1507,13 @@ internal static class GameMasterWorkflow
                 options.Add(new() { Number = n++, Description = $"Pick up {item.Name}", ActionType = "pickup", Target = item.Name });
         }
 
-        options.Add(new() { Number = n++, Description = "Look around", ActionType = "look_around" });
+        options.Add(new() { Number = n++, Description = UIStrings.Get(state.Language, "opt_look_around"), ActionType = "look_around" });
         if (state.Player.Inventory.Count > 0)
-            options.Add(new() { Number = n++, Description = "Open inventory", ActionType = "inventory" });
-        options.Add(new() { Number = n++, Description = "Check quests", ActionType = "check_quests" });
-        options.Add(new() { Number = n++, Description = "View map", ActionType = "map" });
-        options.Add(new() { Number = n++, Description = "Save game", ActionType = "save_game" });
-        options.Add(new() { Number = n++, Description = "Quit", ActionType = "quit" });
+            options.Add(new() { Number = n++, Description = UIStrings.Get(state.Language, "opt_inventory"), ActionType = "inventory" });
+        options.Add(new() { Number = n++, Description = UIStrings.Get(state.Language, "opt_quests"), ActionType = "check_quests" });
+        options.Add(new() { Number = n++, Description = UIStrings.Get(state.Language, "opt_map"), ActionType = "map" });
+        options.Add(new() { Number = n++, Description = UIStrings.Get(state.Language, "opt_save"), ActionType = "save_game" });
+        options.Add(new() { Number = n++, Description = UIStrings.Get(state.Language, "opt_quit"), ActionType = "quit" });
 
         return new PlayerPresentation
         {
@@ -1535,7 +1543,7 @@ internal static class GameMasterWorkflow
         File.WriteAllText(Path.Combine(SavesDir, state.GetSaveFileName()), json);
 
         Console.ForegroundColor = ConsoleColor.Green;
-        Console.WriteLine("\n💾 Game saved!");
+        Console.WriteLine($"\n{UIStrings.Get(state.Language, "save_confirmed")}");
         Console.ResetColor();
     }
 
@@ -1647,7 +1655,7 @@ internal static class GameMasterWorkflow
         Console.ResetColor();
     }
 
-    private static void PrintOptions(List<GameOption> options)
+    private static void PrintOptions(List<GameOption> options, string language)
     {
         Console.WriteLine();
         foreach (var opt in options)
@@ -1658,7 +1666,7 @@ internal static class GameMasterWorkflow
             Console.WriteLine(opt.Description);
         }
         Console.ForegroundColor = ConsoleColor.DarkGray;
-        Console.WriteLine("  (type map, inv, quests, stats, exit, or ? for help)");
+        Console.WriteLine($"  {UIStrings.Get(language, "input_help_hint")}");
         Console.ResetColor();
         Console.WriteLine();
     }
@@ -1668,7 +1676,7 @@ internal static class GameMasterWorkflow
         while (true)
         {
             Console.ForegroundColor = ConsoleColor.DarkGray;
-            Console.Write("Your choice > ");
+            Console.Write(UIStrings.Get(state.Language, "input_prompt"));
             Console.ResetColor();
             var input = Console.ReadLine();
 
@@ -1699,7 +1707,7 @@ internal static class GameMasterWorkflow
                     PrintStats(state);
                     continue;
                 case "help" or "?":
-                    PrintHelp();
+                    PrintHelp(state.Language);
                     continue;
                 case "exit" or "quit":
                     return new GameOption { Number = 0, Description = "Quit", ActionType = "quit", Target = "" };
@@ -1712,7 +1720,7 @@ internal static class GameMasterWorkflow
             }
 
             Console.ForegroundColor = ConsoleColor.DarkYellow;
-            Console.WriteLine($"Enter a number ({options.Min(o => o.Number)}-{options.Max(o => o.Number)}) or a command (type ? for help).");
+            Console.WriteLine(UIStrings.Format(state.Language, "input_enter_num", options.Min(o => o.Number), options.Max(o => o.Number)));
             Console.ResetColor();
         }
     }
@@ -1722,43 +1730,43 @@ internal static class GameMasterWorkflow
         var p = state.Player;
         Console.WriteLine();
         Console.ForegroundColor = ConsoleColor.Yellow;
-        Console.WriteLine("📊 Player Stats:");
+        Console.WriteLine(UIStrings.Get(state.Language, "stats_header"));
         Console.ResetColor();
         Console.ForegroundColor = ConsoleColor.White;
-        Console.WriteLine($"   Name:    {p.Name}");
-        Console.WriteLine($"   Level:   {p.Level}");
-        Console.Write($"   HP:      ");
+        Console.WriteLine($"   {UIStrings.Format(state.Language, "stat_name", p.Name)}");
+        Console.WriteLine($"   {UIStrings.Format(state.Language, "stat_level", p.Level)}");
+        Console.Write($"   ");
         Console.ForegroundColor = p.HP <= p.MaxHP / 4 ? ConsoleColor.Red
             : p.HP <= p.MaxHP / 2 ? ConsoleColor.Yellow : ConsoleColor.Green;
-        Console.WriteLine($"{p.HP}/{p.MaxHP}");
+        Console.WriteLine(UIStrings.Format(state.Language, "stat_hp", p.HP, p.MaxHP));
         Console.ForegroundColor = ConsoleColor.White;
-        Console.WriteLine($"   Attack:  {p.Attack} (effective: {p.EffectiveAttack})");
-        Console.WriteLine($"   Defense: {p.Defense} (effective: {p.EffectiveDefense})");
-        Console.WriteLine($"   XP:      {p.XP}/{p.XPToNextLevel}");
-        Console.WriteLine($"   Gold:    {p.Gold}");
+        Console.WriteLine($"   {UIStrings.Format(state.Language, "stat_attack", p.EffectiveAttack, p.Attack)}");
+        Console.WriteLine($"   {UIStrings.Format(state.Language, "stat_defense", p.EffectiveDefense, p.Defense)}");
+        Console.WriteLine($"   {UIStrings.Format(state.Language, "stat_xp", p.XP, p.XPToNextLevel)}");
+        Console.WriteLine($"   {UIStrings.Format(state.Language, "stat_gold", p.Gold)}");
         Console.ResetColor();
     }
 
-    private static void PrintHelp()
+    private static void PrintHelp(string language)
     {
         Console.WriteLine();
         Console.ForegroundColor = ConsoleColor.Yellow;
-        Console.WriteLine("📖 Available Commands:");
+        Console.WriteLine(UIStrings.Get(language, "help_header"));
         Console.ResetColor();
         Console.ForegroundColor = ConsoleColor.White;
-        Console.Write("   map        "); Console.ForegroundColor = ConsoleColor.DarkGray; Console.WriteLine("Show discovered locations");
+        Console.Write("   map        "); Console.ForegroundColor = ConsoleColor.DarkGray; Console.WriteLine(UIStrings.Get(language, "help_map"));
         Console.ForegroundColor = ConsoleColor.White;
-        Console.Write("   inv        "); Console.ForegroundColor = ConsoleColor.DarkGray; Console.WriteLine("Open inventory (also: inventory, i)");
+        Console.Write("   inv        "); Console.ForegroundColor = ConsoleColor.DarkGray; Console.WriteLine(UIStrings.Get(language, "help_inv"));
         Console.ForegroundColor = ConsoleColor.White;
-        Console.Write("   quests     "); Console.ForegroundColor = ConsoleColor.DarkGray; Console.WriteLine("Show active quests (also: q)");
+        Console.Write("   quests     "); Console.ForegroundColor = ConsoleColor.DarkGray; Console.WriteLine(UIStrings.Get(language, "help_quests"));
         Console.ForegroundColor = ConsoleColor.White;
-        Console.Write("   stats      "); Console.ForegroundColor = ConsoleColor.DarkGray; Console.WriteLine("Show player stats (also: s)");
+        Console.Write("   stats      "); Console.ForegroundColor = ConsoleColor.DarkGray; Console.WriteLine(UIStrings.Get(language, "help_stats"));
         Console.ForegroundColor = ConsoleColor.White;
-        Console.Write("   ?          "); Console.ForegroundColor = ConsoleColor.DarkGray; Console.WriteLine("Show this help (also: help)");
+        Console.Write("   ?          "); Console.ForegroundColor = ConsoleColor.DarkGray; Console.WriteLine(UIStrings.Get(language, "help_help"));
         Console.ForegroundColor = ConsoleColor.White;
-        Console.Write("   exit       "); Console.ForegroundColor = ConsoleColor.DarkGray; Console.WriteLine("Save and quit the game (also: quit)");
+        Console.Write("   exit       "); Console.ForegroundColor = ConsoleColor.DarkGray; Console.WriteLine(UIStrings.Get(language, "help_exit"));
         Console.ForegroundColor = ConsoleColor.DarkGray;
-        Console.WriteLine("\n   Or enter a number to pick an option.");
+        Console.WriteLine($"\n   {UIStrings.Get(language, "help_number")}");
         Console.ResetColor();
     }
 
@@ -1767,13 +1775,13 @@ internal static class GameMasterWorkflow
         var active = state.Player.ActiveQuests.Where(q => !q.IsComplete).ToList();
         Console.WriteLine();
         Console.ForegroundColor = ConsoleColor.Yellow;
-        Console.WriteLine("📜 Active Quests:");
+        Console.WriteLine(UIStrings.Get(state.Language, "quests_header"));
         Console.ResetColor();
 
         if (active.Count == 0)
         {
             Console.ForegroundColor = ConsoleColor.DarkGray;
-            Console.WriteLine("   No active quests.");
+            Console.WriteLine($"   {UIStrings.Get(state.Language, "quests_none")}");
             Console.ResetColor();
         }
         else

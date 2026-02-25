@@ -38,7 +38,8 @@ When asked to generate a location, produce a **single JSON object** matching thi
 
 ## Rules
 
-1. Generate **2-4 exits** per location. At least one should lead to unexplored territory (`target_location_id: null`). One should connect back to the location the player came from (if provided in the task).
+1. **Language**: If the generation context specifies a language, ALL player-facing text (name, description, lore, points_of_interest, secret, exit descriptions, item names and descriptions) MUST be written in that language. JSON keys always remain in English.
+2. Generate **2-4 exits** per location. At least one should lead to unexplored territory (`target_location_id: null`). One should connect back to the location the player came from (if provided in the task).
 2. Include **atmospheric sensory details** in the description: sounds, smells, lighting, textures, temperature.
 3. The description should be **3-5 sentences**, vivid and evocative. It must match the `atmosphere` field tonally — a "foreboding" location should not read as cheerful.
 4. Include **0-2 discoverable items** appropriate to the location (mostly misc/flavor items, occasionally a potion or weapon).
