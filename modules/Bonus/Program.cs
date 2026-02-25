@@ -236,11 +236,16 @@ static GameState CreateNewGame()
     Console.ForegroundColor = ConsoleColor.Yellow;
     Console.WriteLine("  Choose a world theme:");
     Console.WriteLine("  [1] 🏰 Dark Fantasy — Crumbling castles, ancient curses, and dark forests");
-    Console.WriteLine("  [2] 🌲 Enchanted Forest — Mystical groves, fae creatures, and hidden magic");
+    Console.WriteLine("  [2] ⚔️  High Fantasy — Dragon lairs, dungeon crawls, and warring kingdoms");
     Console.WriteLine("  [3] 👻 Haunted Ruins — Forgotten temples, restless spirits, and deadly traps");
     Console.WriteLine("  [4] 🚀 Sci-Fi Station — Abandoned space station, alien tech, and rogue AI");
     Console.WriteLine("  [5] 🏴‍☠️ Pirate Archipelago — Tropical islands, sea monsters, and buried treasure");
-    Console.WriteLine("  [6] ✏️  Custom — Describe your own world");
+    Console.WriteLine("  [6] ⚙️  Steampunk City — Clockwork machines, airship docks, and industrial intrigue");
+    Console.WriteLine("  [7] 🏜️  Desert Tombs — Sandswept pyramids, cursed pharaohs, and hidden oases");
+    Console.WriteLine("  [8] 🌊 Sunken Kingdom — Submerged ruins, merfolk, and abyssal leviathans");
+    Console.WriteLine("  [9] ❄️  Frozen Wastes — Ice citadels, frost wraiths, and buried Viking halls");
+    Console.WriteLine("  [10] 🧟 Post-Apocalypse — Overgrown cities, mutant beasts, and scavenger gangs");
+    Console.WriteLine("  [11] ✏️  Custom — Describe your own world");
     Console.ResetColor();
     Console.WriteLine();
 
@@ -249,10 +254,15 @@ static GameState CreateNewGame()
     var theme = themeInput switch
     {
         "1" => "Dark Fantasy — a grim world of crumbling castles, ancient curses, dark forests, and undead horrors",
-        "2" => "Enchanted Forest — a mystical realm of ancient groves, fae creatures, hidden magic, and nature spirits",
+        "2" => "High Fantasy — a classic realm of dragon lairs, sprawling dungeons, warring kingdoms, tavern quests, and ancient prophecies",
         "3" => "Haunted Ruins — a desolate landscape of forgotten temples, restless spirits, deadly traps, and lost civilizations",
         "4" => "Sci-Fi Station — an abandoned orbital station with malfunctioning systems, alien technology, rogue AI, and zero-gravity hazards",
         "5" => "Pirate Archipelago — a chain of tropical islands with sea monsters, buried treasure, rival pirates, and cursed shipwrecks",
+        "6" => "Steampunk City — a Victorian-era metropolis of steam-powered machines, airship docks, clockwork automatons, smog-choked streets, and industrial espionage",
+        "7" => "Desert Tombs — an ancient desert of sandswept pyramids, cursed pharaoh tombs, scorching dunes, hidden oases, and sand elementals",
+        "8" => "Sunken Kingdom — a drowned kingdom of coral-encrusted palaces, bioluminescent caverns, merfolk factions, and abyssal leviathans",
+        "9" => "Frozen Wastes — a frozen tundra of ice citadels, howling blizzards, frost wraiths, buried Viking longship halls, and aurora-lit skies",
+        "10" => "Post-Apocalypse — a post-apocalyptic wasteland of crumbling skyscrapers, overgrown highways, mutant beasts, scavenger gangs, and pre-war bunkers",
         _ => null,
     };
 

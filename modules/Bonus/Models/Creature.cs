@@ -35,6 +35,14 @@ internal sealed class Creature
     [JsonPropertyName("difficulty")]
     public string Difficulty { get; set; } = "easy";
 
+    /// <summary>Combat personality (e.g., "ambush predator, retreats when wounded"). Fed to Combat Strategist/Narrator.</summary>
+    [JsonPropertyName("behavior")]
+    public string Behavior { get; set; } = "";
+
+    /// <summary>World-lore snippet explaining the creature's origin or role in the location.</summary>
+    [JsonPropertyName("lore")]
+    public string Lore { get; set; } = "";
+
     [JsonPropertyName("loot")]
     public List<Item> Loot { get; set; } = [];
 

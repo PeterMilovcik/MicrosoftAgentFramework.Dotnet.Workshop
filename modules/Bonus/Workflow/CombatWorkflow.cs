@@ -197,6 +197,8 @@ internal static class CombatWorkflow
         sb.AppendLine($"\nCreature: {creature.Name} | HP: {creature.HP}/{creature.MaxHP} ({creatureHpPct}%) | " +
             $"Atk: {creature.Attack} | Def: {creature.Defense} | Difficulty: {creature.Difficulty}");
         sb.AppendLine($"Description: {creature.Description}");
+        if (!string.IsNullOrWhiteSpace(creature.Behavior))
+            sb.AppendLine($"Combat behavior: {creature.Behavior}");
 
         sb.AppendLine($"\nLocation: {locationName}");
         sb.AppendLine($"Round: {round}");
@@ -236,6 +238,8 @@ internal static class CombatWorkflow
         sb.AppendLine($"Round: {round}");
         sb.AppendLine($"Player: {player.Name} (HP: {player.HP}/{player.MaxHP})");
         sb.AppendLine($"Creature: {creature.Name} (HP: {creature.HP}/{creature.MaxHP})");
+        if (!string.IsNullOrWhiteSpace(creature.Behavior))
+            sb.AppendLine($"Creature behavior: {creature.Behavior}");
         sb.AppendLine($"Move used: {result.MoveName} (type: {result.MoveType})");
 
         switch (result.MoveType)

@@ -108,6 +108,21 @@ internal static class GameMasterWorkflow
                     $"Current game context:\n{string.Join("\n\n---\n\n", turnContext)}\n\n" +
                     $"Your task:\n{decision.Task}";
 
+                // Inject rich generation context for NPC and creature generation agents
+                if (decision.NextAgent.Equals("npc_weaver", StringComparison.OrdinalIgnoreCase) && state.CurrentLocation is not null)
+                {
+                    subPrompt = BuildNPCGenerationContext(state, state.CurrentLocation) + "\n\n" +
+                        $"Your task:\n{decision.Task}\n\n" +
+                        "Output ONLY the raw NPC JSON object, no markdown fences, no explanation.";
+                }
+                else if (decision.NextAgent.Equals("creature_forger", StringComparison.OrdinalIgnoreCase) && state.CurrentLocation is not null)
+                {
+                    var diff = state.Player.Level <= 2 ? "easy" : state.Player.Level <= 4 ? "medium" : "hard";
+                    subPrompt = BuildCreatureGenerationContext(state, state.CurrentLocation, diff) + "\n\n" +
+                        $"Your task:\n{decision.Task}\n\n" +
+                        "Output ONLY the raw Creature JSON object, no markdown fences, no explanation.";
+                }
+
                 var subResponse = await AgentHelper.RunAgent(subAgent, subPrompt, ct);
                 turnContext.Add($"{decision.NextAgent.ToUpper()} OUTPUT:\n{subResponse}");
 
@@ -323,6 +338,20 @@ internal static class GameMasterWorkflow
 
         if (result == CombatResult.PlayerDefeated)
             return "__GAME_OVER__";
+
+        // Boost disposition and mood for nearby NPCs after defeating a creature
+        if (result == CombatResult.CreatureDefeated && state.CurrentLocation is not null)
+        {
+            foreach (var npcId in state.CurrentLocation.NPCIds)
+            {
+                if (state.NPCs.TryGetValue(npcId, out var nearbyNpc))
+                {
+                    nearbyNpc.DispositionTowardPlayer = Math.Min(100, nearbyNpc.DispositionTowardPlayer + 10);
+                    if (nearbyNpc.Mood is "anxious" or "fearful" or "wary" or "suspicious")
+                        nearbyNpc.Mood = "relieved";
+                }
+            }
+        }
 
         return $"Combat ended: {result}";
     }
@@ -868,6 +897,164 @@ internal static class GameMasterWorkflow
     }
 
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // Generation context builders
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+    /// <summary>
+    /// Builds a rich context block for NPC generation so the NPC Weaver can avoid
+    /// duplicates, reference the world state, and scale rewards to the player's level.
+    /// </summary>
+    private static string BuildNPCGenerationContext(GameState state, Location location)
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine("## GENERATION CONTEXT\n");
+
+        // World & player
+        sb.AppendLine($"World theme: {state.WorldTheme}");
+        sb.AppendLine($"Player: {state.Player.Name} | Level {state.Player.Level} | HP {state.Player.HP}/{state.Player.MaxHP} | Gold {state.Player.Gold}");
+        sb.AppendLine($"Locations explored: {state.Locations.Count}");
+        sb.AppendLine();
+
+        // Target location
+        sb.AppendLine($"Location: {location.Name}");
+        sb.AppendLine($"Description: {location.Description}");
+        sb.AppendLine($"Location id: {location.Id}");
+        sb.AppendLine();
+
+        // Existing NPCs at this location (dedup signal)
+        var npcsHere = location.NPCIds
+            .Where(id => state.NPCs.ContainsKey(id))
+            .Select(id => state.NPCs[id])
+            .ToList();
+        if (npcsHere.Count > 0)
+        {
+            sb.AppendLine("NPCs already at this location (DO NOT duplicate these archetypes):");
+            foreach (var n in npcsHere)
+                sb.AppendLine($"  - {n.Name} ({n.Occupation}, mood: {n.Mood})");
+            sb.AppendLine();
+        }
+
+        // Global occupation dedup
+        var allOccupations = state.NPCs.Values.Select(n => n.Occupation).Where(o => !string.IsNullOrWhiteSpace(o)).Distinct().ToList();
+        if (allOccupations.Count > 0)
+            sb.AppendLine($"Occupations already used in this world (pick a DIFFERENT one): {string.Join(", ", allOccupations)}");
+
+        // Global name dedup
+        var allNames = state.NPCs.Values.Select(n => n.Name).Where(n => !string.IsNullOrWhiteSpace(n)).Distinct().ToList();
+        if (allNames.Count > 0)
+            sb.AppendLine($"Names already used (pick a DIFFERENT one): {string.Join(", ", allNames)}");
+        sb.AppendLine();
+
+        // Creatures at this location (NPC can reference/warn)
+        var creaturesHere = location.CreatureIds
+            .Where(id => state.Creatures.ContainsKey(id))
+            .Select(id => state.Creatures[id])
+            .Where(c => !c.IsDefeated)
+            .ToList();
+        if (creaturesHere.Count > 0)
+        {
+            sb.AppendLine("Creatures at this location (NPC should be aware of these):");
+            foreach (var c in creaturesHere)
+                sb.AppendLine($"  - {c.Name} ({c.Difficulty}) — {c.Lore}");
+            sb.AppendLine();
+        }
+
+        // Active & completed quests
+        var activeQuests = state.Player.ActiveQuests.Where(q => !q.IsComplete).ToList();
+        var completedQuests = state.Player.ActiveQuests.Where(q => q.IsComplete).ToList();
+        if (activeQuests.Count > 0)
+            sb.AppendLine($"Player's active quests: {string.Join(", ", activeQuests.Select(q => $"{q.Title} ({q.Type})"))}");
+        if (completedQuests.Count > 0)
+            sb.AppendLine($"Completed quests: {completedQuests.Count}");
+
+        // Recent events
+        if (state.GameLog.Count > 0)
+        {
+            sb.AppendLine("\nRecent events in the world:");
+            foreach (var entry in state.GameLog.TakeLast(8))
+                sb.AppendLine($"  - {entry}");
+        }
+
+        // Reward scaling guidance
+        sb.AppendLine($"\nQuest reward guidance for Level {state.Player.Level}:");
+        sb.AppendLine($"  Gold: {10 + state.Player.Level * 10}-{20 + state.Player.Level * 20}");
+        sb.AppendLine($"  XP: {20 + state.Player.Level * 15}-{40 + state.Player.Level * 25}");
+
+        return sb.ToString();
+    }
+
+    /// <summary>
+    /// Builds a rich context block for creature generation so the Creature Forger can
+    /// avoid duplicates, match the location, and scale to the player's actual stats.
+    /// </summary>
+    private static string BuildCreatureGenerationContext(GameState state, Location location, string difficulty)
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine("## GENERATION CONTEXT\n");
+
+        // World & player stats
+        sb.AppendLine($"World theme: {state.WorldTheme}");
+        sb.AppendLine($"Player: {state.Player.Name} | Level {state.Player.Level} | HP {state.Player.HP}/{state.Player.MaxHP} | " +
+            $"EffAtk {state.Player.EffectiveAttack} | EffDef {state.Player.EffectiveDefense}");
+        sb.AppendLine();
+
+        // Target location
+        sb.AppendLine($"Location: {location.Name}");
+        sb.AppendLine($"Description: {location.Description}");
+        sb.AppendLine($"Location id: {location.Id}");
+        sb.AppendLine($"Difficulty: {difficulty}");
+        sb.AppendLine();
+
+        // Existing creatures (global dedup)
+        var existingCreatures = state.Creatures.Values.ToList();
+        if (existingCreatures.Count > 0)
+        {
+            var active = existingCreatures.Where(c => !c.IsDefeated).Select(c => c.Name).Distinct().ToList();
+            var defeated = existingCreatures.Where(c => c.IsDefeated).Select(c => c.Name).Distinct().ToList();
+            if (active.Count > 0)
+                sb.AppendLine($"Active creatures in world (avoid duplicating): {string.Join(", ", active)}");
+            if (defeated.Count > 0)
+                sb.AppendLine($"Recent kills (new creature can be related — a pack member, scavenger, or escalation): {string.Join(", ", defeated)}");
+            sb.AppendLine();
+        }
+
+        // NPCs at this location (creature lore can reference them)
+        var npcsHere = location.NPCIds
+            .Where(id => state.NPCs.ContainsKey(id))
+            .Select(id => state.NPCs[id])
+            .ToList();
+        if (npcsHere.Count > 0)
+        {
+            sb.AppendLine("NPCs at this location (creature lore can reference their warnings or stories):");
+            foreach (var n in npcsHere)
+                sb.AppendLine($"  - {n.Name} ({n.Occupation})");
+            sb.AppendLine();
+        }
+
+        // Active defeat quests (opportunity to spawn quest target)
+        var defeatQuests = state.Player.ActiveQuests
+            .Where(q => !q.IsComplete && q.Type.Equals("defeat", StringComparison.OrdinalIgnoreCase))
+            .ToList();
+        if (defeatQuests.Count > 0)
+        {
+            sb.AppendLine("Active DEFEAT quests (you MAY generate the target creature if it fits this location):");
+            foreach (var q in defeatQuests)
+                sb.AppendLine($"  - Quest: {q.Title} — target: {q.TargetId}");
+            sb.AppendLine();
+        }
+
+        // Recent events
+        if (state.GameLog.Count > 0)
+        {
+            sb.AppendLine("Recent events:");
+            foreach (var entry in state.GameLog.TakeLast(5))
+                sb.AppendLine($"  - {entry}");
+        }
+
+        return sb.ToString();
+    }
+
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     // Location generation (triggers NPC/creature gen)
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -921,9 +1108,8 @@ internal static class GameMasterWorkflow
             for (var i = 0; i < npcCount; i++)
             {
                 AgentHelper.PrintSubAgentWork("npc_weaver", $"Creating NPC {i + 1}...");
-                var npcPrompt = $"World theme: {state.WorldTheme}\n" +
-                    $"Location: {newLoc.Name} — {newLoc.Description}\n" +
-                    $"Location id: {newLoc.Id}\n\n" +
+                var npcContext = BuildNPCGenerationContext(state, newLoc);
+                var npcPrompt = npcContext + "\n\n" +
                     "Generate a unique NPC for this location. Output ONLY the raw NPC JSON object, no markdown fences, no explanation.";
 
                 var npcResponse = await AgentHelper.RunAgent(npcWeaver, npcPrompt, ct);
@@ -947,10 +1133,8 @@ internal static class GameMasterWorkflow
             AgentHelper.PrintSubAgentWork("creature_forger", "Spawning creature...");
 
             var difficulty = state.Player.Level <= 2 ? "easy" : state.Player.Level <= 4 ? "medium" : "hard";
-            var creaturePrompt = $"World theme: {state.WorldTheme}\n" +
-                $"Location: {newLoc.Name} — {newLoc.Description}\n" +
-                $"Location id: {newLoc.Id}\n" +
-                $"Difficulty: {difficulty}\n\n" +
+            var creatureContext = BuildCreatureGenerationContext(state, newLoc, difficulty);
+            var creaturePrompt = creatureContext + "\n\n" +
                 "Generate a creature for this location. Output ONLY the raw Creature JSON object, no markdown fences, no explanation.";
 
             var creatureResponse = await AgentHelper.RunAgent(forge, creaturePrompt, ct);
@@ -1091,6 +1275,13 @@ internal static class GameMasterWorkflow
             Console.ResetColor();
 
             state.AddLog($"Quest '{quest.Title}' completed! (+{quest.RewardGold}g, +{quest.RewardXP}xp)");
+
+            // Boost quest giver's disposition and mood
+            if (!string.IsNullOrWhiteSpace(quest.GiverNPCId) && state.NPCs.TryGetValue(quest.GiverNPCId, out var giver))
+            {
+                giver.DispositionTowardPlayer = Math.Min(100, giver.DispositionTowardPlayer + 20);
+                giver.Mood = "grateful";
+            }
         }
     }
 
@@ -1121,7 +1312,7 @@ internal static class GameMasterWorkflow
                 .Select(id => state.NPCs[id])
                 .ToList();
             if (npcsHere.Count > 0)
-                sb.AppendLine($"NPCs here: {string.Join(", ", npcsHere.Select(n => $"{n.Name} (id: {n.Id}, {n.Occupation})"))}");
+                sb.AppendLine($"NPCs here: {string.Join(", ", npcsHere.Select(n => $"{n.Name} (id: {n.Id}, {n.Occupation}, {n.SpeakingStyle}, mood: {n.Mood}, disposition: {n.DispositionTowardPlayer})"))}");
 
             var creaturesHere = loc.CreatureIds
                 .Where(id => state.Creatures.ContainsKey(id))
@@ -1129,7 +1320,7 @@ internal static class GameMasterWorkflow
                 .Where(c => !c.IsDefeated)
                 .ToList();
             if (creaturesHere.Count > 0)
-                sb.AppendLine($"Creatures here: {string.Join(", ", creaturesHere.Select(c => $"{c.Name} (id: {c.Id}, {c.Difficulty})"))}");
+                sb.AppendLine($"Creatures here: {string.Join(", ", creaturesHere.Select(c => $"{c.Name} (id: {c.Id}, {c.Difficulty}, {c.Behavior})"))}");
 
             if (loc.Items.Count > 0)
                 sb.AppendLine($"Items on ground: {string.Join(", ", loc.Items.Select(i => i.Name))}");

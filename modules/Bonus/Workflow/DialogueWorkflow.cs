@@ -27,8 +27,23 @@ internal static class DialogueWorkflow
             ? npc.AgentInstructions
             : $"You are {npc.Name}, a {npc.Occupation}. {npc.Personality}. Keep responses to 2-3 sentences. Stay in character.";
 
+        // Inject dynamic mood and disposition (not baked into AgentInstructions — changes between conversations)
+        var dispositionLabel = npc.DispositionTowardPlayer switch
+        {
+            <= -50 => "hostile",
+            <= -20 => "unfriendly",
+            <= 10  => "neutral",
+            <= 40  => "friendly",
+            <= 70  => "warm",
+            _      => "devoted",
+        };
+        var dynamicContext = $"\n\nCURRENT STATE (override any conflicting instructions):\n" +
+            $"Your current mood is: {npc.Mood}.\n" +
+            $"Your attitude toward this player is: {dispositionLabel} (disposition score: {npc.DispositionTowardPlayer}).\n" +
+            $"Let your mood and attitude color your tone, word choice, and willingness to share information.";
+
         // Augment NPC instructions to also produce dialogue options in structured JSON
-        var npcInstructions = npcBaseInstructions + "\n\n" +
+        var npcInstructions = npcBaseInstructions + dynamicContext + "\n\n" +
             "IMPORTANT OUTPUT FORMAT: You MUST respond with ONLY a JSON object, no extra text. Format:\n" +
             "{\n" +
             "  \"speech\": \"Your in-character dialogue here (2-4 sentences).\",\n" +
@@ -204,6 +219,9 @@ internal static class DialogueWorkflow
         // Persist dialogue history back to NPC model (trimmed to cap)
         foreach (var entry in dialogueHistory.Skip(npc.DialogueHistory.Count))
             npc.AddDialogue(entry);
+
+        // Small disposition bump for having a conversation (capped at 100)
+        npc.DispositionTowardPlayer = Math.Min(100, npc.DispositionTowardPlayer + 5);
 
         state.AddLog($"Spoke with {npc.Name}.");
     }
