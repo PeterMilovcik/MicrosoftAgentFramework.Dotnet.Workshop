@@ -1,6 +1,4 @@
 using RPGGameMaster;
-using RPGGameMaster.Models;
-using RPGGameMaster.Workflow;
 
 Console.OutputEncoding = System.Text.Encoding.UTF8;
 
@@ -86,7 +84,7 @@ while (true)
             var themeShort = s.WorldTheme.Contains('—')
                 ? s.WorldTheme[..s.WorldTheme.IndexOf('—')].Trim()
                 : (s.WorldTheme.Length > 25 ? s.WorldTheme[..25] + "…" : s.WorldTheme);
-            var ago = TimeFormatHelper.FormatTimeAgo(s.LastSavedAt);
+            var ago = s.LastSavedAt.ToTimeAgo();
 
             Console.ForegroundColor = ConsoleColor.Yellow;
             Console.Write($"  [{i + 1}] ");

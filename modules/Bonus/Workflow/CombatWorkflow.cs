@@ -1,7 +1,6 @@
 using System.Text;
 using System.Text.Json;
 using Microsoft.Agents.AI;
-using RPGGameMaster.Models;
 
 namespace RPGGameMaster.Workflow;
 
@@ -44,7 +43,7 @@ internal static class CombatWorkflow
             string movesResponse;
             await using (ConsoleSpinner.Start("[Strategist] Planning moves..."))
             {
-                movesResponse = await AgentHelper.RunAgent(strategist, movesPrompt, ct,
+                movesResponse = await AgentRunner.RunAgent(strategist, movesPrompt, ct,
                     "[]");
             }
 
@@ -91,7 +90,7 @@ internal static class CombatWorkflow
             string narrativeResponse;
             await using (ConsoleSpinner.Start("[Narrator] Describing battle..."))
             {
-                narrativeResponse = await AgentHelper.RunAgent(narrator, narratorPrompt, ct,
+                narrativeResponse = await AgentRunner.RunAgent(narrator, narratorPrompt, ct,
                     "{\"narrative\": \"The clash of combat continues.\"}");
             }
             var narrative = ParseNarrative(narrativeResponse);
@@ -277,12 +276,12 @@ internal static class CombatWorkflow
     private static List<CombatMove> ParseMoves(string text, PlayerCharacter player, Creature creature, string language)
     {
         // Try to parse as JSON array
-        var json = AgentHelper.ExtractJsonArray(text);
+        var json = LlmJsonParser.ExtractJsonArray(text);
         if (json is not null)
         {
             try
             {
-                var moves = JsonSerializer.Deserialize<List<CombatMove>>(json, AgentHelper.JsonOpts);
+                var moves = JsonSerializer.Deserialize<List<CombatMove>>(json, LlmJsonParser.JsonOpts);
                 if (moves is not null && moves.Count >= 2)
                 {
                     // Re-number sequentially
@@ -335,7 +334,7 @@ internal static class CombatWorkflow
 
     private static string ParseNarrative(string text)
     {
-        var json = AgentHelper.ExtractJson(text);
+        var json = LlmJsonParser.ExtractJson(text);
         if (json is null) return text.Trim(); // treat entire response as narrative
 
         try

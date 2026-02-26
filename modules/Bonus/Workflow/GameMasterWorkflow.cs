@@ -1,8 +1,6 @@
 using System.Text;
 using System.Text.Json;
 using Microsoft.Agents.AI;
-using RPGGameMaster.Models;
-using RPGGameMaster.Tools;
 
 namespace RPGGameMaster.Workflow;
 
@@ -68,7 +66,7 @@ internal static class GameMasterWorkflow
             state.TurnCount++;
 
             // Build game state summary for the GM
-            var stateSummary = ContextBuilder.GameStateSummary(state);
+            var stateSummary = GameStatePromptFactory.Build(state);
 
             // ── Inner routing loop ──
             var turnContext = new List<string>
@@ -97,7 +95,7 @@ internal static class GameMasterWorkflow
                 string decisionText;
                 await using (ConsoleSpinner.Start("GM deciding next action..."))
                 {
-                    decisionText = await AgentHelper.RunAgent(gmAgent, gmPrompt, ct,
+                    decisionText = await AgentRunner.RunAgent(gmAgent, gmPrompt, ct,
                         "{\"next_agent\": \"PRESENT_TO_PLAYER\", \"reason\": \"Error occurred\", \"task\": \"Present current state\"}");
                 }
                 var decision = ParseDecision(decisionText);
@@ -108,7 +106,7 @@ internal static class GameMasterWorkflow
                 // Route to sub-agent
                 if (!agentMap.TryGetValue(decision.NextAgent, out var subAgent))
                 {
-                    AgentHelper.PrintWarning($"Unknown agent '{decision.NextAgent}', skipping.");
+                    GameConsoleUI.PrintWarning($"Unknown agent '{decision.NextAgent}', skipping.");
                     turnContext.Add($"SYSTEM: Unknown agent '{decision.NextAgent}' — skipped.");
                     continue;
                 }
@@ -121,20 +119,20 @@ internal static class GameMasterWorkflow
                 // Inject rich generation context for NPC and creature generation agents
                 if (decision.NextAgent.Equals(AgentNames.NPCWeaver, StringComparison.OrdinalIgnoreCase) && state.CurrentLocation is not null)
                 {
-                    subPrompt = ContextBuilder.NPCGeneration(state, state.CurrentLocation) + "\n\n" +
+                    subPrompt = NPCPromptFactory.Build(state, state.CurrentLocation) + "\n\n" +
                         $"Your task:\n{decision.Task}\n\n" +
                         "Output ONLY the raw NPC JSON object, no markdown fences, no explanation.";
                 }
                 else if (decision.NextAgent.Equals(AgentNames.CreatureForger, StringComparison.OrdinalIgnoreCase) && state.CurrentLocation is not null)
                 {
                     var diff = EnumExtensions.FromPlayerLevel(state.Player.Level);
-                    subPrompt = ContextBuilder.CreatureGeneration(state, state.CurrentLocation, diff) + "\n\n" +
+                    subPrompt = CreaturePromptFactory.Build(state, state.CurrentLocation, diff) + "\n\n" +
                         $"Your task:\n{decision.Task}\n\n" +
                         "Output ONLY the raw Creature JSON object, no markdown fences, no explanation.";
                 }
                 else if (decision.NextAgent.Equals(AgentNames.WorldArchitect, StringComparison.OrdinalIgnoreCase))
                 {
-                    subPrompt = ContextBuilder.LocationGeneration(state, state.CurrentLocationId, null) + "\n\n" +
+                    subPrompt = LocationPromptFactory.Build(state, state.CurrentLocationId, null) + "\n\n" +
                         $"Your task:\n{decision.Task}\n\n" +
                         "Output ONLY the raw Location JSON object, no markdown fences, no explanation.";
                 }
@@ -142,7 +140,7 @@ internal static class GameMasterWorkflow
                 string subResponse;
                 await using (ConsoleSpinner.Start($"[{decision.NextAgent}] {decision.Task}"))
                 {
-                    subResponse = await AgentHelper.RunAgent(subAgent, subPrompt, ct);
+                    subResponse = await AgentRunner.RunAgent(subAgent, subPrompt, ct);
                 }
                 turnContext.Add($"{decision.NextAgent.ToUpper()} OUTPUT:\n{subResponse}");
 
@@ -154,14 +152,14 @@ internal static class GameMasterWorkflow
             var presentLangHint = state.Language != "English" ? $" The narrative and option descriptions MUST be in {state.Language}." : "";
             var presentPrompt = "Now present the current situation to the player. " +
                 $"Output a PlayerPresentation JSON with a vivid narrative and 3-6 numbered options.{presentLangHint}\n\n" +
-                $"Game state:\n{ContextBuilder.GameStateSummary(state)}\n\n" +
+                $"Game state:\n{GameStatePromptFactory.Build(state)}\n\n" +
                 $"Turn context:\n{string.Join("\n\n---\n\n", turnContext)}\n\n" +
                 "Remember: output ONLY the JSON {\"narrative\": \"...\", \"options\": [...]}";
 
             string presentText;
             await using (ConsoleSpinner.Start("Narrating..."))
             {
-                presentText = await AgentHelper.RunAgent(gmAgent, presentPrompt, ct);
+                presentText = await AgentRunner.RunAgent(gmAgent, presentPrompt, ct);
             }
             presentation = ParsePresentation(presentText);
 
@@ -420,7 +418,7 @@ internal static class GameMasterWorkflow
         if (agentMap.TryGetValue(AgentNames.ItemSage, out var itemSage))
         {
             var usePrompt = $"The player wants to USE this item.\n\n" +
-                $"Item: {JsonSerializer.Serialize(item, AgentHelper.JsonOpts)}\n" +
+                $"Item: {JsonSerializer.Serialize(item, LlmJsonParser.JsonOpts)}\n" +
                 $"Player HP: {state.Player.Health}\n" +
                 $"World theme: {state.WorldTheme}\n" +
                 $"Location: {state.CurrentLocation?.Name ?? "unknown"}\n\n" +
@@ -429,7 +427,7 @@ internal static class GameMasterWorkflow
             string response;
             await using (ConsoleSpinner.Start($"[ItemSage] Using {item.Name}..."))
             {
-                response = await AgentHelper.RunAgent(itemSage, usePrompt, ct,
+                response = await AgentRunner.RunAgent(itemSage, usePrompt, ct,
                     "{\"action\": \"use\", \"narrative\": \"Nothing happens.\", \"effect\": {\"type\": \"narrative_only\"}}");
             }
 
@@ -474,7 +472,7 @@ internal static class GameMasterWorkflow
         if (agentMap.TryGetValue(AgentNames.ItemSage, out var itemSage))
         {
             var examinePrompt = $"The player wants to EXAMINE this item. Generate a rich lore description.\n\n" +
-                $"Item: {JsonSerializer.Serialize(item, AgentHelper.JsonOpts)}\n" +
+                $"Item: {JsonSerializer.Serialize(item, LlmJsonParser.JsonOpts)}\n" +
                 $"World theme: {state.WorldTheme}\n" +
                 $"Location: {state.CurrentLocation?.Name ?? "unknown"}\n\n" +
                 "Generate lore and call SetItemLore to cache it.";
@@ -482,7 +480,7 @@ internal static class GameMasterWorkflow
             string response;
             await using (ConsoleSpinner.Start($"[ItemSage] Examining {item.Name}..."))
             {
-                response = await AgentHelper.RunAgent(itemSage, examinePrompt, ct,
+                response = await AgentRunner.RunAgent(itemSage, examinePrompt, ct,
                     "{\"action\": \"examine\", \"lore\": \"An unremarkable item.\"}");
             }
 
@@ -507,7 +505,7 @@ internal static class GameMasterWorkflow
     /// <summary>Extract a single named property from an agent's JSON response, falling back to the raw text.</summary>
     private static string ParseJsonProperty(string text, string propertyName)
     {
-        var json = AgentHelper.ExtractJson(text);
+        var json = LlmJsonParser.ExtractJson(text);
         if (json is null) return text.Trim();
         try
         {
@@ -630,18 +628,18 @@ internal static class GameMasterWorkflow
         // Use pre-created tool-free agents for clean JSON output
         var architect = agentMap["architect-gen"];
 
-        var prompt = ContextBuilder.LocationGeneration(state, fromLocationId, entryExit);
+        var prompt = LocationPromptFactory.Build(state, fromLocationId, entryExit);
 
         string locResponse;
         await using (ConsoleSpinner.Start($"[{AgentNames.WorldArchitect}] Generating location..."))
         {
-            locResponse = await AgentHelper.RunAgent(architect, prompt, ct);
+            locResponse = await AgentRunner.RunAgent(architect, prompt, ct);
         }
-        var newLoc = AgentHelper.ParseJson<Location>(locResponse);
+        var newLoc = LlmJsonParser.ParseJson<Location>(locResponse);
 
         if (newLoc is null || newLoc.Id.IsEmpty)
         {
-            AgentHelper.PrintWarning("Failed to generate location.");
+            GameConsoleUI.PrintWarning("Failed to generate location.");
             return null;
         }
 
@@ -679,16 +677,16 @@ internal static class GameMasterWorkflow
     {
         for (var i = 0; i < count; i++)
         {
-            var npcContext = ContextBuilder.NPCGeneration(state, location);
+            var npcContext = NPCPromptFactory.Build(state, location);
             var npcPrompt = npcContext + "\n\n" +
                 "Generate a unique NPC for this location. Output ONLY the raw NPC JSON object, no markdown fences, no explanation.";
 
             string npcResponse;
             await using (ConsoleSpinner.Start($"[{AgentNames.NPCWeaver}] Creating NPC {i + 1}..."))
             {
-                npcResponse = await AgentHelper.RunAgent(npcWeaver, npcPrompt, ct);
+                npcResponse = await AgentRunner.RunAgent(npcWeaver, npcPrompt, ct);
             }
-            var npc = AgentHelper.ParseJson<NPC>(npcResponse);
+            var npc = LlmJsonParser.ParseJson<NPC>(npcResponse);
 
             if (npc is not null && !npc.Id.IsEmpty)
             {
@@ -704,16 +702,16 @@ internal static class GameMasterWorkflow
         GameState state, Location location, AIAgent forge, CancellationToken ct)
     {
         var difficulty = EnumExtensions.FromPlayerLevel(state.Player.Level);
-        var creatureContext = ContextBuilder.CreatureGeneration(state, location, difficulty);
+        var creatureContext = CreaturePromptFactory.Build(state, location, difficulty);
         var creaturePrompt = creatureContext + "\n\n" +
             "Generate a creature for this location. Output ONLY the raw Creature JSON object, no markdown fences, no explanation.";
 
         string creatureResponse;
         await using (ConsoleSpinner.Start($"[{AgentNames.CreatureForger}] Spawning creature..."))
         {
-            creatureResponse = await AgentHelper.RunAgent(forge, creaturePrompt, ct);
+            creatureResponse = await AgentRunner.RunAgent(forge, creaturePrompt, ct);
         }
-        var creature = AgentHelper.ParseJson<Creature>(creatureResponse);
+        var creature = LlmJsonParser.ParseJson<Creature>(creatureResponse);
 
         if (creature is not null && !creature.Id.IsEmpty)
         {
@@ -731,11 +729,11 @@ internal static class GameMasterWorkflow
     private static GameMasterDecision ParseDecision(string text)
     {
         var fallback = new GameMasterDecision { NextAgent = AgentNames.PresentToPlayer, Task = text };
-        return AgentHelper.ParseJson(text, fallback);
+        return LlmJsonParser.ParseJson(text, fallback);
     }
 
     private static PlayerPresentation? ParsePresentation(string text)
-        => AgentHelper.ParseJson<PlayerPresentation>(text);
+        => LlmJsonParser.ParseJson<PlayerPresentation>(text);
 
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     // Quest completion

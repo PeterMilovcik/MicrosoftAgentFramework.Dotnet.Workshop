@@ -1,6 +1,3 @@
-using RPGGameMaster.Models;
-using RPGGameMaster.Workflow;
-
 namespace RPGGameMaster;
 
 /// <summary>
@@ -20,7 +17,7 @@ internal static class AgentOutputProcessor
             switch (agentName.ToLowerInvariant())
             {
                 case AgentNames.WorldArchitect:
-                    var loc = AgentHelper.ParseJson<Location>(response);
+                    var loc = LlmJsonParser.ParseJson<Location>(response);
                     if (loc is not null && !loc.Id.IsEmpty)
                     {
                         loc.Visited = true;
@@ -32,7 +29,7 @@ internal static class AgentOutputProcessor
                     break;
 
                 case AgentNames.NPCWeaver:
-                    var npc = AgentHelper.ParseJson<NPC>(response);
+                    var npc = LlmJsonParser.ParseJson<NPC>(response);
                     if (npc is not null && !npc.Id.IsEmpty)
                     {
                         state.NPCs[npc.Id] = npc;
@@ -47,7 +44,7 @@ internal static class AgentOutputProcessor
                     break;
 
                 case AgentNames.CreatureForger:
-                    var creature = AgentHelper.ParseJson<Creature>(response);
+                    var creature = LlmJsonParser.ParseJson<Creature>(response);
                     if (creature is not null && !creature.Id.IsEmpty)
                     {
                         state.Creatures[creature.Id] = creature;
@@ -65,7 +62,7 @@ internal static class AgentOutputProcessor
         catch (Exception ex)
         {
             // Log parse failures so they are diagnosable without disrupting gameplay
-            AgentHelper.PrintWarning($"[AgentOutputProcessor] Failed to process {agentName}: {ex.Message}");
+            GameConsoleUI.PrintWarning($"[AgentOutputProcessor] Failed to process {agentName}: {ex.Message}");
         }
     }
 }

@@ -1,9 +1,6 @@
 using System.ComponentModel;
 using System.Text.Json;
 using Microsoft.Extensions.AI;
-using RPGGameMaster.Models;
-using RPGGameMaster.Workflow;
-
 namespace RPGGameMaster.Tools;
 
 /// <summary>
@@ -22,7 +19,7 @@ internal static class ItemTools
 
         if (item is null) return $"ERROR: Item '{itemName}' not found in inventory.";
 
-        return JsonSerializer.Serialize(item, AgentHelper.JsonOpts);
+        return JsonSerializer.Serialize(item, LlmJsonParser.JsonOpts);
     }
 
     [Description("Saves a rich lore description to an item in the player's inventory (caches it for future examine).")]

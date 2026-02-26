@@ -1,9 +1,6 @@
 using System.ComponentModel;
 using System.Text.Json;
 using Microsoft.Extensions.AI;
-using RPGGameMaster.Models;
-using RPGGameMaster.Workflow;
-
 namespace RPGGameMaster.Tools;
 
 /// <summary>
@@ -16,11 +13,11 @@ internal static class NPCTools
 {
     [Description("Saves an NPC to persistent storage. Input: the full JSON of the NPC object including agent_instructions.")]
     public static string SaveNPC([Description("Full JSON of the NPC object")] string npcJson)
-        => ToolHelper.Save<NPC>(npcJson, gs => gs.NPCs, "NPC");
+        => GameStateRepository.Save<NPC>(npcJson, gs => gs.NPCs, "NPC");
 
     [Description("Loads an NPC by its id. Returns the full JSON of the NPC object.")]
     public static string LoadNPC([Description("The NPC id")] string id)
-        => ToolHelper.Load<NPC>(id, gs => gs.NPCs, "NPC");
+        => GameStateRepository.Load<NPC>(id, gs => gs.NPCs, "NPC");
 
     [Description("Loads all NPCs at a given location. Returns a JSON array of NPC objects.")]
     public static string LoadNPCsAtLocation([Description("The location id to filter by")] string locationId)
@@ -34,7 +31,7 @@ internal static class NPCTools
                 .Where(n => n.LocationId == locationId)
                 .ToList();
 
-            return JsonSerializer.Serialize(npcs, AgentHelper.JsonOpts);
+            return JsonSerializer.Serialize(npcs, LlmJsonParser.JsonOpts);
         }
         catch (Exception ex)
         {

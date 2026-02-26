@@ -1,9 +1,6 @@
 using System.ComponentModel;
 using System.Text.Json;
 using Microsoft.Extensions.AI;
-using RPGGameMaster.Models;
-using RPGGameMaster.Workflow;
-
 namespace RPGGameMaster.Tools;
 
 /// <summary>
@@ -16,11 +13,11 @@ internal static class CreatureTools
 {
     [Description("Saves a creature to persistent storage. Input: the full JSON of the Creature object.")]
     public static string SaveCreature([Description("Full JSON of the Creature object")] string creatureJson)
-        => ToolHelper.Save<Creature>(creatureJson, gs => gs.Creatures, "Creature");
+        => GameStateRepository.Save<Creature>(creatureJson, gs => gs.Creatures, "Creature");
 
     [Description("Loads a creature by its id. Returns the full JSON of the Creature object.")]
     public static string LoadCreature([Description("The creature id")] string id)
-        => ToolHelper.Load<Creature>(id, gs => gs.Creatures, "Creature");
+        => GameStateRepository.Load<Creature>(id, gs => gs.Creatures, "Creature");
 
     [Description("Loads all creatures at a given location. Returns a JSON array of Creature objects.")]
     public static string LoadCreaturesAtLocation([Description("The location id to filter by")] string locationId)
@@ -34,7 +31,7 @@ internal static class CreatureTools
                 .Where(c => c.LocationId == locationId && !c.IsDefeated)
                 .ToList();
 
-            return JsonSerializer.Serialize(creatures, AgentHelper.JsonOpts);
+            return JsonSerializer.Serialize(creatures, LlmJsonParser.JsonOpts);
         }
         catch (Exception ex)
         {

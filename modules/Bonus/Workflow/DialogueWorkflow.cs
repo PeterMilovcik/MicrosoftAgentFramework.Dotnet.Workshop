@@ -1,6 +1,5 @@
 using System.Text.Json;
 using Microsoft.Agents.AI;
-using RPGGameMaster.Models;
 
 namespace RPGGameMaster.Workflow;
 
@@ -20,7 +19,7 @@ internal static class DialogueWorkflow
         GameConsoleUI.WriteLine($"  {npc.Description}", ConsoleColor.DarkGray);
 
         // Create dynamic NPC agent from stored/generated instructions
-        var npcInstructions = ContextBuilder.BuildNPCDialogueInstructions(npc, state.Language);
+        var npcInstructions = NPCPromptFactory.BuildDialogueInstructions(npc, state.Language);
 
         var npcAgent = config.CreateAgent(npcInstructions);
 
@@ -70,14 +69,14 @@ internal static class DialogueWorkflow
             string npcResponse;
             await using (ConsoleSpinner.Start($"[{npc.Name}] Thinking..."))
             {
-                npcResponse = await AgentHelper.RunAgent(npcAgent, npcPrompt, ct);
+                npcResponse = await AgentRunner.RunAgent(npcAgent, npcPrompt, ct);
             }
 
             // If the response is empty or obviously a failure, retry once
             if (string.IsNullOrWhiteSpace(npcResponse) || npcResponse.StartsWith("[Error"))
             {
                 await Task.Delay(1000, ct);  // Brief pause before retry
-                npcResponse = await AgentHelper.RunAgent(npcAgent, npcPrompt, ct);
+                npcResponse = await AgentRunner.RunAgent(npcAgent, npcPrompt, ct);
             }
 
             // Final fallback if still empty
@@ -161,7 +160,7 @@ internal static class DialogueWorkflow
 
     private static (string speech, List<DialogueOption> options, bool questAccepted) ParseNpcResponse(string text)
     {
-        var json = AgentHelper.ExtractJson(text);
+        var json = LlmJsonParser.ExtractJson(text);
         if (json is null) return (text, [], false);  // No JSON found — treat entire response as speech
         try
         {

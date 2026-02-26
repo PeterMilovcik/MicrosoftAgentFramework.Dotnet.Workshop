@@ -1,9 +1,6 @@
 using System.ComponentModel;
 using System.Text.Json;
 using Microsoft.Extensions.AI;
-using RPGGameMaster.Models;
-using RPGGameMaster.Workflow;
-
 namespace RPGGameMaster.Tools;
 
 /// <summary>
@@ -34,7 +31,7 @@ internal static class GameTools
     public static string GetPlayerStats()
     {
         if (!GameStateAccessor.IsLoaded) return "ERROR: No game state loaded.";
-        return JsonSerializer.Serialize(GameStateAccessor.Current.Player, AgentHelper.JsonOpts);
+        return JsonSerializer.Serialize(GameStateAccessor.Current.Player, LlmJsonParser.JsonOpts);
     }
 
     [Description("Updates the player's HP and/or gold. Input JSON with optional fields: hp, gold, xp.")]

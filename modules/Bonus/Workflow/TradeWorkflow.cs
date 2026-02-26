@@ -1,5 +1,4 @@
 using System.Text.Json;
-using RPGGameMaster.Models;
 
 namespace RPGGameMaster.Workflow;
 
@@ -41,11 +40,11 @@ internal static class TradeWorkflow
         string shopResponse;
         await using (ConsoleSpinner.Start($"[{npc.Name}] Preparing wares..."))
         {
-            shopResponse = await AgentHelper.RunAgent(merchantAgent, merchantPrompt, ct,
+            shopResponse = await AgentRunner.RunAgent(merchantAgent, merchantPrompt, ct,
                 "{\"greeting\": \"Welcome!\", \"items\": []}");
         }
 
-        var shopJson = AgentHelper.ExtractJson(shopResponse);
+        var shopJson = LlmJsonParser.ExtractJson(shopResponse);
         List<ShopItem> shopItems = [];
         string greeting = "Welcome, adventurer!";
 
