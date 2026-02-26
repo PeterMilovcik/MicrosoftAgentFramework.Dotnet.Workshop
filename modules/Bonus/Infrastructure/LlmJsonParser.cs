@@ -88,6 +88,22 @@ internal static class LlmJsonParser
         catch { return fallback; }
     }
 
+    /// <summary>
+    /// Extract a single named property from an LLM JSON response.
+    /// Falls back to the trimmed raw text if JSON parsing fails or the property is missing.
+    /// </summary>
+    public static string ExtractProperty(string text, string propertyName)
+    {
+        var json = ExtractJson(text);
+        if (json is null) return text.Trim();
+        try
+        {
+            using var doc = JsonDocument.Parse(json);
+            return doc.RootElement.StrOrNull(propertyName) ?? text.Trim();
+        }
+        catch { return text.Trim(); }
+    }
+
     /// <summary>Strip markdown code fences from LLM output.</summary>
     private static string StripMarkdownFences(string text)
     {

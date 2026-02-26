@@ -24,9 +24,17 @@ internal static class PromptLoader
             return cached;
 
         var path = Path.Combine(_baseDir, "assets", "prompts", $"{name}.md");
-        var content = File.Exists(path)
-            ? File.ReadAllText(path)
-            : $"You are the {name} agent.";
+        string content;
+        try
+        {
+            content = File.Exists(path)
+                ? File.ReadAllText(path)
+                : $"You are the {name} agent.";
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            content = $"You are the {name} agent.";
+        }
 
         _cache[name] = content;
         return content;

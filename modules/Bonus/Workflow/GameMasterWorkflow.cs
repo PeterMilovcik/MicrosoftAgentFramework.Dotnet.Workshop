@@ -31,8 +31,8 @@ internal static class GameMasterWorkflow
         var architectGen = config.CreateAgent(PromptLoader.Load(AgentNames.WorldArchitectPrompt));
         var npcWeaverGen = config.CreateAgent(PromptLoader.Load(AgentNames.NPCWeaverPrompt));
         var creatureForgerGen = config.CreateAgent(PromptLoader.Load(AgentNames.CreatureForgerPrompt));
-        var combatStrategist = config.CreateAgent(PromptLoader.Load("combat-strategist"));
-        var combatNarratorGen = config.CreateAgent(PromptLoader.Load("combat-narrator"));
+        var combatStrategist = config.CreateAgent(PromptLoader.Load(AgentNames.CombatStrategistGen));
+        var combatNarratorGen = config.CreateAgent(PromptLoader.Load(AgentNames.CombatNarratorGen));
 
         var agentMap = new Dictionary<string, AIAgent>(StringComparer.OrdinalIgnoreCase)
         {
@@ -42,11 +42,11 @@ internal static class GameMasterWorkflow
             [AgentNames.CombatNarrator] = combatNarrator,
             [AgentNames.ItemSage] = itemSage,
             // Tool-free gen variants (clean JSON output)
-            ["architect-gen"] = architectGen,
-            ["npc-gen"] = npcWeaverGen,
-            ["creature-gen"] = creatureForgerGen,
-            ["combat-strategist"] = combatStrategist,
-            ["combat-narrator"] = combatNarratorGen,
+            [AgentNames.ArchitectGen] = architectGen,
+            [AgentNames.NPCGen] = npcWeaverGen,
+            [AgentNames.CreatureGen] = creatureForgerGen,
+            [AgentNames.CombatStrategistGen] = combatStrategist,
+            [AgentNames.CombatNarratorGen] = combatNarratorGen,
         };
 
         // Set game state reference for tool classes
@@ -351,7 +351,7 @@ internal static class GameMasterWorkflow
             return $"{creature.Name} has already been defeated.";
 
         var result = await CombatWorkflow.RunAsync(state, creature, config,
-            agentMap["combat-strategist"], agentMap["combat-narrator"], ct);
+            agentMap[AgentNames.CombatStrategistGen], agentMap[AgentNames.CombatNarratorGen], ct);
 
         if (result == CombatResult.PlayerDefeated)
             return "__GAME_OVER__";
@@ -504,17 +504,7 @@ internal static class GameMasterWorkflow
 
     /// <summary>Extract a single named property from an agent's JSON response, falling back to the raw text.</summary>
     private static string ParseJsonProperty(string text, string propertyName)
-    {
-        var json = LlmJsonParser.ExtractJson(text);
-        if (json is null) return text.Trim();
-        try
-        {
-            using var doc = JsonDocument.Parse(json);
-            return doc.RootElement.StrOrNull(propertyName) ?? text.Trim();
-        }
-        catch { /* fall through */ }
-        return text.Trim();
-    }
+        => LlmJsonParser.ExtractProperty(text, propertyName);
 
     private static string HandleRest(GameState state)
     {
@@ -626,7 +616,7 @@ internal static class GameMasterWorkflow
         CancellationToken ct)
     {
         // Use pre-created tool-free agents for clean JSON output
-        var architect = agentMap["architect-gen"];
+        var architect = agentMap[AgentNames.ArchitectGen];
 
         var prompt = LocationPromptFactory.Build(state, fromLocationId, entryExit);
 
@@ -643,10 +633,8 @@ internal static class GameMasterWorkflow
             return null;
         }
 
-        newLoc.Visited = true;
-        state.Locations[newLoc.Id] = newLoc;
+        state.RegisterLocation(newLoc);
         state.CurrentLocationId = newLoc.Id;
-        state.AddLog($"Discovered new location: {newLoc.Name}");
 
         // DangerLevel-driven spawn probabilities
         var npcChance = newLoc.DangerLevel.NpcSpawnChance();
@@ -660,13 +648,13 @@ internal static class GameMasterWorkflow
                 ? GameConstants.StartingNPCCount
                 : (Random.Shared.NextDouble() < GameConstants.ExtraNPCChance ? 2 : 1);
 
-            await GenerateNPCsForLocation(state, newLoc, npcCount, agentMap["npc-gen"], ct);
+            await GenerateNPCsForLocation(state, newLoc, npcCount, agentMap[AgentNames.NPCGen], ct);
         }
 
         // Generate creatures (probability driven by danger level; never for starting location)
         if (fromLocationId is not null && Random.Shared.NextDouble() < creatureChance)
         {
-            await GenerateCreatureForLocation(state, newLoc, agentMap["creature-gen"], ct);
+            await GenerateCreatureForLocation(state, newLoc, agentMap[AgentNames.CreatureGen], ct);
         }
 
         return newLoc;
@@ -689,12 +677,7 @@ internal static class GameMasterWorkflow
             var npc = LlmJsonParser.ParseJson<NPC>(npcResponse);
 
             if (npc is not null && !npc.Id.IsEmpty)
-            {
-                npc.LocationId = location.Id;
-                state.NPCs[npc.Id] = npc;
-                location.NPCIds.Add(npc.Id);
-                state.AddLog($"Met {npc.Name} at {location.Name}.");
-            }
+                state.RegisterNPC(npc, location);
         }
     }
 
@@ -714,12 +697,7 @@ internal static class GameMasterWorkflow
         var creature = LlmJsonParser.ParseJson<Creature>(creatureResponse);
 
         if (creature is not null && !creature.Id.IsEmpty)
-        {
-            creature.LocationId = location.Id;
-            state.Creatures[creature.Id] = creature;
-            location.CreatureIds.Add(creature.Id);
-            state.AddLog($"A {creature.Name} lurks at {location.Name}.");
-        }
+            state.RegisterCreature(creature, location);
     }
 
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -824,10 +802,6 @@ internal static class GameMasterWorkflow
             Options = options,
         };
     }
-
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    // Save / Load game — multi-save support
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     // Player input

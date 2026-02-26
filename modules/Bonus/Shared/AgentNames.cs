@@ -16,6 +16,14 @@ internal static class AgentNames
     public const string ItemSage = "item_sage";
     public const string PresentToPlayer = "PRESENT_TO_PLAYER";
 
+    // ── Tool-free generation variants (clean JSON output, no function-calling overhead) ──
+
+    public const string ArchitectGen = "architect-gen";
+    public const string NPCGen = "npc-gen";
+    public const string CreatureGen = "creature-gen";
+    public const string CombatStrategistGen = "combat-strategist";
+    public const string CombatNarratorGen = "combat-narrator";
+
     // ── Prompt file names (assets/prompts/{name}.md) ──
 
     public const string GameMasterPrompt = "game-master";

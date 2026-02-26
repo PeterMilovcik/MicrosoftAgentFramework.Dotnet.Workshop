@@ -52,6 +52,8 @@ internal static class SaveManager
             {
                 var json = File.ReadAllText(file);
                 var state = JsonSerializer.Deserialize<GameState>(json, LlmJsonParser.JsonOpts);
+                if (state is not null)
+                    results.Add((file, state));
             }
             catch { /* skip corrupt saves */ }
         }

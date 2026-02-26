@@ -23,7 +23,7 @@ internal sealed class CombatRoundResult
     public bool CreatureHit { get; set; }
     public bool CreatureCrit { get; set; }
     public int CreatureDamageRoll { get; set; }
-    public int CreatureDamageTaken { get; set; }  // final damage to player
+    public int CreatureDamageDealt { get; set; }  // final damage dealt by creature to player
 
     // ── Counter attack (for defensive moves) ──
     public int CounterRoll { get; set; }

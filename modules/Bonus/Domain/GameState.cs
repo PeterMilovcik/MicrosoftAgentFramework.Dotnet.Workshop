@@ -50,6 +50,51 @@ internal sealed class GameState
     public Location? CurrentLocation
         => Locations.TryGetValue(CurrentLocationId, out var loc) ? loc : null;
 
+    // ── Entity registration ──
+
+    /// <summary>
+    /// Register a location in the world. Sets <see cref="CurrentLocationId"/>
+    /// if this is the first location.
+    /// </summary>
+    public void RegisterLocation(Location loc)
+    {
+        loc.Visited = true;
+        Locations[loc.Id] = loc;
+        if (CurrentLocationId.IsEmpty)
+            CurrentLocationId = loc.Id;
+        AddLog($"Discovered new location: {loc.Name}");
+    }
+
+    /// <summary>
+    /// Register an NPC in the world and link it to the given location (if any).
+    /// Duplicates are ignored.
+    /// </summary>
+    public void RegisterNPC(NPC npc, Location? location = null)
+    {
+        NPCs[npc.Id] = npc;
+        if (location is not null && !location.NPCIds.Contains(npc.Id))
+        {
+            npc.LocationId = location.Id;
+            location.NPCIds.Add(npc.Id);
+        }
+        AddLog($"Met {npc.Name}.");
+    }
+
+    /// <summary>
+    /// Register a creature in the world and link it to the given location (if any).
+    /// Duplicates are ignored.
+    /// </summary>
+    public void RegisterCreature(Creature creature, Location? location = null)
+    {
+        Creatures[creature.Id] = creature;
+        if (location is not null && !location.CreatureIds.Contains(creature.Id))
+        {
+            creature.LocationId = location.Id;
+            location.CreatureIds.Add(creature.Id);
+        }
+        AddLog($"A {creature.Name} lurks nearby.");
+    }
+
     /// <summary>Generates the save filename based on sanitized player name + SaveId.</summary>
     public string GetSaveFileName()
     {

@@ -19,43 +19,19 @@ internal static class AgentOutputProcessor
                 case AgentNames.WorldArchitect:
                     var loc = LlmJsonParser.ParseJson<Location>(response);
                     if (loc is not null && !loc.Id.IsEmpty)
-                    {
-                        loc.Visited = true;
-                        state.Locations[loc.Id] = loc;
-                        if (state.CurrentLocationId.IsEmpty)
-                            state.CurrentLocationId = loc.Id;
-                        state.AddLog($"Discovered new location: {loc.Name}");
-                    }
+                        state.RegisterLocation(loc);
                     break;
 
                 case AgentNames.NPCWeaver:
                     var npc = LlmJsonParser.ParseJson<NPC>(response);
                     if (npc is not null && !npc.Id.IsEmpty)
-                    {
-                        state.NPCs[npc.Id] = npc;
-                        var currentLoc = state.CurrentLocation;
-                        if (currentLoc is not null && !currentLoc.NPCIds.Contains(npc.Id))
-                        {
-                            npc.LocationId = currentLoc.Id;
-                            currentLoc.NPCIds.Add(npc.Id);
-                        }
-                        state.AddLog($"Met {npc.Name}.");
-                    }
+                        state.RegisterNPC(npc, state.CurrentLocation);
                     break;
 
                 case AgentNames.CreatureForger:
                     var creature = LlmJsonParser.ParseJson<Creature>(response);
                     if (creature is not null && !creature.Id.IsEmpty)
-                    {
-                        state.Creatures[creature.Id] = creature;
-                        var curLoc = state.CurrentLocation;
-                        if (curLoc is not null && !curLoc.CreatureIds.Contains(creature.Id))
-                        {
-                            creature.LocationId = curLoc.Id;
-                            curLoc.CreatureIds.Add(creature.Id);
-                        }
-                        state.AddLog($"A {creature.Name} lurks nearby.");
-                    }
+                        state.RegisterCreature(creature, state.CurrentLocation);
                     break;
             }
         }

@@ -71,7 +71,7 @@ internal static class CombatResolver
 
         // Sum totals
         result.TotalDamageToCreature = result.PlayerDamageDealt + result.CounterDamage;
-        result.TotalDamageToPlayer = result.CreatureDamageTaken + result.SelfDamage;
+        result.TotalDamageToPlayer = result.CreatureDamageDealt + result.SelfDamage;
 
         return result;
     }
@@ -118,7 +118,7 @@ internal static class CombatResolver
             rawDmg = Math.Max(1, rawDmg); // minimum 1 on a hit
             if (result.CreatureCrit) rawDmg *= 2;
             if (halfDamage) rawDmg /= 2; // defensive stance
-            result.CreatureDamageTaken = Math.Max(0, rawDmg);
+            result.CreatureDamageDealt = Math.Max(0, rawDmg);
         }
     }
 

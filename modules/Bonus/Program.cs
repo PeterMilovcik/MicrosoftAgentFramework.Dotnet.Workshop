@@ -61,114 +61,8 @@ while (true)
 
     if (menuInput == "2")
     {
-        var saves = SaveManager.ListSaves();
-        if (saves.Count == 0)
-        {
-            Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine("  No saved games found. Start a new game first.");
-            Console.ResetColor();
-            Console.WriteLine();
-            continue;
-        }
-
-        // Display saved games
-        Console.WriteLine();
-        Console.ForegroundColor = ConsoleColor.Yellow;
-        Console.WriteLine("  📂 Saved Games:");
-        Console.ResetColor();
-        Console.WriteLine();
-
-        for (var i = 0; i < saves.Count; i++)
-        {
-            var s = saves[i].State;
-            var themeShort = s.WorldTheme.Contains('—')
-                ? s.WorldTheme[..s.WorldTheme.IndexOf('—')].Trim()
-                : (s.WorldTheme.Length > 25 ? s.WorldTheme[..25] + "…" : s.WorldTheme);
-            var ago = s.LastSavedAt.ToTimeAgo();
-
-            Console.ForegroundColor = ConsoleColor.Yellow;
-            Console.Write($"  [{i + 1}] ");
-            Console.ForegroundColor = ConsoleColor.White;
-            Console.Write($"{s.Player.Name}");
-            Console.ForegroundColor = ConsoleColor.DarkGray;
-            Console.Write($" — {themeShort}");
-            Console.ForegroundColor = ConsoleColor.Cyan;
-            Console.Write($" (Lvl {s.Player.Level}, Turn {s.TurnCount}");
-            Console.ForegroundColor = s.Player.Health.Percentage <= 25 ? ConsoleColor.Red
-                : s.Player.Health.Percentage <= 50 ? ConsoleColor.Yellow : ConsoleColor.Green;
-            Console.Write($", HP {s.Player.Health}");
-            Console.ForegroundColor = ConsoleColor.DarkGray;
-            Console.WriteLine($", {ago})");
-            Console.ResetColor();
-        }
-
-        Console.WriteLine();
-        Console.ForegroundColor = ConsoleColor.DarkGray;
-        Console.WriteLine("  [D] 🗑️  Delete a save");
-        Console.WriteLine("  [B] ← Back to menu");
-        Console.ResetColor();
-        Console.WriteLine();
-
-        Console.ForegroundColor = ConsoleColor.DarkGray;
-        Console.Write("  Choose > ");
-        Console.ResetColor();
-        var loadInput = Console.ReadLine()?.Trim();
-
-        if (string.IsNullOrEmpty(loadInput) ||
-            loadInput.Equals("B", StringComparison.OrdinalIgnoreCase))
-        {
-            Console.WriteLine();
-            continue;
-        }
-
-        // Delete flow
-        if (loadInput.Equals("D", StringComparison.OrdinalIgnoreCase))
-        {
-            Console.ForegroundColor = ConsoleColor.DarkGray;
-            Console.Write("  Enter save number to delete > ");
-            Console.ResetColor();
-            var delInput = Console.ReadLine()?.Trim();
-            if (int.TryParse(delInput, out var delNum) && delNum >= 1 && delNum <= saves.Count)
-            {
-                var target = saves[delNum - 1];
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.Write($"  Delete {target.State.Player.Name}'s save? (y/n) > ");
-                Console.ResetColor();
-                var confirm = Console.ReadLine()?.Trim();
-                if (confirm?.Equals("y", StringComparison.OrdinalIgnoreCase) == true)
-                {
-                    SaveManager.Delete(target.Path);
-                    Console.ForegroundColor = ConsoleColor.DarkGray;
-                    Console.WriteLine("  Save deleted.");
-                    Console.ResetColor();
-                }
-            }
-            Console.WriteLine();
-            continue;
-        }
-
-        // Load selected save
-        if (int.TryParse(loadInput, out var idx) && idx >= 1 && idx <= saves.Count)
-        {
-            var (savePath, loadedState) = saves[idx - 1];
-            state = loadedState;
-
-            // Migrate legacy saves (no SaveId) to new naming
-            if (state.SaveId.IsEmpty)
-            {
-                SaveManager.MigrateLegacy(state, savePath);
-            }
-
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine($"\n  ✅ Game loaded! {state.Player.Name} — Level {state.Player.Level} — Turn {state.TurnCount}");
-            Console.ResetColor();
-            break;
-        }
-
-        Console.ForegroundColor = ConsoleColor.DarkYellow;
-        Console.WriteLine("  Invalid selection.");
-        Console.ResetColor();
-        Console.WriteLine();
+        state = LoadExistingGame();
+        if (state is not null) break;
         continue;
     }
 
@@ -305,4 +199,118 @@ static GameState CreateNewGame()
     Console.WriteLine();
 
     return state;
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// Load existing game
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+static GameState? LoadExistingGame()
+{
+    var saves = SaveManager.ListSaves();
+    if (saves.Count == 0)
+    {
+        Console.ForegroundColor = ConsoleColor.Red;
+        Console.WriteLine("  No saved games found. Start a new game first.");
+        Console.ResetColor();
+        Console.WriteLine();
+        return null;
+    }
+
+    // Display saved games
+    Console.WriteLine();
+    Console.ForegroundColor = ConsoleColor.Yellow;
+    Console.WriteLine("  📂 Saved Games:");
+    Console.ResetColor();
+    Console.WriteLine();
+
+    for (var i = 0; i < saves.Count; i++)
+    {
+        var s = saves[i].State;
+        var themeShort = s.WorldTheme.Contains('—')
+            ? s.WorldTheme[..s.WorldTheme.IndexOf('—')].Trim()
+            : (s.WorldTheme.Length > 25 ? s.WorldTheme[..25] + "…" : s.WorldTheme);
+        var ago = s.LastSavedAt.ToTimeAgo();
+
+        Console.ForegroundColor = ConsoleColor.Yellow;
+        Console.Write($"  [{i + 1}] ");
+        Console.ForegroundColor = ConsoleColor.White;
+        Console.Write($"{s.Player.Name}");
+        Console.ForegroundColor = ConsoleColor.DarkGray;
+        Console.Write($" — {themeShort}");
+        Console.ForegroundColor = ConsoleColor.Cyan;
+        Console.Write($" (Lvl {s.Player.Level}, Turn {s.TurnCount}");
+        Console.ForegroundColor = s.Player.Health.Percentage <= 25 ? ConsoleColor.Red
+            : s.Player.Health.Percentage <= 50 ? ConsoleColor.Yellow : ConsoleColor.Green;
+        Console.Write($", HP {s.Player.Health}");
+        Console.ForegroundColor = ConsoleColor.DarkGray;
+        Console.WriteLine($", {ago})");
+        Console.ResetColor();
+    }
+
+    Console.WriteLine();
+    Console.ForegroundColor = ConsoleColor.DarkGray;
+    Console.WriteLine("  [D] 🗑️  Delete a save");
+    Console.WriteLine("  [B] ← Back to menu");
+    Console.ResetColor();
+    Console.WriteLine();
+
+    Console.ForegroundColor = ConsoleColor.DarkGray;
+    Console.Write("  Choose > ");
+    Console.ResetColor();
+    var loadInput = Console.ReadLine()?.Trim();
+
+    if (string.IsNullOrEmpty(loadInput) ||
+        loadInput.Equals("B", StringComparison.OrdinalIgnoreCase))
+    {
+        Console.WriteLine();
+        return null;
+    }
+
+    // Delete flow
+    if (loadInput.Equals("D", StringComparison.OrdinalIgnoreCase))
+    {
+        Console.ForegroundColor = ConsoleColor.DarkGray;
+        Console.Write("  Enter save number to delete > ");
+        Console.ResetColor();
+        var delInput = Console.ReadLine()?.Trim();
+        if (int.TryParse(delInput, out var delNum) && delNum >= 1 && delNum <= saves.Count)
+        {
+            var target = saves[delNum - 1];
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.Write($"  Delete {target.State.Player.Name}'s save? (y/n) > ");
+            Console.ResetColor();
+            var confirm = Console.ReadLine()?.Trim();
+            if (confirm?.Equals("y", StringComparison.OrdinalIgnoreCase) == true)
+            {
+                SaveManager.Delete(target.Path);
+                Console.ForegroundColor = ConsoleColor.DarkGray;
+                Console.WriteLine("  Save deleted.");
+                Console.ResetColor();
+            }
+        }
+        Console.WriteLine();
+        return null;
+    }
+
+    // Load selected save
+    if (int.TryParse(loadInput, out var idx) && idx >= 1 && idx <= saves.Count)
+    {
+        var (savePath, loadedState) = saves[idx - 1];
+
+        // Migrate legacy saves (no SaveId) to new naming
+        if (loadedState.SaveId.IsEmpty)
+            SaveManager.MigrateLegacy(loadedState, savePath);
+
+        Console.ForegroundColor = ConsoleColor.Green;
+        Console.WriteLine($"\n  ✅ Game loaded! {loadedState.Player.Name} — Level {loadedState.Player.Level} — Turn {loadedState.TurnCount}");
+        Console.ResetColor();
+        return loadedState;
+    }
+
+    Console.ForegroundColor = ConsoleColor.DarkYellow;
+    Console.WriteLine("  Invalid selection.");
+    Console.ResetColor();
+    Console.WriteLine();
+    return null;
 }
