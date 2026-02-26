@@ -9,31 +9,23 @@ namespace RPGGameMaster.Tools;
 /// <summary>
 /// Tools for saving, loading, and querying NPCs.
 /// Assigned to the NPC Weaver agent.
+/// All operations target the in-memory GameState — disk persistence is
+/// handled by <see cref="SaveManager"/>.
 /// </summary>
 internal static class NPCTools
 {
-
-    private static string NPCsDir
-    {
-        get
-        {
-            var dir = Path.Combine(AppContext.BaseDirectory, "game-data", "npcs");
-            Directory.CreateDirectory(dir);
-            return dir;
-        }
-    }
-
     [Description("Saves an NPC to persistent storage. Input: the full JSON of the NPC object including agent_instructions.")]
     public static string SaveNPC([Description("Full JSON of the NPC object")] string npcJson)
     {
         try
         {
             var npc = JsonSerializer.Deserialize<NPC>(npcJson, AgentHelper.JsonOpts);
-            if (npc is null || string.IsNullOrWhiteSpace(npc.Id))
+            if (npc is null || npc.Id.IsEmpty)
                 return "ERROR: Invalid NPC JSON or missing id.";
 
-            var path = Path.Combine(NPCsDir, $"{npc.Id}.json");
-            File.WriteAllText(path, JsonSerializer.Serialize(npc, AgentHelper.JsonOpts));
+            if (GameStateAccessor.IsLoaded)
+                GameStateAccessor.Current.NPCs[npc.Id] = npc;
+
             return $"OK: NPC '{npc.Name}' saved with id '{npc.Id}'.";
         }
         catch (Exception ex)
@@ -47,10 +39,13 @@ internal static class NPCTools
     {
         try
         {
-            var path = Path.Combine(NPCsDir, $"{id}.json");
-            if (!File.Exists(path))
-                return $"ERROR: NPC '{id}' not found.";
-            return File.ReadAllText(path);
+            if (GameStateAccessor.IsLoaded &&
+                GameStateAccessor.Current.NPCs.TryGetValue(id, out var npc))
+            {
+                return JsonSerializer.Serialize(npc, AgentHelper.JsonOpts);
+            }
+
+            return $"ERROR: NPC '{id}' not found.";
         }
         catch (Exception ex)
         {
@@ -63,14 +58,13 @@ internal static class NPCTools
     {
         try
         {
-            var files = Directory.GetFiles(NPCsDir, "*.json");
-            var npcs = new List<NPC>();
-            foreach (var file in files)
-            {
-                var npc = JsonSerializer.Deserialize<NPC>(File.ReadAllText(file), AgentHelper.JsonOpts);
-                if (npc is not null && npc.LocationId == locationId)
-                    npcs.Add(npc);
-            }
+            if (!GameStateAccessor.IsLoaded)
+                return "[]";
+
+            var npcs = GameStateAccessor.Current.NPCs.Values
+                .Where(n => n.LocationId == locationId)
+                .ToList();
+
             return JsonSerializer.Serialize(npcs, AgentHelper.JsonOpts);
         }
         catch (Exception ex)

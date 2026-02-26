@@ -23,45 +23,38 @@ internal static class GameTools
         if (count < 1 || count > 10) return "ERROR: count must be 1-10.";
         if (sides < 2 || sides > 100) return "ERROR: sides must be 2-100.";
 
-        var rolls = new int[count];
-        for (var i = 0; i < count; i++)
-            rolls[i] = Random.Shared.Next(1, sides + 1);
-
+        var rolls = Dice.RollEach(count, sides);
         var total = rolls.Sum();
         return $"Rolled {count}d{sides}: [{string.Join(", ", rolls)}] = {total}";
     }
 
     // ── Player stats ──
 
-    // A reference to the in-memory game state, set by the workflow before combat.
-    private static GameState? _gameState;
-
-    public static void SetGameState(GameState state) => _gameState = state;
-
     [Description("Returns the player's current stats as JSON.")]
     public static string GetPlayerStats()
     {
-        if (_gameState is null) return "ERROR: No game state loaded.";
-        return JsonSerializer.Serialize(_gameState.Player, AgentHelper.JsonOpts);
+        if (!GameStateAccessor.IsLoaded) return "ERROR: No game state loaded.";
+        return JsonSerializer.Serialize(GameStateAccessor.Current.Player, AgentHelper.JsonOpts);
     }
 
     [Description("Updates the player's HP and/or gold. Input JSON with optional fields: hp, gold, xp.")]
     public static string UpdatePlayerStats([Description("JSON with fields to update: {hp, gold, xp}")] string updateJson)
     {
-        if (_gameState is null) return "ERROR: No game state loaded.";
+        if (!GameStateAccessor.IsLoaded) return "ERROR: No game state loaded.";
+        var player = GameStateAccessor.Current.Player;
         try
         {
             using var doc = JsonDocument.Parse(updateJson);
             var root = doc.RootElement;
 
             if (root.TryGetProperty("hp", out var hpProp))
-                _gameState.Player.Health = new HitPoints(hpProp.GetInt32(), _gameState.Player.Health.Max);
+                player.Health = new HitPoints(hpProp.GetInt32(), player.Health.Max);
             if (root.TryGetProperty("gold", out var goldProp))
-                _gameState.Player.Gold = new Gold(goldProp.GetInt32());
+                player.Gold = new Gold(goldProp.GetInt32());
             if (root.TryGetProperty("xp", out var xpProp))
-                _gameState.Player.XP = Math.Max(0, xpProp.GetInt32());
+                player.XP = Math.Max(0, xpProp.GetInt32());
 
-            return $"OK: Player stats updated. HP={_gameState.Player.Health}, Gold={_gameState.Player.Gold}, XP={_gameState.Player.XP}";
+            return $"OK: Player stats updated. HP={player.Health}, Gold={player.Gold}, XP={player.XP}";
         }
         catch (Exception ex)
         {

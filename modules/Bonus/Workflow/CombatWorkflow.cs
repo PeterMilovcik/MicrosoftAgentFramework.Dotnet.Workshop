@@ -17,6 +17,7 @@ internal enum CombatResult
 /// Uses a Combat Strategist (LLM) to generate cinematic moves,
 /// CombatResolver (pure C#) to roll dice and calculate damage,
 /// and a Combat Narrator (LLM) to narrate the outcome.
+/// <para>NOTE: Static — see GameMasterWorkflow for DI migration notes.</para>
 /// </summary>
 internal static class CombatWorkflow
 {
@@ -146,7 +147,7 @@ internal static class CombatWorkflow
                 }
 
                 // Award XP
-                state.Player.XP += creature.XPReward;
+                state.Player.AddXP(creature.XPReward);
                 Console.ForegroundColor = ConsoleColor.Cyan;
                 Console.WriteLine($"  {UIStrings.Format(state.Language, "combat_xp", creature.XPReward, state.Player.XP, state.Player.XPToNextLevel)}");
                 Console.ResetColor();
@@ -181,8 +182,7 @@ internal static class CombatWorkflow
     {
         var sb = new StringBuilder();
         sb.AppendLine("Generate 3-4 combat moves for this round.\n");
-        if (language != "English")
-            sb.AppendLine($"Language: {language} — all move names and descriptions MUST be in this language. JSON keys and type values stay English.\n");
+        LanguageHint.AppendTo(sb, language, "all move names and descriptions MUST be in this language. JSON keys and type values stay English.");
 
         // Player state
         var weapon = player.Inventory.FirstOrDefault(i => i.Type == ItemType.Weapon);
@@ -240,8 +240,7 @@ internal static class CombatWorkflow
     {
         var sb = new StringBuilder();
         sb.AppendLine("Narrate this combat round result dramatically in 2-4 sentences.\n");
-        if (language != "English")
-            sb.AppendLine($"Language: {language} — narration MUST be in this language.\n");
+        LanguageHint.AppendTo(sb, language, "narration MUST be in this language.");
 
         sb.AppendLine($"Round: {round}");
         sb.AppendLine($"Player: {player.Name} (HP: {player.Health})");
@@ -252,12 +251,12 @@ internal static class CombatWorkflow
             sb.AppendLine($"Location: {locationName}");
         if (!string.IsNullOrWhiteSpace(locationAtmosphere))
             sb.AppendLine($"Atmosphere: {locationAtmosphere}");
-        sb.AppendLine($"Move used: {result.MoveName} (type: {result.MoveType})");
+        sb.AppendLine($"Move used: {result.MoveName} (type: {result.MoveType.ToString().ToLowerInvariant()})");
 
         switch (result.MoveType)
         {
-            case "attack":
-            case "heavy":
+            case MoveType.Attack:
+            case MoveType.Heavy:
                 sb.AppendLine($"Attack roll: {result.PlayerAttackRoll} (total: {result.PlayerAttackTotal}) — {(result.PlayerHit ? "HIT" : "MISS")}{(result.PlayerCrit ? " — CRITICAL!" : "")}");
                 if (result.PlayerHit)
                     sb.AppendLine($"Player dealt {result.PlayerDamageDealt} damage to {creature.Name}.");
@@ -265,7 +264,7 @@ internal static class CombatWorkflow
                     sb.AppendLine($"The reckless attack cost the player {result.SelfDamage} self-damage.");
                 break;
 
-            case "defensive":
+            case MoveType.Defensive:
                 sb.AppendLine($"Player took a defensive stance, halving incoming damage.");
                 if (result.CounterHit)
                     sb.AppendLine($"Counter-attack connected for {result.CounterDamage} damage!");
@@ -273,18 +272,18 @@ internal static class CombatWorkflow
                     sb.AppendLine("No counter-attack connected.");
                 break;
 
-            case "flee":
+            case MoveType.Flee:
                 sb.AppendLine($"Flee roll: {result.FleeRoll} — {(result.FledSuccessfully ? "ESCAPED!" : "FAILED!")}");
                 break;
 
-            case "item":
+            case MoveType.Item:
                 if (result.ItemUsed is not null)
                     sb.AppendLine($"Used {result.ItemUsed}, healing {result.HealAmount} HP.");
                 break;
         }
 
         // Creature's counter-attack (for non-defensive, non-fled rounds)
-        if (result.MoveType is not "defensive" && !result.FledSuccessfully)
+        if (result.MoveType is not MoveType.Defensive && !result.FledSuccessfully)
         {
             sb.AppendLine($"{creature.Name}'s attack roll: {result.CreatureAttackRoll} — {(result.CreatureHit ? "HIT" : "MISS")}{(result.CreatureCrit ? " — CRITICAL!" : "")}");
             if (result.CreatureHit)
@@ -403,8 +402,7 @@ internal static class CombatWorkflow
         try
         {
             using var doc = JsonDocument.Parse(json);
-            if (doc.RootElement.TryGetProperty("narrative", out var n))
-                return n.GetString() ?? text.Trim();
+            return doc.RootElement.StrOrNull("narrative") ?? text.Trim();
         }
         catch { /* fall through */ }
         return text.Trim();
@@ -462,8 +460,8 @@ internal static class CombatWorkflow
 
         switch (result.MoveType)
         {
-            case "attack":
-            case "heavy":
+            case MoveType.Attack:
+            case MoveType.Heavy:
                 Console.ForegroundColor = result.PlayerHit ? ConsoleColor.Green : ConsoleColor.DarkGray;
                 Console.Write($"  🎲 Attack: {result.PlayerAttackRoll}");
                 if (result.PlayerAttackTotal != result.PlayerAttackRoll)
@@ -484,7 +482,7 @@ internal static class CombatWorkflow
                 Console.ResetColor();
                 break;
 
-            case "defensive":
+            case MoveType.Defensive:
                 Console.ForegroundColor = ConsoleColor.Cyan;
                 Console.Write("  🎲 Defensive stance — incoming damage halved");
                 Console.WriteLine();
@@ -501,13 +499,13 @@ internal static class CombatWorkflow
                 Console.ResetColor();
                 break;
 
-            case "flee":
+            case MoveType.Flee:
                 Console.ForegroundColor = result.FledSuccessfully ? ConsoleColor.Green : ConsoleColor.Red;
                 Console.WriteLine($"  🎲 Flee: {result.FleeRoll} — {(result.FledSuccessfully ? "ESCAPED!" : "BLOCKED!")}");
                 Console.ResetColor();
                 break;
 
-            case "item":
+            case MoveType.Item:
                 if (result.HealAmount > 0)
                 {
                     Console.ForegroundColor = ConsoleColor.Green;
@@ -518,9 +516,9 @@ internal static class CombatWorkflow
         }
 
         // Creature attack result (unless fled or defensive — defensive printed its own way)
-        if (result.MoveType is not "flee" || !result.FledSuccessfully)
+        if (result.MoveType is not MoveType.Flee || !result.FledSuccessfully)
         {
-            if (result.MoveType is not "defensive") // defensive already shows reduced damage
+            if (result.MoveType is not MoveType.Defensive) // defensive already shows reduced damage
             {
                 Console.ForegroundColor = result.CreatureHit ? ConsoleColor.Red : ConsoleColor.DarkGray;
                 Console.Write($"  🎲 {creatureName}: {result.CreatureAttackRoll}");

@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace RPGGameMaster.Models;
 
 /// <summary>
@@ -39,6 +41,8 @@ internal sealed class CombatRoundResult
     // ── Summary ──
     public int TotalDamageToCreature { get; set; }
     public int TotalDamageToPlayer { get; set; }
-    public string MoveType { get; set; } = "";
+
+    [JsonConverter(typeof(JsonStringEnumConverter<MoveType>))]
+    public MoveType MoveType { get; set; }
     public string MoveName { get; set; } = "";
 }

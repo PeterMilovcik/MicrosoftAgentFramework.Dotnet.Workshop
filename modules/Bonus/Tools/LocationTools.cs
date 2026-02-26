@@ -9,31 +9,23 @@ namespace RPGGameMaster.Tools;
 /// <summary>
 /// Tools for saving, loading, and listing world locations.
 /// Assigned to the World Architect agent.
+/// All operations target the in-memory GameState — disk persistence is
+/// handled by <see cref="SaveManager"/>.
 /// </summary>
 internal static class LocationTools
 {
-
-    private static string LocationsDir
-    {
-        get
-        {
-            var dir = Path.Combine(AppContext.BaseDirectory, "game-data", "locations");
-            Directory.CreateDirectory(dir);
-            return dir;
-        }
-    }
-
     [Description("Saves a location to persistent storage. Input: the full JSON of the Location object.")]
     public static string SaveLocation([Description("Full JSON of the Location object")] string locationJson)
     {
         try
         {
             var location = JsonSerializer.Deserialize<Location>(locationJson, AgentHelper.JsonOpts);
-            if (location is null || string.IsNullOrWhiteSpace(location.Id))
+            if (location is null || location.Id.IsEmpty)
                 return "ERROR: Invalid location JSON or missing id.";
 
-            var path = Path.Combine(LocationsDir, $"{location.Id}.json");
-            File.WriteAllText(path, JsonSerializer.Serialize(location, AgentHelper.JsonOpts));
+            if (GameStateAccessor.IsLoaded)
+                GameStateAccessor.Current.Locations[location.Id] = location;
+
             return $"OK: Location '{location.Name}' saved with id '{location.Id}'.";
         }
         catch (Exception ex)
@@ -47,10 +39,13 @@ internal static class LocationTools
     {
         try
         {
-            var path = Path.Combine(LocationsDir, $"{id}.json");
-            if (!File.Exists(path))
-                return $"ERROR: Location '{id}' not found.";
-            return File.ReadAllText(path);
+            if (GameStateAccessor.IsLoaded &&
+                GameStateAccessor.Current.Locations.TryGetValue(id, out var loc))
+            {
+                return JsonSerializer.Serialize(loc, AgentHelper.JsonOpts);
+            }
+
+            return $"ERROR: Location '{id}' not found.";
         }
         catch (Exception ex)
         {
@@ -63,14 +58,13 @@ internal static class LocationTools
     {
         try
         {
-            var files = Directory.GetFiles(LocationsDir, "*.json");
-            var summaries = new List<object>();
-            foreach (var file in files)
-            {
-                var loc = JsonSerializer.Deserialize<Location>(File.ReadAllText(file), AgentHelper.JsonOpts);
-                if (loc is not null)
-                    summaries.Add(new { loc.Id, loc.Name, loc.Theme, ExitCount = loc.Exits.Count });
-            }
+            if (!GameStateAccessor.IsLoaded)
+                return "[]";
+
+            var summaries = GameStateAccessor.Current.Locations.Values
+                .Select(loc => new { loc.Id, loc.Name, loc.Theme, ExitCount = loc.Exits.Count })
+                .ToList();
+
             return JsonSerializer.Serialize(summaries, AgentHelper.JsonOpts);
         }
         catch (Exception ex)

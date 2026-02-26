@@ -8,7 +8,7 @@ namespace RPGGameMaster.Models;
 internal sealed class Creature
 {
     [JsonPropertyName("id")]
-    public string Id { get; set; } = EntityId.New();
+    public EntityId Id { get; set; } = EntityId.New();
 
     [JsonPropertyName("name")]
     public string Name { get; set; } = "";
@@ -17,7 +17,7 @@ internal sealed class Creature
     public string Description { get; set; } = "";
 
     [JsonPropertyName("location_id")]
-    public string LocationId { get; set; } = "";
+    public EntityId LocationId { get; set; }
 
     [JsonPropertyName("hp")]
     public int HP { get; set; } = 20;

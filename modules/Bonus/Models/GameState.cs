@@ -9,7 +9,7 @@ internal sealed class GameState
 {
     /// <summary>Unique save identifier (8-char hex), generated at new game creation.</summary>
     [JsonPropertyName("save_id")]
-    public string SaveId { get; set; } = EntityId.New();
+    public EntityId SaveId { get; set; } = EntityId.New();
 
     /// <summary>UTC timestamp of the last save.</summary>
     [JsonPropertyName("last_saved_at")]
@@ -19,7 +19,7 @@ internal sealed class GameState
     public PlayerCharacter Player { get; set; } = new();
 
     [JsonPropertyName("current_location_id")]
-    public string CurrentLocationId { get; set; } = "";
+    public EntityId CurrentLocationId { get; set; }
 
     [JsonPropertyName("world_theme")]
     public string WorldTheme { get; set; } = "";
@@ -44,12 +44,10 @@ internal sealed class GameState
     [JsonPropertyName("game_log")]
     public List<string> GameLog { get; set; } = [];
 
-    public const int MaxLogEntries = 20;
-
     public void AddLog(string entry)
     {
         GameLog.Add(entry);
-        while (GameLog.Count > MaxLogEntries)
+        while (GameLog.Count > GameConstants.MaxLogEntries)
             GameLog.RemoveAt(0);
     }
 

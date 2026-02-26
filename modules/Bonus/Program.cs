@@ -57,13 +57,13 @@ while (true)
     if (menuInput is null || menuInput == "3" || menuInput.Equals("quit", StringComparison.OrdinalIgnoreCase))
     {
         Console.WriteLine("\nFarewell, adventurer! 👋");
-        AgentConfig.PrintTokenSummary();
+        TokenTracker.PrintSummary();
         return;
     }
 
     if (menuInput == "2")
     {
-        var saves = GameMasterWorkflow.ListSaves();
+        var saves = SaveManager.ListSaves();
         if (saves.Count == 0)
         {
             Console.ForegroundColor = ConsoleColor.Red;
@@ -86,7 +86,7 @@ while (true)
             var themeShort = s.WorldTheme.Contains('—')
                 ? s.WorldTheme[..s.WorldTheme.IndexOf('—')].Trim()
                 : (s.WorldTheme.Length > 25 ? s.WorldTheme[..25] + "…" : s.WorldTheme);
-            var ago = FormatTimeAgo(s.LastSavedAt);
+            var ago = TimeFormatHelper.FormatTimeAgo(s.LastSavedAt);
 
             Console.ForegroundColor = ConsoleColor.Yellow;
             Console.Write($"  [{i + 1}] ");
@@ -139,7 +139,7 @@ while (true)
                 var confirm = Console.ReadLine()?.Trim();
                 if (confirm?.Equals("y", StringComparison.OrdinalIgnoreCase) == true)
                 {
-                    GameMasterWorkflow.DeleteSave(target.Path);
+                    SaveManager.Delete(target.Path);
                     Console.ForegroundColor = ConsoleColor.DarkGray;
                     Console.WriteLine("  Save deleted.");
                     Console.ResetColor();
@@ -156,9 +156,9 @@ while (true)
             state = loadedState;
 
             // Migrate legacy saves (no SaveId) to new naming
-            if (string.IsNullOrEmpty(state.SaveId))
+            if (state.SaveId.IsEmpty)
             {
-                GameMasterWorkflow.MigrateLegacySave(state, savePath);
+                SaveManager.MigrateLegacy(state, savePath);
             }
 
             Console.ForegroundColor = ConsoleColor.Green;
@@ -211,7 +211,7 @@ finally
     Console.WriteLine($"  Locations discovered: {state.Locations.Count}");
     Console.WriteLine($"  NPCs met: {state.NPCs.Values.Count(n => n.HasMet)}");
     Console.WriteLine($"  Creatures defeated: {state.Creatures.Values.Count(c => c.IsDefeated)}");
-    AgentConfig.PrintTokenSummary();
+    TokenTracker.PrintSummary();
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -235,43 +235,35 @@ static GameState CreateNewGame()
     Console.WriteLine();
     Console.ForegroundColor = ConsoleColor.Yellow;
     Console.WriteLine("  Choose a world theme:");
-    Console.WriteLine("  [1] 🏰 Dark Fantasy — Crumbling castles, ancient curses, and dark forests");
-    Console.WriteLine("  [2] ⚔️  High Fantasy — Dragon lairs, dungeon crawls, and warring kingdoms");
-    Console.WriteLine("  [3] 👻 Haunted Ruins — Forgotten temples, restless spirits, and deadly traps");
-    Console.WriteLine("  [4] 🚀 Sci-Fi Station — Abandoned space station, alien tech, and rogue AI");
-    Console.WriteLine("  [5] 🏴‍☠️ Pirate Archipelago — Tropical islands, sea monsters, and buried treasure");
-    Console.WriteLine("  [6] ⚙️  Steampunk City — Clockwork machines, airship docks, and industrial intrigue");
-    Console.WriteLine("  [7] 🏜️  Desert Tombs — Sandswept pyramids, cursed pharaohs, and hidden oases");
-    Console.WriteLine("  [8] 🌊 Sunken Kingdom — Submerged ruins, merfolk, and abyssal leviathans");
-    Console.WriteLine("  [9] ❄️  Frozen Wastes — Ice citadels, frost wraiths, and buried Viking halls");
-    Console.WriteLine("  [10] 🧟 Post-Apocalypse — Overgrown cities, mutant beasts, and scavenger gangs");
-    Console.WriteLine("  [11] ✏️  Custom — Describe your own world");
+    for (var i = 0; i < WorldThemes.Themes.Count; i++)
+    {
+        Console.WriteLine($"  [{i + 1}] {WorldThemes.Themes[i].Label}");
+    }
+    Console.WriteLine($"  [{WorldThemes.Themes.Count + 1}] ✏️  Custom — Describe your own world");
     Console.ResetColor();
     Console.WriteLine();
 
     Console.Write("  Theme > ");
     var themeInput = Console.ReadLine()?.Trim();
-    var theme = themeInput switch
-    {
-        "1" => "Dark Fantasy — a grim world of crumbling castles, ancient curses, dark forests, and undead horrors",
-        "2" => "High Fantasy — a classic realm of dragon lairs, sprawling dungeons, warring kingdoms, tavern quests, and ancient prophecies",
-        "3" => "Haunted Ruins — a desolate landscape of forgotten temples, restless spirits, deadly traps, and lost civilizations",
-        "4" => "Sci-Fi Station — an abandoned orbital station with malfunctioning systems, alien technology, rogue AI, and zero-gravity hazards",
-        "5" => "Pirate Archipelago — a chain of tropical islands with sea monsters, buried treasure, rival pirates, and cursed shipwrecks",
-        "6" => "Steampunk City — a Victorian-era metropolis of steam-powered machines, airship docks, clockwork automatons, smog-choked streets, and industrial espionage",
-        "7" => "Desert Tombs — an ancient desert of sandswept pyramids, cursed pharaoh tombs, scorching dunes, hidden oases, and sand elementals",
-        "8" => "Sunken Kingdom — a drowned kingdom of coral-encrusted palaces, bioluminescent caverns, merfolk factions, and abyssal leviathans",
-        "9" => "Frozen Wastes — a frozen tundra of ice citadels, howling blizzards, frost wraiths, buried Viking longship halls, and aurora-lit skies",
-        "10" => "Post-Apocalypse — a post-apocalyptic wasteland of crumbling skyscrapers, overgrown highways, mutant beasts, scavenger gangs, and pre-war bunkers",
-        _ => null,
-    };
+    string? theme = null;
 
-    if (theme is null)
+    if (int.TryParse(themeInput, out var themeIdx))
+        theme = WorldThemes.GetDescription(themeIdx);
+
+    if (theme is null && themeInput != (WorldThemes.Themes.Count + 1).ToString())
+    {
+        // Custom theme or unrecognized input
+        Console.Write("  Describe your world theme: ");
+        theme = Console.ReadLine()?.Trim();
+        if (string.IsNullOrWhiteSpace(theme))
+            theme = WorldThemes.DefaultDescription;
+    }
+    else if (theme is null)
     {
         Console.Write("  Describe your world theme: ");
         theme = Console.ReadLine()?.Trim();
         if (string.IsNullOrWhiteSpace(theme))
-            theme = "High Fantasy — a classic world of knights, dragons, wizards, and ancient dungeons";
+            theme = WorldThemes.DefaultDescription;
     }
 
     // Language selection
@@ -350,14 +342,4 @@ static GameState CreateNewGame()
     Console.WriteLine();
 
     return state;
-}
-
-static string FormatTimeAgo(DateTime utcTime)
-{
-    var span = DateTime.UtcNow - utcTime;
-    if (span.TotalMinutes < 1) return "just now";
-    if (span.TotalMinutes < 60) return $"{(int)span.TotalMinutes}m ago";
-    if (span.TotalHours < 24) return $"{(int)span.TotalHours}h ago";
-    if (span.TotalDays < 7) return $"{(int)span.TotalDays}d ago";
-    return utcTime.ToLocalTime().ToString("MMM dd");
 }

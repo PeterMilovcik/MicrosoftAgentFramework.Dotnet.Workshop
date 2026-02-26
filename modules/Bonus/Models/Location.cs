@@ -16,10 +16,10 @@ internal sealed class Exit
     public string Description { get; set; } = "";
 
     /// <summary>
-    /// The id of the target location, or null/empty if unexplored (will be generated on demand).
+    /// The id of the target location, or empty if unexplored (will be generated on demand).
     /// </summary>
     [JsonPropertyName("target_location_id")]
-    public string? TargetLocationId { get; set; }
+    public EntityId TargetLocationId { get; set; }
 }
 
 /// <summary>
@@ -28,7 +28,7 @@ internal sealed class Exit
 internal sealed class Location
 {
     [JsonPropertyName("id")]
-    public string Id { get; set; } = EntityId.New();
+    public EntityId Id { get; set; } = EntityId.New();
 
     [JsonPropertyName("name")]
     public string Name { get; set; } = "";

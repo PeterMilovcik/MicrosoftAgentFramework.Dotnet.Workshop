@@ -32,11 +32,19 @@ internal sealed class Item
     [JsonIgnore]
     public int SellPrice => Type.SellPrice(EffectValue);
 
-    /// <summary>Whether the item can be actively used (scrolls, food, keys). Weapons/armor are passive.</summary>
+    /// <summary>
+    /// Whether the item can be actively used (scrolls, food, keys). Weapons/armor are passive.
+    /// Defaults to <see cref="EnumExtensions.IsUsable"/> for the item's type.
+    /// LLM-generated items may override this.
+    /// </summary>
     [JsonPropertyName("is_usable")]
     public bool IsUsable { get; set; }
 
-    /// <summary>Whether using the item removes it from inventory (potions, scrolls, food = true; key = false).</summary>
+    /// <summary>
+    /// Whether using the item removes it from inventory (potions, scrolls, food = true; key = false).
+    /// Defaults to <see cref="EnumExtensions.IsConsumable"/> for the item's type.
+    /// LLM-generated items may override this.
+    /// </summary>
     [JsonPropertyName("is_consumable")]
     public bool IsConsumable { get; set; }
 

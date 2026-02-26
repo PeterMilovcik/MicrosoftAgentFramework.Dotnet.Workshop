@@ -9,31 +9,23 @@ namespace RPGGameMaster.Tools;
 /// <summary>
 /// Tools for saving, loading, and querying creatures.
 /// Assigned to the Creature Forger agent.
+/// All operations target the in-memory GameState — disk persistence is
+/// handled by <see cref="SaveManager"/>.
 /// </summary>
 internal static class CreatureTools
 {
-
-    private static string CreaturesDir
-    {
-        get
-        {
-            var dir = Path.Combine(AppContext.BaseDirectory, "game-data", "creatures");
-            Directory.CreateDirectory(dir);
-            return dir;
-        }
-    }
-
     [Description("Saves a creature to persistent storage. Input: the full JSON of the Creature object.")]
     public static string SaveCreature([Description("Full JSON of the Creature object")] string creatureJson)
     {
         try
         {
             var creature = JsonSerializer.Deserialize<Creature>(creatureJson, AgentHelper.JsonOpts);
-            if (creature is null || string.IsNullOrWhiteSpace(creature.Id))
+            if (creature is null || creature.Id.IsEmpty)
                 return "ERROR: Invalid creature JSON or missing id.";
 
-            var path = Path.Combine(CreaturesDir, $"{creature.Id}.json");
-            File.WriteAllText(path, JsonSerializer.Serialize(creature, AgentHelper.JsonOpts));
+            if (GameStateAccessor.IsLoaded)
+                GameStateAccessor.Current.Creatures[creature.Id] = creature;
+
             return $"OK: Creature '{creature.Name}' saved with id '{creature.Id}'.";
         }
         catch (Exception ex)
@@ -47,10 +39,13 @@ internal static class CreatureTools
     {
         try
         {
-            var path = Path.Combine(CreaturesDir, $"{id}.json");
-            if (!File.Exists(path))
-                return $"ERROR: Creature '{id}' not found.";
-            return File.ReadAllText(path);
+            if (GameStateAccessor.IsLoaded &&
+                GameStateAccessor.Current.Creatures.TryGetValue(id, out var creature))
+            {
+                return JsonSerializer.Serialize(creature, AgentHelper.JsonOpts);
+            }
+
+            return $"ERROR: Creature '{id}' not found.";
         }
         catch (Exception ex)
         {
@@ -63,14 +58,13 @@ internal static class CreatureTools
     {
         try
         {
-            var files = Directory.GetFiles(CreaturesDir, "*.json");
-            var creatures = new List<Creature>();
-            foreach (var file in files)
-            {
-                var creature = JsonSerializer.Deserialize<Creature>(File.ReadAllText(file), AgentHelper.JsonOpts);
-                if (creature is not null && creature.LocationId == locationId && !creature.IsDefeated)
-                    creatures.Add(creature);
-            }
+            if (!GameStateAccessor.IsLoaded)
+                return "[]";
+
+            var creatures = GameStateAccessor.Current.Creatures.Values
+                .Where(c => c.LocationId == locationId && !c.IsDefeated)
+                .ToList();
+
             return JsonSerializer.Serialize(creatures, AgentHelper.JsonOpts);
         }
         catch (Exception ex)

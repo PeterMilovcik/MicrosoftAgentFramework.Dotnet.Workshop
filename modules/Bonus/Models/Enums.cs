@@ -94,6 +94,7 @@ internal static class EnumExtensions
 
     public static bool IsEquippable(this ItemType type) => type is ItemType.Weapon or ItemType.Armor;
     public static bool IsConsumable(this ItemType type) => type is ItemType.Potion or ItemType.Scroll or ItemType.Food;
+    public static bool IsUsable(this ItemType type) => type is ItemType.Potion or ItemType.Scroll or ItemType.Food or ItemType.Key;
     public static int SellPriceMultiplier(this ItemType type) => type.IsEquippable() ? 3 : 1;
 
     /// <summary>Compute sell price: equipment uses 3x EffectValue, others use 1x, minimum 1.</summary>

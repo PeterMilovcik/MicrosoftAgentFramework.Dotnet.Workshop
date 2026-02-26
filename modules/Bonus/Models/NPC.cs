@@ -8,7 +8,7 @@ namespace RPGGameMaster.Models;
 internal sealed class NPC
 {
     [JsonPropertyName("id")]
-    public string Id { get; set; } = EntityId.New();
+    public EntityId Id { get; set; } = EntityId.New();
 
     [JsonPropertyName("name")]
     public string Name { get; set; } = "";
@@ -17,7 +17,7 @@ internal sealed class NPC
     public string Description { get; set; } = "";
 
     [JsonPropertyName("location_id")]
-    public string LocationId { get; set; } = "";
+    public EntityId LocationId { get; set; }
 
     [JsonPropertyName("personality")]
     public string Personality { get; set; } = "";
@@ -68,12 +68,10 @@ internal sealed class NPC
     [JsonPropertyName("dialogue_history")]
     public List<string> DialogueHistory { get; set; } = [];
 
-    public const int MaxDialogueEntries = 20;
-
     public void AddDialogue(string entry)
     {
         DialogueHistory.Add(entry);
-        while (DialogueHistory.Count > MaxDialogueEntries)
+        while (DialogueHistory.Count > GameConstants.MaxLogEntries)
             DialogueHistory.RemoveAt(0);
     }
 }

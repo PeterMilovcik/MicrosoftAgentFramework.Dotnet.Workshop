@@ -54,11 +54,25 @@ internal sealed class PlayerCharacter
         if (XP < XPToNextLevel) return false;
         XP -= XPToNextLevel;
         Level++;
-        Health = Health.IncreaseMax(10, restoreToMax: true);
-        Attack += 2;
-        Defense += 1;
+        Health = Health.IncreaseMax(GameConstants.LevelUpHPBonus, restoreToMax: true);
+        Attack += GameConstants.LevelUpAttackBonus;
+        Defense += GameConstants.LevelUpDefenseBonus;
         XPToNextLevel = Level * 100;
         return true;
+    }
+
+    /// <summary>Awards experience points.</summary>
+    public void AddXP(int amount) => XP += Math.Max(0, amount);
+
+    /// <summary>
+    /// Removes a fraction of current XP as a penalty (e.g. death).
+    /// Returns the amount lost.
+    /// </summary>
+    public int LoseXP(double fraction)
+    {
+        var lost = (int)(XP * fraction);
+        XP = Math.Max(0, XP - lost);
+        return lost;
     }
 
     /// <summary>Compute effective attack (base + best weapon bonus).</summary>

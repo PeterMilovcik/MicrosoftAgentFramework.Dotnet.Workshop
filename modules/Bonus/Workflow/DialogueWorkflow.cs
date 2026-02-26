@@ -7,6 +7,7 @@ namespace RPGGameMaster.Workflow;
 /// <summary>
 /// NPC dialogue sub-loop: creates a dynamic agent from the NPC's stored AgentInstructions,
 /// then lets the player converse via GM-formatted options.
+/// <para>NOTE: Static — see GameMasterWorkflow for DI migration notes.</para>
 /// </summary>
 internal static class DialogueWorkflow
 {
@@ -93,7 +94,7 @@ internal static class DialogueWorkflow
         npc.HasMet = true;
 
         // Dialogue loop
-        var maxRounds = 10;
+        var maxRounds = GameConstants.MaxDialogueRounds;
         var round = 0;
 
         while (round < maxRounds)
@@ -211,7 +212,7 @@ internal static class DialogueWorkflow
             npc.AddDialogue(entry);
 
         // Small disposition bump for having a conversation (capped at 100)
-        npc.DispositionTowardPlayer = npc.DispositionTowardPlayer.Improve(5);
+        npc.DispositionTowardPlayer = npc.DispositionTowardPlayer.Improve(GameConstants.ConversationDispositionBoost);
 
         state.AddLog($"Spoke with {npc.Name}.");
     }
@@ -226,11 +227,10 @@ internal static class DialogueWorkflow
             var root = doc.RootElement;
 
             // Extract speech
-            var speech = root.TryGetProperty("speech", out var s) ? s.GetString() ?? text : text;
+            var speech = root.Str("speech", text);
 
             // Extract quest_accepted flag
-            var questAccepted = root.TryGetProperty("quest_accepted", out var qa)
-                && qa.ValueKind == JsonValueKind.True;
+            var questAccepted = root.Bool("quest_accepted");
 
             // Extract options
             var options = new List<DialogueOption>();
@@ -240,9 +240,9 @@ internal static class DialogueWorkflow
                 {
                     options.Add(new DialogueOption
                     {
-                        Number = el.TryGetProperty("number", out var n) ? n.GetInt32() : options.Count + 1,
-                        Text = el.TryGetProperty("text", out var t) ? t.GetString() ?? "" : "",
-                        IsFarewell = el.TryGetProperty("is_farewell", out var fw) && fw.ValueKind == JsonValueKind.True,
+                        Number = el.Int("number", options.Count + 1),
+                        Text = el.Str("text"),
+                        IsFarewell = el.Bool("is_farewell"),
                     });
                 }
             }
