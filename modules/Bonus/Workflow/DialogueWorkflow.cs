@@ -65,23 +65,14 @@ internal static class DialogueWorkflow
                     "If the player's last message agreed/committed to help with this task, set \"quest_accepted\": true in your response.";
             }
 
-            // NPC speaks (returns JSON with speech + options) — retry once on failure
+            // NPC speaks (returns JSON with speech + options)
+            // Timeout + retry is handled inside AgentRunner
             string npcResponse;
             await using (ConsoleSpinner.Start($"[{npc.Name}] Thinking..."))
             {
-                npcResponse = await AgentRunner.RunAgent(npcAgent, npcPrompt, ct);
+                npcResponse = await AgentRunner.RunAgent(npcAgent, npcPrompt, ct,
+                    $"{{\"speech\": \"{npc.Name} pauses, collecting their thoughts.\", \"quest_accepted\": false, \"options\": []}}");
             }
-
-            // If the response is empty or obviously a failure, retry once
-            if (string.IsNullOrWhiteSpace(npcResponse) || npcResponse.StartsWith("[Error"))
-            {
-                await Task.Delay(1000, ct);  // Brief pause before retry
-                npcResponse = await AgentRunner.RunAgent(npcAgent, npcPrompt, ct);
-            }
-
-            // Final fallback if still empty
-            if (string.IsNullOrWhiteSpace(npcResponse) || npcResponse.StartsWith("[Error"))
-                npcResponse = $"{{\"speech\": \"{npc.Name} pauses, collecting their thoughts.\", \"quest_accepted\": false, \"options\": []}}";
 
             // Parse the structured response
             var (speech, options, questAccepted) = ParseNpcResponse(npcResponse);

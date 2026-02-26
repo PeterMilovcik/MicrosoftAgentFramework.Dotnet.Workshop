@@ -72,4 +72,15 @@ internal static class GameConstants
 
     /// <summary>Upper-bound XP reward multiplier per player level.</summary>
     public const int RewardXPMaxPerLevel = 25;
+
+    // ── Agent call resilience ──
+
+    /// <summary>Maximum time (seconds) for a single LLM streaming call before cancelling.</summary>
+    public const int AgentCallTimeoutSeconds = 45;
+
+    /// <summary>Maximum retry attempts after a timeout or transient error (total attempts = 1 + retries).</summary>
+    public const int AgentMaxRetries = 2;
+
+    /// <summary>Initial backoff delay (ms) between retries. Doubles on each subsequent retry.</summary>
+    public const int AgentRetryBaseDelayMs = 2000;
 }
