@@ -28,6 +28,14 @@ internal static class GameConsoleUI
         Console.ResetColor();
     }
 
+    /// <summary>Print a warning message in yellow with a ⚠️ prefix.</summary>
+    internal static void PrintWarning(string msg)
+    {
+        Console.ForegroundColor = ConsoleColor.Yellow;
+        Console.WriteLine($"  ⚠️ {msg}");
+        Console.ResetColor();
+    }
+
     // ── Narrative box ──
 
     internal static void PrintNarrative(string narrative)
@@ -215,5 +223,49 @@ internal static class GameConsoleUI
         Console.WriteLine($"  {UIStrings.Format(state.Language, "death_penalty", goldLost, xpLost)}");
         Console.WriteLine($"  {UIStrings.Format(state.Language, "death_restored", state.Player.Health.Current, state.Player.Health.Max)}");
         Console.ResetColor();
+    }
+
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // Generic numbered-choice prompt
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+    /// <summary>
+    /// Prompts the player for a numbered choice from <paramref name="options"/>.
+    /// Handles EOF (null ReadLine), empty input, and invalid numbers.
+    /// </summary>
+    /// <param name="promptKey">UIStrings key for the prompt text.</param>
+    /// <param name="errorKey">UIStrings key for the error text (receives <paramref name="errorArgs"/>).</param>
+    /// <param name="eofFallback">Produces a fallback value when stdin is closed.</param>
+    /// <param name="errorArgs">Format arguments passed to <paramref name="errorKey"/>.</param>
+    internal static T? PromptForChoice<T>(
+        List<T> options,
+        string language,
+        string promptKey,
+        string errorKey,
+        Func<List<T>, T?> eofFallback,
+        params object[] errorArgs) where T : class, INumberedOption
+    {
+        while (true)
+        {
+            Write(UIStrings.Get(language, promptKey), ConsoleColor.DarkGray);
+            var input = Console.ReadLine();
+
+            if (input is null)
+            {
+                Console.WriteLine();
+                return eofFallback(options);
+            }
+
+            input = input.Trim();
+            if (string.IsNullOrEmpty(input)) continue;
+
+            if (int.TryParse(input, out var num))
+            {
+                var match = options.FirstOrDefault(o => o.Number == num);
+                if (match is not null) return match;
+            }
+
+            WriteLine(UIStrings.Format(language, errorKey, errorArgs), ConsoleColor.DarkYellow);
+        }
     }
 }

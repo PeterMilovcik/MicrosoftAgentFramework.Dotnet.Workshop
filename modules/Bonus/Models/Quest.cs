@@ -28,10 +28,10 @@ internal sealed class Quest
     public EntityId TargetId { get; set; }
 
     [JsonPropertyName("reward_gold")]
-    public int RewardGold { get; set; }
+    public Gold RewardGold { get; set; }
 
     [JsonPropertyName("reward_xp")]
-    public int RewardXP { get; set; }
+    public Experience RewardXP { get; set; }
 
     [JsonPropertyName("reward_item")]
     public Item? RewardItem { get; set; }

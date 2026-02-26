@@ -24,6 +24,7 @@ namespace RPGGameMaster;
 /// return await handlers[choice.ActionType].HandleAsync(choice, state, ct);
 /// </code>
 /// </example>
+[Obsolete("Future: not yet wired. The switch in GameMasterWorkflow remains the active dispatch.")]
 internal interface IActionHandler
 {
     /// <summary>The action type this handler is responsible for.</summary>

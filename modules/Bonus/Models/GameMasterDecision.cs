@@ -12,13 +12,13 @@ internal sealed class GameMasterDecision
 {
     /// <summary>world_architect, npc_weaver, creature_forger, combat_narrator, npc_dialogue, item_sage, PRESENT_TO_PLAYER</summary>
     [JsonPropertyName("next_agent")]
-    public string NextAgent { get; set; } = "";
+    public string NextAgent { get; init; } = "";
 
     [JsonPropertyName("reason")]
-    public string Reason { get; set; } = "";
+    public string Reason { get; init; } = "";
 
     [JsonPropertyName("task")]
-    public string Task { get; set; } = "";
+    public string Task { get; init; } = "";
 }
 
 // ── Player-facing presentation ──
@@ -26,21 +26,21 @@ internal sealed class GameMasterDecision
 /// <summary>
 /// A numbered option presented to the player.
 /// </summary>
-internal sealed class GameOption
+internal sealed class GameOption : INumberedOption
 {
     [JsonPropertyName("number")]
-    public int Number { get; set; }
+    public int Number { get; init; }
 
     [JsonPropertyName("description")]
-    public string Description { get; set; } = "";
+    public string Description { get; init; } = "";
 
     /// <summary>move, talk, fight, pickup, use_item, examine, rest, look_around, check_quests, inventory, map, trade, save_game, quit</summary>
     [JsonPropertyName("action_type")]
-    public ActionType ActionType { get; set; }
+    public ActionType ActionType { get; init; }
 
     /// <summary>Optional target identifier (location exit direction, NPC id, creature id, item name).</summary>
     [JsonPropertyName("target")]
-    public string Target { get; set; } = "";
+    public string Target { get; init; } = "";
 }
 
 /// <summary>
@@ -49,8 +49,8 @@ internal sealed class GameOption
 internal sealed class PlayerPresentation
 {
     [JsonPropertyName("narrative")]
-    public string Narrative { get; set; } = "";
+    public string Narrative { get; init; } = "";
 
     [JsonPropertyName("options")]
-    public List<GameOption> Options { get; set; } = [];
+    public List<GameOption> Options { get; init; } = [];
 }

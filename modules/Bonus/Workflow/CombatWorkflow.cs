@@ -5,13 +5,6 @@ using RPGGameMaster.Models;
 
 namespace RPGGameMaster.Workflow;
 
-internal enum CombatResult
-{
-    CreatureDefeated,
-    PlayerFled,
-    PlayerDefeated,
-}
-
 /// <summary>
 /// Combat sub-loop: player vs creature, round by round.
 /// Uses a Combat Strategist (LLM) to generate cinematic moves,
@@ -24,20 +17,13 @@ internal static class CombatWorkflow
 
     public static async Task<CombatResult> RunAsync(
         GameState state, Creature creature, AgentConfig config,
+        AIAgent strategist, AIAgent narrator,
         CancellationToken ct)
     {
         Console.WriteLine();
-        Console.ForegroundColor = ConsoleColor.Red;
-        Console.WriteLine($"  {UIStrings.Format(state.Language, "combat_header", creature.Name)}");
-        Console.ResetColor();
-        Console.ForegroundColor = ConsoleColor.DarkGray;
-        Console.WriteLine($"  {creature.Description}");
-        Console.WriteLine($"  {UIStrings.Format(state.Language, "combat_stats", creature.Health.Current, creature.Health.Max, creature.Attack, creature.Defense, creature.Difficulty)}");
-        Console.ResetColor();
-
-        // Create combat agents (tool-free — no UpdatePlayerStats double-mutation)
-        var strategist = config.CreateAgent(PromptLoader.Load("combat-strategist"));
-        var narrator = config.CreateAgent(PromptLoader.Load("combat-narrator"));
+        GameConsoleUI.WriteLine($"  {UIStrings.Format(state.Language, "combat_header", creature.Name)}", ConsoleColor.Red);
+        GameConsoleUI.WriteLine($"  {creature.Description}", ConsoleColor.DarkGray);
+        GameConsoleUI.WriteLine($"  {UIStrings.Format(state.Language, "combat_stats", creature.Health.Current, creature.Health.Max, creature.Attack, creature.Defense, creature.Difficulty)}", ConsoleColor.DarkGray);
 
         var round = 0;
         var combatLog = new List<string>();
@@ -50,9 +36,7 @@ internal static class CombatWorkflow
 
             // ── Show combat status ──
             Console.WriteLine();
-            Console.ForegroundColor = ConsoleColor.White;
-            Console.WriteLine($"{UIStrings.Format(state.Language, "combat_round", round)}");
-            Console.ResetColor();
+            GameConsoleUI.WriteLine($"{UIStrings.Format(state.Language, "combat_round", round)}", ConsoleColor.White);
             PrintCombatStatus(state.Player, creature, state.Language);
 
             // ── Generate cinematic moves via Combat Strategist ──
@@ -80,9 +64,7 @@ internal static class CombatWorkflow
                 potionToUse = state.Player.Inventory.FirstOrDefault(i => i.Type == ItemType.Potion);
                 if (potionToUse is null)
                 {
-                    Console.ForegroundColor = ConsoleColor.DarkYellow;
-                    Console.WriteLine($"  {UIStrings.Get(state.Language, "combat_no_potions")}");
-                    Console.ResetColor();
+                    GameConsoleUI.WriteLine($"  {UIStrings.Get(state.Language, "combat_no_potions")}", ConsoleColor.DarkYellow);
                     chosen = new CombatMove { Number = 1, Name = "Quick Strike", Type = MoveType.Attack, Icon = "⚔️" };
                 }
             }
@@ -102,7 +84,7 @@ internal static class CombatWorkflow
             }
 
             // ── Display dice results ──
-            PrintDiceResults(result, creature.Name);
+            PrintDiceResults(result, creature.Name, state.Language);
 
             // ── Narrate the outcome via Combat Narrator (LLM) ──
             var narratorPrompt = BuildNarratorPrompt(result, state.Player, creature, round, locationName, locationAtmosphere, state.Language);
@@ -114,9 +96,7 @@ internal static class CombatWorkflow
             }
             var narrative = ParseNarrative(narrativeResponse);
 
-            Console.ForegroundColor = ConsoleColor.Cyan;
-            Console.WriteLine($"\n  {narrative}");
-            Console.ResetColor();
+            GameConsoleUI.WriteLine($"\n  {narrative}", ConsoleColor.Cyan);
 
             // ── Update combat log ──
             combatLog.Add($"Round {round}: {chosen.Name} ({chosen.Type}) → dealt {result.TotalDamageToCreature} dmg, took {result.TotalDamageToPlayer} dmg.");
@@ -124,9 +104,7 @@ internal static class CombatWorkflow
             // ── Check flee ──
             if (result.FledSuccessfully)
             {
-                Console.ForegroundColor = ConsoleColor.Yellow;
-                Console.WriteLine($"\n  {UIStrings.Get(state.Language, "combat_fled")}");
-                Console.ResetColor();
+                GameConsoleUI.WriteLine($"\n  {UIStrings.Get(state.Language, "combat_fled")}", ConsoleColor.Yellow);
                 state.AddLog($"Fled from {creature.Name}.");
                 return CombatResult.PlayerFled;
             }
@@ -134,31 +112,24 @@ internal static class CombatWorkflow
             // ── Check creature defeated ──
             if (creature.Health.IsDead)
             {
-                creature.HP = 0;
                 creature.IsDefeated = true;
 
-                Console.ForegroundColor = ConsoleColor.Green;
-                Console.WriteLine($"\n  {UIStrings.Format(state.Language, "combat_defeated", creature.Name)}");
-                Console.ResetColor();
+                GameConsoleUI.WriteLine($"\n  {UIStrings.Format(state.Language, "combat_defeated", creature.Name)}", ConsoleColor.Green);
 
                 // Award loot
                 if (creature.Loot.Count > 0)
                 {
-                    Console.ForegroundColor = ConsoleColor.Yellow;
-                    Console.WriteLine($"  {UIStrings.Get(state.Language, "combat_loot")}");
+                    GameConsoleUI.WriteLine($"  {UIStrings.Get(state.Language, "combat_loot")}", ConsoleColor.Yellow);
                     foreach (var loot in creature.Loot)
                     {
                         state.Player.Inventory.Add(loot);
-                        Console.WriteLine($"    🎁 {loot.Name} — {loot.Description}");
+                        GameConsoleUI.WriteLine($"    🎁 {loot.Name} — {loot.Description}", ConsoleColor.Yellow);
                     }
-                    Console.ResetColor();
                 }
 
                 // Award XP
                 state.Player.AddXP(creature.XPReward);
-                Console.ForegroundColor = ConsoleColor.Cyan;
-                Console.WriteLine($"  {UIStrings.Format(state.Language, "combat_xp", creature.XPReward, state.Player.XP, state.Player.XPToNextLevel)}");
-                Console.ResetColor();
+                GameConsoleUI.WriteLine($"  {UIStrings.Format(state.Language, "combat_xp", creature.XPReward, state.Player.XP, state.Player.XPToNextLevel)}", ConsoleColor.Cyan);
 
                 state.AddLog($"Defeated {creature.Name} (+{creature.XPReward} XP).");
 
@@ -168,10 +139,7 @@ internal static class CombatWorkflow
             // ── Check player defeated ──
             if (state.Player.Health.IsDead)
             {
-                state.Player.HP = 0;
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine($"\n  {UIStrings.Format(state.Language, "combat_slain", creature.Name)}");
-                Console.ResetColor();
+                GameConsoleUI.WriteLine($"\n  {UIStrings.Format(state.Language, "combat_slain", creature.Name)}", ConsoleColor.Red);
                 state.AddLog($"Slain by {creature.Name}.");
                 return CombatResult.PlayerDefeated;
             }
@@ -385,13 +353,9 @@ internal static class CombatWorkflow
 
     private static void PrintCombatStatus(PlayerCharacter player, Creature creature, string language)
     {
-        Console.ForegroundColor = ConsoleColor.Green;
-        Console.Write($"  {UIStrings.Format(language, "combat_you_hp", player.Health.Current, player.Health.Max)}");
-        Console.ResetColor();
+        GameConsoleUI.Write($"  {UIStrings.Format(language, "combat_you_hp", player.Health.Current, player.Health.Max)}", ConsoleColor.Green);
         Console.Write("  |  ");
-        Console.ForegroundColor = ConsoleColor.Red;
-        Console.WriteLine($"{UIStrings.Format(language, "combat_creature_hp", creature.Name, creature.Health.Current, creature.Health.Max)}");
-        Console.ResetColor();
+        GameConsoleUI.WriteLine($"{UIStrings.Format(language, "combat_creature_hp", creature.Name, creature.Health.Current, creature.Health.Max)}", ConsoleColor.Red);
     }
 
     private static void PrintMoves(List<CombatMove> moves)
@@ -399,9 +363,7 @@ internal static class CombatWorkflow
         Console.WriteLine();
         foreach (var move in moves)
         {
-            Console.ForegroundColor = ConsoleColor.Yellow;
-            Console.Write($"  [{move.Number}] {move.Icon} {move.Name}");
-            Console.ResetColor();
+            GameConsoleUI.Write($"  [{move.Number}] {move.Icon} {move.Name}", ConsoleColor.Yellow);
 
             // Show modifier hints
             var hints = new List<string>();
@@ -411,21 +373,15 @@ internal static class CombatWorkflow
             if (move.SelfDamage > 0) hints.Add($"{move.SelfDamage} self-dmg");
 
             if (hints.Count > 0)
-            {
-                Console.ForegroundColor = ConsoleColor.DarkGray;
-                Console.Write($" ({string.Join(", ", hints)})");
-                Console.ResetColor();
-            }
+                GameConsoleUI.Write($" ({string.Join(", ", hints)})", ConsoleColor.DarkGray);
             Console.WriteLine();
 
-            Console.ForegroundColor = ConsoleColor.DarkGray;
-            Console.WriteLine($"      {move.Description}");
-            Console.ResetColor();
+            GameConsoleUI.WriteLine($"      {move.Description}", ConsoleColor.DarkGray);
         }
         Console.WriteLine();
     }
 
-    private static void PrintDiceResults(CombatRoundResult result, string creatureName)
+    private static void PrintDiceResults(CombatRoundResult result, string creatureName, string language)
     {
         Console.WriteLine();
 
@@ -433,56 +389,35 @@ internal static class CombatWorkflow
         {
             case MoveType.Attack:
             case MoveType.Heavy:
-                Console.ForegroundColor = result.PlayerHit ? ConsoleColor.Green : ConsoleColor.DarkGray;
-                Console.Write($"  🎲 Attack: {result.PlayerAttackRoll}");
+                var atkColor = result.PlayerHit ? ConsoleColor.Green : ConsoleColor.DarkGray;
+                var atkLine = $"  {UIStrings.Format(language, "dice_attack", result.PlayerAttackRoll)}";
                 if (result.PlayerAttackTotal != result.PlayerAttackRoll)
-                    Console.Write($" ({(result.PlayerAttackTotal > result.PlayerAttackRoll ? "+" : "")}{result.PlayerAttackTotal - result.PlayerAttackRoll} = {result.PlayerAttackTotal})");
-                Console.Write(result.PlayerHit ? " — HIT!" : " — MISS");
-                if (result.PlayerCrit) Console.Write(" CRITICAL!");
-                Console.WriteLine();
+                    atkLine += $" ({(result.PlayerAttackTotal > result.PlayerAttackRoll ? "+" : "")}{result.PlayerAttackTotal - result.PlayerAttackRoll} = {result.PlayerAttackTotal})";
+                atkLine += result.PlayerHit ? UIStrings.Get(language, "dice_hit") : UIStrings.Get(language, "dice_miss");
+                if (result.PlayerCrit) atkLine += UIStrings.Get(language, "dice_crit");
+                GameConsoleUI.WriteLine(atkLine, atkColor);
                 if (result.PlayerHit)
-                {
-                    Console.ForegroundColor = ConsoleColor.White;
-                    Console.WriteLine($"     Damage dealt: {result.PlayerDamageDealt}");
-                }
+                    GameConsoleUI.WriteLine($"  {UIStrings.Format(language, "dice_damage_dealt", result.PlayerDamageDealt)}", ConsoleColor.White);
                 if (result.SelfDamage > 0)
-                {
-                    Console.ForegroundColor = ConsoleColor.DarkYellow;
-                    Console.WriteLine($"     Self-damage: {result.SelfDamage}");
-                }
-                Console.ResetColor();
+                    GameConsoleUI.WriteLine($"  {UIStrings.Format(language, "dice_self_damage", result.SelfDamage)}", ConsoleColor.DarkYellow);
                 break;
 
             case MoveType.Defensive:
-                Console.ForegroundColor = ConsoleColor.Cyan;
-                Console.Write("  🎲 Defensive stance — incoming damage halved");
-                Console.WriteLine();
+                GameConsoleUI.WriteLine($"  {UIStrings.Get(language, "dice_defend")}", ConsoleColor.Cyan);
                 if (result.CounterHit)
-                {
-                    Console.ForegroundColor = ConsoleColor.Green;
-                    Console.WriteLine($"     Counter-attack: {result.CounterDamage} damage!");
-                }
+                    GameConsoleUI.WriteLine($"  {UIStrings.Format(language, "dice_counter", result.CounterDamage)}", ConsoleColor.Green);
                 else
-                {
-                    Console.ForegroundColor = ConsoleColor.DarkGray;
-                    Console.WriteLine($"     Counter roll: {result.CounterRoll} — no opening");
-                }
-                Console.ResetColor();
+                    GameConsoleUI.WriteLine($"  {UIStrings.Format(language, "dice_counter_miss", result.CounterRoll)}", ConsoleColor.DarkGray);
                 break;
 
             case MoveType.Flee:
-                Console.ForegroundColor = result.FledSuccessfully ? ConsoleColor.Green : ConsoleColor.Red;
-                Console.WriteLine($"  🎲 Flee: {result.FleeRoll} — {(result.FledSuccessfully ? "ESCAPED!" : "BLOCKED!")}");
-                Console.ResetColor();
+                var fleeColor = result.FledSuccessfully ? ConsoleColor.Green : ConsoleColor.Red;
+                GameConsoleUI.WriteLine($"  {UIStrings.Format(language, "dice_flee", result.FleeRoll)} {(result.FledSuccessfully ? UIStrings.Get(language, "dice_escaped") : UIStrings.Get(language, "dice_blocked"))}", fleeColor);
                 break;
 
             case MoveType.Item:
                 if (result.HealAmount > 0)
-                {
-                    Console.ForegroundColor = ConsoleColor.Green;
-                    Console.WriteLine($"  🧪 {result.ItemUsed}: +{result.HealAmount} HP");
-                    Console.ResetColor();
-                }
+                    GameConsoleUI.WriteLine($"  {UIStrings.Format(language, "dice_potion", result.ItemUsed ?? "Potion", result.HealAmount)}", ConsoleColor.Green);
                 break;
         }
 
@@ -491,59 +426,29 @@ internal static class CombatWorkflow
         {
             if (result.MoveType is not MoveType.Defensive) // defensive already shows reduced damage
             {
-                Console.ForegroundColor = result.CreatureHit ? ConsoleColor.Red : ConsoleColor.DarkGray;
-                Console.Write($"  🎲 {creatureName}: {result.CreatureAttackRoll}");
-                Console.Write(result.CreatureHit ? " — HIT!" : " — MISS");
-                if (result.CreatureCrit) Console.Write(" CRITICAL!");
-                Console.WriteLine();
+                var creatureColor = result.CreatureHit ? ConsoleColor.Red : ConsoleColor.DarkGray;
+                var creatureLine = $"  {UIStrings.Format(language, "dice_creature_atk", creatureName, result.CreatureAttackRoll)}";
+                creatureLine += result.CreatureHit ? UIStrings.Get(language, "dice_hit") : UIStrings.Get(language, "dice_miss");
+                if (result.CreatureCrit) creatureLine += UIStrings.Get(language, "dice_crit");
+                GameConsoleUI.WriteLine(creatureLine, creatureColor);
                 if (result.CreatureHit)
-                {
-                    Console.ForegroundColor = ConsoleColor.Red;
-                    Console.WriteLine($"     Damage taken: {result.CreatureDamageTaken}");
-                }
-                Console.ResetColor();
+                    GameConsoleUI.WriteLine($"  {UIStrings.Format(language, "dice_damage_taken", result.CreatureDamageTaken)}", ConsoleColor.Red);
             }
             else
             {
                 // Show creature attack against defensive stance
-                Console.ForegroundColor = result.CreatureHit ? ConsoleColor.DarkYellow : ConsoleColor.DarkGray;
-                Console.Write($"  🎲 {creatureName}: {result.CreatureAttackRoll}");
-                Console.Write(result.CreatureHit ? $" — blocked (took {result.CreatureDamageTaken})" : " — MISS");
-                Console.WriteLine();
-                Console.ResetColor();
+                var defColor = result.CreatureHit ? ConsoleColor.DarkYellow : ConsoleColor.DarkGray;
+                var defLine = $"  {UIStrings.Format(language, "dice_creature_atk", creatureName, result.CreatureAttackRoll)}";
+                defLine += result.CreatureHit ? UIStrings.Format(language, "dice_damage_blocked", result.CreatureDamageTaken) : UIStrings.Get(language, "dice_miss");
+                GameConsoleUI.WriteLine(defLine, defColor);
             }
         }
     }
 
     private static CombatMove? GetMoveChoice(List<CombatMove> moves, string language)
-    {
-        while (true)
-        {
-            Console.ForegroundColor = ConsoleColor.DarkGray;
-            Console.Write(UIStrings.Get(language, "combat_prompt"));
-            Console.ResetColor();
-            var input = Console.ReadLine();
-
-            if (input is null)
-            {
-                Console.WriteLine();
-                return moves.FirstOrDefault(m => m.Type == MoveType.Flee)
-                    ?? moves[0];
-            }
-
-            input = input.Trim();
-            if (string.IsNullOrEmpty(input)) continue;
-
-            if (int.TryParse(input, out var num))
-            {
-                var match = moves.FirstOrDefault(m => m.Number == num);
-                if (match is not null) return match;
-            }
-
-            Console.ForegroundColor = ConsoleColor.DarkYellow;
-            Console.WriteLine(UIStrings.Format(language, "combat_enter_num", moves.Count));
-            Console.ResetColor();
-        }
-    }
+        => GameConsoleUI.PromptForChoice(
+            moves, language,
+            "combat_prompt", "combat_enter_num",
+            ms => ms.FirstOrDefault(m => m.Type == MoveType.Flee) ?? ms[0],
+            moves.Count);
 }
-

@@ -5,7 +5,7 @@ namespace RPGGameMaster.Models;
 /// <summary>
 /// A non-player character with a dynamically generated personality agent prompt.
 /// </summary>
-internal sealed class NPC
+internal sealed class NPC : IEntity
 {
     [JsonPropertyName("id")]
     public EntityId Id { get; set; } = EntityId.New();
@@ -69,9 +69,5 @@ internal sealed class NPC
     public List<string> DialogueHistory { get; set; } = [];
 
     public void AddDialogue(string entry)
-    {
-        DialogueHistory.Add(entry);
-        while (DialogueHistory.Count > GameConstants.MaxLogEntries)
-            DialogueHistory.RemoveAt(0);
-    }
+        => DialogueHistory.AddCapped(entry, GameConstants.MaxLogEntries);
 }

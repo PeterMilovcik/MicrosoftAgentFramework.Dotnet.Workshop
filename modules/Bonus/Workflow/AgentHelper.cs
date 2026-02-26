@@ -41,9 +41,7 @@ internal static class AgentHelper
             if (sb.Length > 0) return sb.ToString().Trim();
 
             // Log the error so transient API failures are visible
-            Console.ForegroundColor = ConsoleColor.DarkRed;
-            Console.WriteLine($"  ⚡ Agent error: {ex.Message.Split('\n')[0]}");
-            Console.ResetColor();
+            GameConsoleUI.WriteLine($"  ⚡ Agent error: {ex.Message.Split('\n')[0]}", ConsoleColor.DarkRed);
 
             return fallbackJson ?? $"[Error: {ex.Message.Split('\n')[0]}]";
         }
@@ -144,27 +142,8 @@ internal static class AgentHelper
     }
 
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    // Console formatting helpers
+    // Console formatting (delegated to GameConsoleUI)
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-    public static void PrintStatus(string msg)
-    {
-        Console.ForegroundColor = ConsoleColor.DarkCyan;
-        Console.WriteLine($"\n🌍 {msg}");
-        Console.ResetColor();
-    }
-
-    public static void PrintWarning(string msg)
-    {
-        Console.ForegroundColor = ConsoleColor.Yellow;
-        Console.WriteLine($"  ⚠️ {msg}");
-        Console.ResetColor();
-    }
-
-    public static void PrintSubAgentWork(string agent, string task)
-    {
-        Console.ForegroundColor = ConsoleColor.DarkGray;
-        Console.WriteLine($"  ⚙ [{agent}] {task}");
-        Console.ResetColor();
-    }
+    public static void PrintWarning(string msg) => GameConsoleUI.PrintWarning(msg);
 }

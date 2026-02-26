@@ -16,42 +16,11 @@ internal static class LocationTools
 {
     [Description("Saves a location to persistent storage. Input: the full JSON of the Location object.")]
     public static string SaveLocation([Description("Full JSON of the Location object")] string locationJson)
-    {
-        try
-        {
-            var location = JsonSerializer.Deserialize<Location>(locationJson, AgentHelper.JsonOpts);
-            if (location is null || location.Id.IsEmpty)
-                return "ERROR: Invalid location JSON or missing id.";
-
-            if (GameStateAccessor.IsLoaded)
-                GameStateAccessor.Current.Locations[location.Id] = location;
-
-            return $"OK: Location '{location.Name}' saved with id '{location.Id}'.";
-        }
-        catch (Exception ex)
-        {
-            return $"ERROR: {ex.Message}";
-        }
-    }
+        => ToolHelper.Save<Location>(locationJson, gs => gs.Locations, "Location");
 
     [Description("Loads a location by its id. Returns the full JSON of the Location object.")]
     public static string LoadLocation([Description("The location id")] string id)
-    {
-        try
-        {
-            if (GameStateAccessor.IsLoaded &&
-                GameStateAccessor.Current.Locations.TryGetValue(id, out var loc))
-            {
-                return JsonSerializer.Serialize(loc, AgentHelper.JsonOpts);
-            }
-
-            return $"ERROR: Location '{id}' not found.";
-        }
-        catch (Exception ex)
-        {
-            return $"ERROR: {ex.Message}";
-        }
-    }
+        => ToolHelper.Load<Location>(id, gs => gs.Locations, "Location");
 
     [Description("Lists all saved locations. Returns a JSON array of {id, name} objects.")]
     public static string ListLocations()

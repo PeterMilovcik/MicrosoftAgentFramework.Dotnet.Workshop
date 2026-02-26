@@ -5,7 +5,7 @@ namespace RPGGameMaster.Models;
 /// <summary>
 /// A creature that can be encountered and fought.
 /// </summary>
-internal sealed class Creature : IHasHealth
+internal sealed class Creature : IHasHealth, IEntity
 {
     [JsonPropertyName("id")]
     public EntityId Id { get; set; } = EntityId.New();
@@ -55,7 +55,7 @@ internal sealed class Creature : IHasHealth
     public List<Item> Loot { get; set; } = [];
 
     [JsonPropertyName("xp_reward")]
-    public int XPReward { get; set; } = 25;
+    public Experience XPReward { get; set; } = 25;
 
     [JsonPropertyName("is_defeated")]
     public bool IsDefeated { get; set; }

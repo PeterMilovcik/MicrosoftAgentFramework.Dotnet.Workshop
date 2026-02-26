@@ -16,42 +16,11 @@ internal static class NPCTools
 {
     [Description("Saves an NPC to persistent storage. Input: the full JSON of the NPC object including agent_instructions.")]
     public static string SaveNPC([Description("Full JSON of the NPC object")] string npcJson)
-    {
-        try
-        {
-            var npc = JsonSerializer.Deserialize<NPC>(npcJson, AgentHelper.JsonOpts);
-            if (npc is null || npc.Id.IsEmpty)
-                return "ERROR: Invalid NPC JSON or missing id.";
-
-            if (GameStateAccessor.IsLoaded)
-                GameStateAccessor.Current.NPCs[npc.Id] = npc;
-
-            return $"OK: NPC '{npc.Name}' saved with id '{npc.Id}'.";
-        }
-        catch (Exception ex)
-        {
-            return $"ERROR: {ex.Message}";
-        }
-    }
+        => ToolHelper.Save<NPC>(npcJson, gs => gs.NPCs, "NPC");
 
     [Description("Loads an NPC by its id. Returns the full JSON of the NPC object.")]
     public static string LoadNPC([Description("The NPC id")] string id)
-    {
-        try
-        {
-            if (GameStateAccessor.IsLoaded &&
-                GameStateAccessor.Current.NPCs.TryGetValue(id, out var npc))
-            {
-                return JsonSerializer.Serialize(npc, AgentHelper.JsonOpts);
-            }
-
-            return $"ERROR: NPC '{id}' not found.";
-        }
-        catch (Exception ex)
-        {
-            return $"ERROR: {ex.Message}";
-        }
-    }
+        => ToolHelper.Load<NPC>(id, gs => gs.NPCs, "NPC");
 
     [Description("Loads all NPCs at a given location. Returns a JSON array of NPC objects.")]
     public static string LoadNPCsAtLocation([Description("The location id to filter by")] string locationId)

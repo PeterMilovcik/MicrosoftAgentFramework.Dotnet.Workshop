@@ -51,18 +51,24 @@ namespace RPGGameMaster;
 //
 
 /// <summary>Marker interface for all game events.</summary>
+[Obsolete("Future: not yet wired. See migration notes in this file.")]
 internal interface IGameEvent;
 
 /// <summary>
 /// Contract for an event handler that reacts to a specific <typeparamref name="T"/>.
 /// </summary>
 /// <typeparam name="T">Concrete event type.</typeparam>
+[Obsolete("Future: not yet wired. See migration notes in this file.")]
+#pragma warning disable CS0618 // IGameEvent is itself obsolete
 internal interface IGameEventHandler<in T> where T : IGameEvent
+#pragma warning restore CS0618
 {
     void Handle(T evt);
 }
 
 // ── Concrete event records ──
+
+#pragma warning disable CS0618 // Obsolete — these are the future event types themselves
 
 /// <summary>Raised when a creature is defeated in combat.</summary>
 /// <param name="Creature">The defeated creature.</param>
@@ -80,3 +86,5 @@ internal readonly record struct ItemAcquiredEvent(Item Item, string Source, Game
 
 /// <summary>Raised when the player levels up.</summary>
 internal readonly record struct LevelUpEvent(int NewLevel, GameState State) : IGameEvent;
+
+#pragma warning restore CS0618

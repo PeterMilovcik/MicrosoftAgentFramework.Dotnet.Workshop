@@ -20,16 +20,12 @@ internal static class SaveManager
         }
     }
 
-    /// <summary>Saves the game and prints a confirmation message.</summary>
+    /// <summary>Saves the game to disk.</summary>
     public static void Save(GameState state)
     {
         state.LastSavedAt = DateTime.UtcNow;
         var json = JsonSerializer.Serialize(state, AgentHelper.JsonOpts);
         File.WriteAllText(Path.Combine(SavesDir, state.GetSaveFileName()), json);
-
-        Console.ForegroundColor = ConsoleColor.Green;
-        Console.WriteLine($"\n{UIStrings.Get(state.Language, "save_confirmed")}");
-        Console.ResetColor();
     }
 
     /// <summary>Silent auto-save — no console output to avoid cluttering gameplay.</summary>

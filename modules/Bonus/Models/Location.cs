@@ -25,7 +25,7 @@ internal sealed class Exit
 /// <summary>
 /// A world location — a room, clearing, street, cavern, etc.
 /// </summary>
-internal sealed class Location
+internal sealed class Location : IEntity
 {
     [JsonPropertyName("id")]
     public EntityId Id { get; set; } = EntityId.New();
@@ -68,10 +68,10 @@ internal sealed class Location
     public List<Exit> Exits { get; set; } = [];
 
     [JsonPropertyName("npc_ids")]
-    public List<string> NPCIds { get; set; } = [];
+    public List<EntityId> NPCIds { get; set; } = [];
 
     [JsonPropertyName("creature_ids")]
-    public List<string> CreatureIds { get; set; } = [];
+    public List<EntityId> CreatureIds { get; set; } = [];
 
     [JsonPropertyName("items")]
     public List<Item> Items { get; set; } = [];

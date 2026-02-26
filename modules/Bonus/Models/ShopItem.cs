@@ -5,9 +5,9 @@ namespace RPGGameMaster.Models;
 /// </summary>
 internal sealed class ShopItem
 {
-    public string Name { get; set; } = "";
-    public string Description { get; set; } = "";
-    public ItemType Type { get; set; } = ItemType.Misc;
-    public int EffectValue { get; set; }
-    public int Price { get; set; }
+    public string Name { get; init; } = "";
+    public string Description { get; init; } = "";
+    public ItemType Type { get; init; } = ItemType.Misc;
+    public int EffectValue { get; init; }
+    public int Price { get; init; }
 }

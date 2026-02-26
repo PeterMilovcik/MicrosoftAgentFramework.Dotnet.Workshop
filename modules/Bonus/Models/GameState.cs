@@ -45,11 +45,7 @@ internal sealed class GameState
     public List<string> GameLog { get; set; } = [];
 
     public void AddLog(string entry)
-    {
-        GameLog.Add(entry);
-        while (GameLog.Count > GameConstants.MaxLogEntries)
-            GameLog.RemoveAt(0);
-    }
+        => GameLog.AddCapped(entry, GameConstants.MaxLogEntries);
 
     public Location? CurrentLocation
         => Locations.TryGetValue(CurrentLocationId, out var loc) ? loc : null;

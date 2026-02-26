@@ -26,9 +26,7 @@ internal static class TradeWorkflow
             return $"Merchant '{npcId}' not found.";
 
         Console.WriteLine();
-        Console.ForegroundColor = ConsoleColor.Yellow;
-        Console.WriteLine($"  {UIStrings.Format(state.Language, "trade_header", npc.Name)}");
-        Console.ResetColor();
+        GameConsoleUI.WriteLine($"  {UIStrings.Format(state.Language, "trade_header", npc.Name)}", ConsoleColor.Yellow);
 
         // Create a merchant agent
         var merchantPrompt = $"You are {npc.Name}, a merchant. " +
@@ -76,50 +74,33 @@ internal static class TradeWorkflow
             catch { /* use defaults */ }
         }
 
-        Console.ForegroundColor = ConsoleColor.Cyan;
-        Console.WriteLine($"\n  {npc.Name}: \"{greeting}\"");
-        Console.ResetColor();
+        GameConsoleUI.WriteLine($"\n  {npc.Name}: \"{greeting}\"", ConsoleColor.Cyan);
 
         if (shopItems.Count == 0)
         {
-            Console.ForegroundColor = ConsoleColor.DarkGray;
-            Console.WriteLine($"  {UIStrings.Get(state.Language, "trade_no_items")}");
-            Console.ResetColor();
+            GameConsoleUI.WriteLine($"  {UIStrings.Get(state.Language, "trade_no_items")}", ConsoleColor.DarkGray);
             return $"Attempted to trade with {npc.Name} but no items were available.";
         }
 
         // Show shop
-        Console.ForegroundColor = ConsoleColor.DarkGray;
-        Console.WriteLine($"  {UIStrings.Format(state.Language, "trade_gold", state.Player.Gold)}");
-        Console.ResetColor();
+        GameConsoleUI.WriteLine($"  {UIStrings.Format(state.Language, "trade_gold", state.Player.Gold)}", ConsoleColor.DarkGray);
         Console.WriteLine();
 
         for (var i = 0; i < shopItems.Count; i++)
         {
             var item = shopItems[i];
-            Console.ForegroundColor = ConsoleColor.Yellow;
-            Console.Write($"  [{i + 1}] {item.Name}");
-            Console.ForegroundColor = ConsoleColor.DarkGray;
-            Console.Write($" — {item.Description} ({item.Type})");
-            Console.ForegroundColor = ConsoleColor.White;
-            Console.WriteLine($"  {item.Price}g");
-            Console.ResetColor();
+            GameConsoleUI.Write($"  [{i + 1}] {item.Name}", ConsoleColor.Yellow);
+            GameConsoleUI.Write($" — {item.Description} ({item.Type})", ConsoleColor.DarkGray);
+            GameConsoleUI.WriteLine($"  {item.Price}g", ConsoleColor.White);
         }
 
         // Sell option
-        Console.ForegroundColor = ConsoleColor.Yellow;
-        Console.Write($"  [S] ");
-        Console.ForegroundColor = ConsoleColor.DarkGray;
-        Console.WriteLine(UIStrings.Get(state.Language, "trade_sell"));
-        Console.ForegroundColor = ConsoleColor.Yellow;
-        Console.Write($"  [0] ");
-        Console.ForegroundColor = ConsoleColor.DarkGray;
-        Console.WriteLine(UIStrings.Get(state.Language, "trade_leave"));
-        Console.ResetColor();
+        GameConsoleUI.Write($"  [S] ", ConsoleColor.Yellow);
+        GameConsoleUI.WriteLine(UIStrings.Get(state.Language, "trade_sell"), ConsoleColor.DarkGray);
+        GameConsoleUI.Write($"  [0] ", ConsoleColor.Yellow);
+        GameConsoleUI.WriteLine(UIStrings.Get(state.Language, "trade_leave"), ConsoleColor.DarkGray);
 
-        Console.ForegroundColor = ConsoleColor.DarkGray;
-        Console.Write($"\n  {UIStrings.Get(state.Language, "trade_choice")}");
-        Console.ResetColor();
+        GameConsoleUI.Write($"\n  {UIStrings.Get(state.Language, "trade_choice")}", ConsoleColor.DarkGray);
         var input = Console.ReadLine()?.Trim();
 
         if (string.Equals(input, "s", StringComparison.OrdinalIgnoreCase) && state.Player.Inventory.Count > 0)
@@ -130,15 +111,10 @@ internal static class TradeWorkflow
             {
                 var inv = state.Player.Inventory[i];
                 var sellPrice = inv.SellPrice;
-                Console.ForegroundColor = ConsoleColor.White;
-                Console.Write($"  [{i + 1}] {inv.Name}");
-                Console.ForegroundColor = ConsoleColor.DarkGray;
-                Console.WriteLine($"{UIStrings.Format(state.Language, "trade_sells_for", sellPrice)}");
-                Console.ResetColor();
+                GameConsoleUI.Write($"  [{i + 1}] {inv.Name}", ConsoleColor.White);
+                GameConsoleUI.WriteLine($"{UIStrings.Format(state.Language, "trade_sells_for", sellPrice)}", ConsoleColor.DarkGray);
             }
-            Console.ForegroundColor = ConsoleColor.DarkGray;
-            Console.Write($"  {UIStrings.Get(state.Language, "trade_sell_prompt")}");
-            Console.ResetColor();
+            GameConsoleUI.Write($"  {UIStrings.Get(state.Language, "trade_sell_prompt")}", ConsoleColor.DarkGray);
             var sellInput = Console.ReadLine()?.Trim();
             if (int.TryParse(sellInput, out var si) && si >= 1 && si <= state.Player.Inventory.Count)
             {
@@ -146,9 +122,7 @@ internal static class TradeWorkflow
                 var price = sold.SellPrice;
                 state.Player.Inventory.RemoveAt(si - 1);
                 state.Player.Gold += price;
-                Console.ForegroundColor = ConsoleColor.Green;
-                Console.WriteLine($"  {UIStrings.Format(state.Language, "trade_sold", sold.Name, price, state.Player.Gold)}");
-                Console.ResetColor();
+                GameConsoleUI.WriteLine($"  {UIStrings.Format(state.Language, "trade_sold", sold.Name, price, state.Player.Gold)}", ConsoleColor.Green);
                 state.AddLog($"Sold {sold.Name} for {price}g.");
                 return $"Player sold {sold.Name} for {price} gold.";
             }
@@ -166,17 +140,13 @@ internal static class TradeWorkflow
                     Type = toBuy.Type,
                     EffectValue = toBuy.EffectValue,
                 });
-                Console.ForegroundColor = ConsoleColor.Green;
-                Console.WriteLine($"  {UIStrings.Format(state.Language, "trade_bought", toBuy.Name, toBuy.Price, state.Player.Gold)}");
-                Console.ResetColor();
+                GameConsoleUI.WriteLine($"  {UIStrings.Format(state.Language, "trade_bought", toBuy.Name, toBuy.Price, state.Player.Gold)}", ConsoleColor.Green);
                 state.AddLog($"Bought {toBuy.Name} for {toBuy.Price}g.");
                 return $"Player bought {toBuy.Name} for {toBuy.Price} gold.";
             }
             else
             {
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine($"  {UIStrings.Format(state.Language, "trade_no_gold", toBuy.Price, state.Player.Gold)}");
-                Console.ResetColor();
+                GameConsoleUI.WriteLine($"  {UIStrings.Format(state.Language, "trade_no_gold", toBuy.Price, state.Player.Gold)}", ConsoleColor.Red);
             }
         }
 

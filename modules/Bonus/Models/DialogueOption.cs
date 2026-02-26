@@ -3,10 +3,10 @@ namespace RPGGameMaster.Models;
 /// <summary>
 /// A numbered dialogue option for NPC conversation.
 /// </summary>
-internal sealed class DialogueOption
+internal sealed class DialogueOption : INumberedOption
 {
-    public int Number { get; set; }
-    public string Text { get; set; } = "";
+    public int Number { get; init; }
+    public string Text { get; init; } = "";
     /// <summary>Structured farewell signal — true when this option ends the conversation.</summary>
-    public bool IsFarewell { get; set; }
+    public bool IsFarewell { get; init; }
 }

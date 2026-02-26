@@ -16,63 +16,11 @@ internal static class DialogueWorkflow
         AgentConfig config, GameState state, NPC npc, CancellationToken ct)
     {
         Console.WriteLine();
-        Console.ForegroundColor = ConsoleColor.Magenta;
-        Console.WriteLine($"  {UIStrings.Format(state.Language, "dialogue_header", npc.Name)}");
-        Console.ResetColor();
-        Console.ForegroundColor = ConsoleColor.DarkGray;
-        Console.WriteLine($"  {npc.Description}");
-        Console.ResetColor();
+        GameConsoleUI.WriteLine($"  {UIStrings.Format(state.Language, "dialogue_header", npc.Name)}", ConsoleColor.Magenta);
+        GameConsoleUI.WriteLine($"  {npc.Description}", ConsoleColor.DarkGray);
 
-        // Create dynamic NPC agent from stored instructions
-        var npcBaseInstructions = !string.IsNullOrWhiteSpace(npc.AgentInstructions)
-            ? npc.AgentInstructions
-            : $"You are {npc.Name}, a {npc.Occupation}. {npc.Personality}. Keep responses to 2-3 sentences. Stay in character.";
-
-        // Inject dynamic mood and disposition (not baked into AgentInstructions — changes between conversations)
-        var dispositionLabel = npc.DispositionTowardPlayer.Label;
-        var dynamicContext = $"\n\nCURRENT STATE (override any conflicting instructions):\n" +
-            $"Your current mood is: {npc.Mood}.\n" +
-            $"Your attitude toward this player is: {dispositionLabel} (disposition score: {npc.DispositionTowardPlayer}).\n" +
-            $"Let your mood and attitude color your tone, word choice, and willingness to share information.";
-
-        // Augment NPC instructions to also produce dialogue options in structured JSON
-        var langInstruction = state.Language != "English"
-            ? $"\nIMPORTANT: You MUST speak and generate ALL text (speech, option text) in {state.Language}. JSON keys stay in English.\n"
-            : "";
-        var npcInstructions = npcBaseInstructions + dynamicContext + "\n\n" +
-            langInstruction +
-            "IMPORTANT OUTPUT FORMAT: You MUST respond with ONLY a JSON object, no extra text. Format:\n" +
-            "{\n" +
-            "  \"speech\": \"Your in-character dialogue here (2-4 sentences).\",\n" +
-            "  \"quest_accepted\": false,\n" +
-            "  \"is_farewell\": false,\n" +
-            "  \"options\": [\n" +
-            "    {\"number\": 1, \"text\": \"A contextual player response option\", \"is_farewell\": false},\n" +
-            "    {\"number\": 2, \"text\": \"Another option with a different tone\", \"is_farewell\": false},\n" +
-            "    {\"number\": 3, \"text\": \"A third option\", \"is_farewell\": false},\n" +
-            "    {\"number\": 4, \"text\": \"End conversation\", \"is_farewell\": true}\n" +
-            "  ]\n" +
-            "}\n" +
-            "Rules for quest_accepted:\n" +
-            "- Set to true ONLY when the player's PREVIOUS message clearly agreed, committed, or volunteered to help with a task/quest you offered\n" +
-            "- Examples of acceptance: 'I'll do it', 'Count me in', 'I'll help', 'I'll take the risk', 'I'll proceed', 'Deal', 'Where do I start?'\n" +
-            "- Set to false if the player is merely asking questions, hesitating, or hasn't been offered a task yet\n" +
-            "Rules for is_farewell:\n" +
-            "- Set to true when the option is a goodbye, farewell, 'end conversation', 'leave', 'walk away', or similar.\n" +
-            "- Set to false for ALL other options.\n" +
-            "- ONLY the last option in the list should ever be a farewell option.\n" +
-            "Rules for options:\n" +
-            "- Generate 3-5 options that are SPECIFIC to what was just discussed\n" +
-            "- Vary the tone: curious, friendly, skeptical, direct, etc.\n" +
-            "- Reference specific details from the conversation\n" +
-            "- The LAST option must always be to end or leave the conversation\n" +
-            "- NEVER use generic options like 'Tell me more' — be specific!\n" +
-            "CRITICAL DIALOGUE BOUNDARIES:\n" +
-            "- You are having a CONVERSATION. All options must be things the player can SAY or ASK.\n" +
-            "- NEVER generate action/exploration options like 'Enter the room', 'Pick up item', 'Search the area', 'Head to X'. Those belong to the game, not to dialogue.\n" +
-            "- NEVER pretend the player has completed a task, found an item, or traveled somewhere during this conversation.\n" +
-            "- NEVER skip ahead in time. Everything happens in the present moment of this conversation.\n" +
-            "- If the player has accepted a task, give a brief farewell and wish them luck — do NOT roleplay them doing the task.";
+        // Create dynamic NPC agent from stored/generated instructions
+        var npcInstructions = ContextBuilder.BuildNPCDialogueInstructions(npc, state.Language);
 
         var npcAgent = config.CreateAgent(npcInstructions);
 
@@ -146,19 +94,15 @@ internal static class DialogueWorkflow
                 if (!state.Player.ActiveQuests.Any(aq => aq.Id == quest.Id))
                 {
                     state.Player.ActiveQuests.Add(quest);
-                    Console.ForegroundColor = ConsoleColor.Green;
-                    Console.WriteLine($"\n  {UIStrings.Format(state.Language, "dialogue_quest_accepted", quest.Title)}");
-                    Console.WriteLine($"     {quest.Description}");
-                    Console.ResetColor();
+                    GameConsoleUI.WriteLine($"\n  {UIStrings.Format(state.Language, "dialogue_quest_accepted", quest.Title)}", ConsoleColor.Green);
+                    GameConsoleUI.WriteLine($"     {quest.Description}", ConsoleColor.Green);
                     state.AddLog($"Accepted quest '{quest.Title}' from {npc.Name}.");
                 }
             }
 
             // Display NPC speech
             Console.WriteLine();
-            Console.ForegroundColor = ConsoleColor.Cyan;
-            Console.Write($"  {npc.Name}: ");
-            Console.ResetColor();
+            GameConsoleUI.Write($"  {npc.Name}: ", ConsoleColor.Cyan);
             Console.WriteLine(speech);
 
             dialogueHistory.Add($"{npc.Name}: {speech}");
@@ -167,9 +111,7 @@ internal static class DialogueWorkflow
             // Show the NPC's farewell speech, then exit the dialogue loop
             if (questAccepted)
             {
-                Console.ForegroundColor = ConsoleColor.DarkGray;
-                Console.WriteLine($"\n  {UIStrings.Format(state.Language, "dialogue_leave_quest", npc.Name)}");
-                Console.ResetColor();
+                GameConsoleUI.WriteLine($"\n  {UIStrings.Format(state.Language, "dialogue_leave_quest", npc.Name)}", ConsoleColor.DarkGray);
                 break;
             }
 
@@ -188,9 +130,7 @@ internal static class DialogueWorkflow
             Console.WriteLine();
             foreach (var opt in options)
             {
-                Console.ForegroundColor = ConsoleColor.Yellow;
-                Console.Write($"  [{opt.Number}] ");
-                Console.ResetColor();
+                GameConsoleUI.Write($"  [{opt.Number}] ", ConsoleColor.Yellow);
                 Console.WriteLine(opt.Text);
             }
             Console.WriteLine();
@@ -202,9 +142,7 @@ internal static class DialogueWorkflow
             // Check for end conversation: use structured is_farewell signal (language-agnostic)
             if (choice.IsFarewell || choice.Number == options[^1].Number)
             {
-                Console.ForegroundColor = ConsoleColor.DarkGray;
-                Console.WriteLine($"\n  {UIStrings.Format(state.Language, "dialogue_farewell", npc.Name)}");
-                Console.ResetColor();
+                GameConsoleUI.WriteLine($"\n  {UIStrings.Format(state.Language, "dialogue_farewell", npc.Name)}", ConsoleColor.DarkGray);
                 break;
             }
 
@@ -259,35 +197,11 @@ internal static class DialogueWorkflow
     }
 
     private static DialogueOption? GetDialogueChoice(List<DialogueOption> options, string language)
-    {
-        while (true)
-        {
-            Console.ForegroundColor = ConsoleColor.DarkGray;
-            Console.Write(UIStrings.Get(language, "dialogue_prompt"));
-            Console.ResetColor();
-            var input = Console.ReadLine();
-
-            if (input is null)
-            {
-                // End of input stream — auto-leave dialogue (use IsFarewell signal)
-                Console.WriteLine();
-                return options.FirstOrDefault(o => o.IsFarewell)
-                    ?? options.LastOrDefault()
-                    ?? new DialogueOption { Number = 0, Text = "End conversation", IsFarewell = true };
-            }
-
-            input = input.Trim();
-            if (string.IsNullOrEmpty(input)) continue;
-
-            if (int.TryParse(input, out var num))
-            {
-                var match = options.FirstOrDefault(o => o.Number == num);
-                if (match is not null) return match;
-            }
-
-            Console.ForegroundColor = ConsoleColor.DarkYellow;
-            Console.WriteLine(UIStrings.Format(language, "dialogue_enter_num", options.Count));
-            Console.ResetColor();
-        }
-    }
+        => GameConsoleUI.PromptForChoice(
+            options, language,
+            "dialogue_prompt", "dialogue_enter_num",
+            opts => opts.FirstOrDefault(o => o.IsFarewell)
+                ?? opts.LastOrDefault()
+                ?? new DialogueOption { Number = 0, Text = "End conversation", IsFarewell = true },
+            options.Count);
 }

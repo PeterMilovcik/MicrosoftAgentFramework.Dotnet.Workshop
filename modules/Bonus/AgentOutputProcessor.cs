@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using RPGGameMaster.Models;
 using RPGGameMaster.Workflow;
 
@@ -66,7 +65,7 @@ internal static class AgentOutputProcessor
         catch (Exception ex)
         {
             // Log parse failures so they are diagnosable without disrupting gameplay
-            Debug.WriteLine($"[AgentOutputProcessor] Failed to process {agentName} output: {ex.Message}");
+            AgentHelper.PrintWarning($"[AgentOutputProcessor] Failed to process {agentName}: {ex.Message}");
         }
     }
 }

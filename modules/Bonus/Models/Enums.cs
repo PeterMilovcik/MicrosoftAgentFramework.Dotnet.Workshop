@@ -73,16 +73,28 @@ internal enum ActionType
     Talk,
     Fight,
     Pickup,
-    Use_Item,
+    [JsonStringEnumMemberName("use_item")]
+    UseItem,
     Examine,
     Rest,
-    Look_Around,
-    Check_Quests,
+    [JsonStringEnumMemberName("look_around")]
+    LookAround,
+    [JsonStringEnumMemberName("check_quests")]
+    CheckQuests,
     Inventory,
     Map,
     Trade,
-    Save_Game,
+    [JsonStringEnumMemberName("save_game")]
+    SaveGame,
     Quit,
+}
+
+/// <summary>creature_defeated, player_fled, player_defeated</summary>
+internal enum CombatResult
+{
+    CreatureDefeated,
+    PlayerFled,
+    PlayerDefeated,
 }
 
 /// <summary>
