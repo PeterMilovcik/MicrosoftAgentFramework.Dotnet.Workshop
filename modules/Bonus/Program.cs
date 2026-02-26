@@ -250,15 +250,7 @@ static GameState CreateNewGame()
     if (int.TryParse(themeInput, out var themeIdx))
         theme = WorldThemes.GetDescription(themeIdx);
 
-    if (theme is null && themeInput != (WorldThemes.Themes.Count + 1).ToString())
-    {
-        // Custom theme or unrecognized input
-        Console.Write("  Describe your world theme: ");
-        theme = Console.ReadLine()?.Trim();
-        if (string.IsNullOrWhiteSpace(theme))
-            theme = WorldThemes.DefaultDescription;
-    }
-    else if (theme is null)
+    if (theme is null)
     {
         Console.Write("  Describe your world theme: ");
         theme = Console.ReadLine()?.Trim();
@@ -270,40 +262,13 @@ static GameState CreateNewGame()
     Console.WriteLine();
     Console.ForegroundColor = ConsoleColor.Yellow;
     Console.WriteLine("  Choose a language for the game world:");
-    Console.WriteLine("  [1]  🇬🇧 English");
-    Console.WriteLine("  [2]  🇩🇪 Deutsch (German)");
-    Console.WriteLine("  [3]  🇫🇷 Français (French)");
-    Console.WriteLine("  [4]  🇪🇸 Español (Spanish)");
-    Console.WriteLine("  [5]  🇮🇹 Italiano (Italian)");
-    Console.WriteLine("  [6]  🇵🇹 Português (Portuguese)");
-    Console.WriteLine("  [7]  🇳🇱 Nederlands (Dutch)");
-    Console.WriteLine("  [8]  🇵🇱 Polski (Polish)");
-    Console.WriteLine("  [9]  🇨🇿 Čeština (Czech)");
-    Console.WriteLine("  [10] 🇸🇰 Slovenčina (Slovak)");
-    Console.WriteLine("  [11] 🇺🇦 Українська (Ukrainian)");
-    Console.WriteLine("  [12] 🇯🇵 日本語 (Japanese)");
-    Console.WriteLine("  [13] 🇰🇷 한국어 (Korean)");
+    for (var i = 0; i < SupportedLanguages.All.Count; i++)
+        Console.WriteLine($"  [{i + 1,2}] {SupportedLanguages.All[i].Label}");
     Console.ResetColor();
     Console.WriteLine();
     Console.Write("  Language > ");
     var langInput = Console.ReadLine()?.Trim();
-    var language = langInput switch
-    {
-        "1" => "English",
-        "2" => "German",
-        "3" => "French",
-        "4" => "Spanish",
-        "5" => "Italian",
-        "6" => "Portuguese",
-        "7" => "Dutch",
-        "8" => "Polish",
-        "9" => "Czech",
-        "10" => "Slovak",
-        "11" => "Ukrainian",
-        "12" => "Japanese",
-        "13" => "Korean",
-        _ => "English",
-    };
+    var language = SupportedLanguages.FromSelection(langInput);
 
     var state = new GameState
     {

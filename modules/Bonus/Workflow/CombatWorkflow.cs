@@ -24,7 +24,7 @@ internal static class CombatWorkflow
 
     public static async Task<CombatResult> RunAsync(
         GameState state, Creature creature, AgentConfig config,
-        Func<string, string> loadPrompt, CancellationToken ct)
+        CancellationToken ct)
     {
         Console.WriteLine();
         Console.ForegroundColor = ConsoleColor.Red;
@@ -36,8 +36,8 @@ internal static class CombatWorkflow
         Console.ResetColor();
 
         // Create combat agents (tool-free — no UpdatePlayerStats double-mutation)
-        var strategist = config.CreateAgent(loadPrompt("combat-strategist"));
-        var narrator = config.CreateAgent(loadPrompt("combat-narrator"));
+        var strategist = config.CreateAgent(PromptLoader.Load("combat-strategist"));
+        var narrator = config.CreateAgent(PromptLoader.Load("combat-narrator"));
 
         var round = 0;
         var combatLog = new List<string>();
@@ -301,7 +301,7 @@ internal static class CombatWorkflow
     private static List<CombatMove> ParseMoves(string text, PlayerCharacter player, Creature creature, string language)
     {
         // Try to parse as JSON array
-        var json = ExtractJsonArray(text);
+        var json = AgentHelper.ExtractJsonArray(text);
         if (json is not null)
         {
             try
@@ -355,43 +355,6 @@ internal static class CombatWorkflow
         }
 
         return moves;
-    }
-
-    private static string? ExtractJsonArray(string text)
-    {
-        if (string.IsNullOrWhiteSpace(text)) return null;
-
-        // Strip markdown fences
-        var cleaned = text;
-        if (cleaned.Contains("```"))
-        {
-            var fenceStart = cleaned.IndexOf("```", StringComparison.Ordinal);
-            var afterFence = cleaned.IndexOf('\n', fenceStart);
-            if (afterFence > 0)
-            {
-                var fenceEnd = cleaned.IndexOf("```", afterFence, StringComparison.Ordinal);
-                if (fenceEnd > 0)
-                    cleaned = cleaned[(afterFence + 1)..fenceEnd];
-            }
-        }
-
-        var start = cleaned.IndexOf('[');
-        if (start < 0) return null;
-
-        // Find matching closing bracket with depth tracking
-        var depth = 0;
-        for (var i = start; i < cleaned.Length; i++)
-        {
-            if (cleaned[i] == '[') depth++;
-            else if (cleaned[i] == ']')
-            {
-                depth--;
-                if (depth == 0)
-                    return cleaned[start..(i + 1)];
-            }
-        }
-
-        return null;
     }
 
     private static string ParseNarrative(string text)

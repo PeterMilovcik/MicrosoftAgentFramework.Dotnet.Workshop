@@ -5,7 +5,7 @@ namespace RPGGameMaster.Models;
 /// <summary>
 /// The player's character — stats, inventory, active quests.
 /// </summary>
-internal sealed class PlayerCharacter
+internal sealed class PlayerCharacter : IHasHealth
 {
     [JsonPropertyName("name")]
     public string Name { get; set; } = "Hero";
@@ -34,7 +34,7 @@ internal sealed class PlayerCharacter
     public int Level { get; set; } = 1;
 
     [JsonPropertyName("xp")]
-    public int XP { get; set; }
+    public Experience XP { get; set; }
 
     [JsonPropertyName("xp_to_next_level")]
     public int XPToNextLevel { get; set; } = 100;
@@ -62,7 +62,7 @@ internal sealed class PlayerCharacter
     }
 
     /// <summary>Awards experience points.</summary>
-    public void AddXP(int amount) => XP += Math.Max(0, amount);
+    public void AddXP(int amount) => XP = XP.Add(amount);
 
     /// <summary>
     /// Removes a fraction of current XP as a penalty (e.g. death).
@@ -70,8 +70,7 @@ internal sealed class PlayerCharacter
     /// </summary>
     public int LoseXP(double fraction)
     {
-        var lost = (int)(XP * fraction);
-        XP = Math.Max(0, XP - lost);
+        XP = XP.ApplyPenalty(fraction, out var lost);
         return lost;
     }
 

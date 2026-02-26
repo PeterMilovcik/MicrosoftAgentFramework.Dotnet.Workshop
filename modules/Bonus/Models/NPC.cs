@@ -63,7 +63,7 @@ internal sealed class NPC
 
     /// <summary>
     /// Rolling dialogue history so the NPC remembers past conversations.
-    /// Capped at <see cref="MaxDialogueEntries"/> to keep token budgets manageable.
+    /// Capped at <see cref="GameConstants.MaxLogEntries"/> to keep token budgets manageable.
     /// </summary>
     [JsonPropertyName("dialogue_history")]
     public List<string> DialogueHistory { get; set; } = [];

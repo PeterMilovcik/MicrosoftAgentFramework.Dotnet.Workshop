@@ -1,8 +1,7 @@
 using System.Text.Json;
 using RPGGameMaster.Models;
-using RPGGameMaster.Workflow;
 
-namespace RPGGameMaster;
+namespace RPGGameMaster.Workflow;
 
 /// <summary>
 /// Handles the buy/sell trade loop when the player interacts with a merchant NPC.

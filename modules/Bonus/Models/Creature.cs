@@ -5,7 +5,7 @@ namespace RPGGameMaster.Models;
 /// <summary>
 /// A creature that can be encountered and fought.
 /// </summary>
-internal sealed class Creature
+internal sealed class Creature : IHasHealth
 {
     [JsonPropertyName("id")]
     public EntityId Id { get; set; } = EntityId.New();

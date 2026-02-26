@@ -40,4 +40,36 @@ internal static class GameConstants
 
     /// <summary>Defense increase per level up.</summary>
     public const int LevelUpDefenseBonus = 1;
+
+    /// <summary>NPC count when generating the starting location.</summary>
+    public const int StartingNPCCount = 2;
+
+    /// <summary>Probability of spawning a second NPC at non-starting locations.</summary>
+    public const double ExtraNPCChance = 0.4;
+
+    // ── Reward scaling (used in ContextBuilder prompt hints) ──
+
+    /// <summary>Base gold reward per quest (additive with level multiplier).</summary>
+    public const int RewardGoldBase = 10;
+
+    /// <summary>Gold reward multiplier per player level.</summary>
+    public const int RewardGoldPerLevel = 10;
+
+    /// <summary>Upper-bound gold reward base.</summary>
+    public const int RewardGoldMaxBase = 20;
+
+    /// <summary>Upper-bound gold reward multiplier per player level.</summary>
+    public const int RewardGoldMaxPerLevel = 20;
+
+    /// <summary>Base XP reward per quest.</summary>
+    public const int RewardXPBase = 20;
+
+    /// <summary>XP reward multiplier per player level.</summary>
+    public const int RewardXPPerLevel = 15;
+
+    /// <summary>Upper-bound XP reward base.</summary>
+    public const int RewardXPMaxBase = 40;
+
+    /// <summary>Upper-bound XP reward multiplier per player level.</summary>
+    public const int RewardXPMaxPerLevel = 25;
 }

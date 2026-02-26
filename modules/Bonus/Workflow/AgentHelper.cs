@@ -59,19 +59,7 @@ internal static class AgentHelper
     {
         if (string.IsNullOrWhiteSpace(text)) return null;
 
-        // Strip markdown code fences if present
-        var cleaned = text;
-        if (cleaned.Contains("```"))
-        {
-            var fenceStart = cleaned.IndexOf("```", StringComparison.Ordinal);
-            var afterFence = cleaned.IndexOf('\n', fenceStart);
-            if (afterFence > 0)
-            {
-                var fenceEnd = cleaned.IndexOf("```", afterFence, StringComparison.Ordinal);
-                if (fenceEnd > 0)
-                    cleaned = cleaned[(afterFence + 1)..fenceEnd];
-            }
-        }
+        var cleaned = StripMarkdownFences(text);
 
         var start = cleaned.IndexOf('{');
         if (start < 0) return null;
@@ -95,6 +83,23 @@ internal static class AgentHelper
         return null;
     }
 
+    /// <summary>Strip markdown code fences from LLM output.</summary>
+    private static string StripMarkdownFences(string text)
+    {
+        if (!text.Contains("```")) return text;
+
+        var fenceStart = text.IndexOf("```", StringComparison.Ordinal);
+        var afterFence = text.IndexOf('\n', fenceStart);
+        if (afterFence > 0)
+        {
+            var fenceEnd = text.IndexOf("```", afterFence, StringComparison.Ordinal);
+            if (fenceEnd > 0)
+                return text[(afterFence + 1)..fenceEnd];
+        }
+
+        return text;
+    }
+
     /// <summary>Parse a JSON string into a typed object, returning null on failure.</summary>
     public static T? ParseJson<T>(string text) where T : class
     {
@@ -102,6 +107,40 @@ internal static class AgentHelper
         if (json is null) return null;
         try { return JsonSerializer.Deserialize<T>(json, JsonOpts); }
         catch { return null; }
+    }
+
+    /// <summary>Parse a JSON string into a typed object, returning <paramref name="fallback"/> on failure.</summary>
+    public static T ParseJson<T>(string text, T fallback) where T : class
+    {
+        var json = ExtractJson(text);
+        if (json is null) return fallback;
+        try { return JsonSerializer.Deserialize<T>(json, JsonOpts) ?? fallback; }
+        catch { return fallback; }
+    }
+
+    /// <summary>Extract the first top-level JSON array from text that may contain prose or markdown fences.</summary>
+    public static string? ExtractJsonArray(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return null;
+
+        var cleaned = StripMarkdownFences(text);
+
+        var start = cleaned.IndexOf('[');
+        if (start < 0) return null;
+
+        var depth = 0;
+        for (var i = start; i < cleaned.Length; i++)
+        {
+            if (cleaned[i] == '[') depth++;
+            else if (cleaned[i] == ']')
+            {
+                depth--;
+                if (depth == 0)
+                    return cleaned[start..(i + 1)];
+            }
+        }
+
+        return null;
     }
 
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

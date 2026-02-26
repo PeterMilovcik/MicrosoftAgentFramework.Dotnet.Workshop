@@ -283,9 +283,10 @@ internal static class ContextBuilder
         AppendRecentEvents(sb, state, 8, "\nRecent events in the world:");
 
         // Reward scaling guidance
-        sb.AppendLine($"\nQuest reward guidance for Level {state.Player.Level}:");
-        sb.AppendLine($"  Gold: {10 + state.Player.Level * 10}-{20 + state.Player.Level * 20}");
-        sb.AppendLine($"  XP: {20 + state.Player.Level * 15}-{40 + state.Player.Level * 25}");
+        var lvl = state.Player.Level;
+        sb.AppendLine($"\nQuest reward guidance for Level {lvl}:");
+        sb.AppendLine($"  Gold: {GameConstants.RewardGoldBase + lvl * GameConstants.RewardGoldPerLevel}-{GameConstants.RewardGoldMaxBase + lvl * GameConstants.RewardGoldMaxPerLevel}");
+        sb.AppendLine($"  XP: {GameConstants.RewardXPBase + lvl * GameConstants.RewardXPPerLevel}-{GameConstants.RewardXPMaxBase + lvl * GameConstants.RewardXPMaxPerLevel}");
 
         return sb.ToString();
     }

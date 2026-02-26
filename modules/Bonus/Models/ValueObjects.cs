@@ -145,6 +145,44 @@ internal sealed class GoldConverter : JsonConverter<Gold>
 }
 
 /// <summary>
+/// Value object for experience points: non-negative integer with arithmetic.
+/// Follows the same pattern as <see cref="Gold"/>.
+/// </summary>
+[JsonConverter(typeof(ExperienceConverter))]
+internal readonly record struct Experience
+{
+    public int Amount { get; }
+
+    public Experience(int amount) => Amount = Math.Max(0, amount);
+
+    public Experience Add(int amount) => new(Amount + amount);
+
+    /// <summary>Apply a fractional penalty (e.g. 0.25 for death), returns amount lost.</summary>
+    public Experience ApplyPenalty(double fraction, out int amountLost)
+    {
+        amountLost = (int)(Amount * fraction);
+        return new(Amount - amountLost);
+    }
+
+    public static implicit operator int(Experience e) => e.Amount;
+    public static implicit operator Experience(int amount) => new(amount);
+
+    public static Experience operator +(Experience e, int amount) => e.Add(amount);
+    public static Experience operator -(Experience e, int amount) => new(e.Amount - amount);
+
+    public override string ToString() => Amount.ToString();
+}
+
+internal sealed class ExperienceConverter : JsonConverter<Experience>
+{
+    public override Experience Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        => new(reader.GetInt32());
+
+    public override void Write(Utf8JsonWriter writer, Experience value, JsonSerializerOptions options)
+        => writer.WriteNumberValue(value.Amount);
+}
+
+/// <summary>
 /// Value object for NPC disposition toward the player: bounded integer [-100, +100]
 /// with named tiers: hostile, unfriendly, neutral, friendly, warm, devoted.
 /// </summary>
