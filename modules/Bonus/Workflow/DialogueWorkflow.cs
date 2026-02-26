@@ -119,7 +119,11 @@ internal static class DialogueWorkflow
             }
 
             // NPC speaks (returns JSON with speech + options) — retry once on failure
-            var npcResponse = await AgentHelper.RunAgent(npcAgent, npcPrompt, ct);
+            string npcResponse;
+            await using (ConsoleSpinner.Start($"[{npc.Name}] Thinking..."))
+            {
+                npcResponse = await AgentHelper.RunAgent(npcAgent, npcPrompt, ct);
+            }
 
             // If the response is empty or obviously a failure, retry once
             if (string.IsNullOrWhiteSpace(npcResponse) || npcResponse.StartsWith("[Error"))

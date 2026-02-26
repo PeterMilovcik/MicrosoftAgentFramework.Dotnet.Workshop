@@ -44,7 +44,6 @@ internal static class GameMasterWorkflow
         // ── First turn: generate starting location ──
         if (state.Locations.Count == 0)
         {
-            AgentHelper.PrintStatus("Generating your world...");
             await GenerateLocationForEntry(config, state, null, null, agentMap, ct);
         }
 
@@ -82,8 +81,12 @@ internal static class GameMasterWorkflow
                 if (innerIter >= GameConstants.MaxInnerIterations)
                     gmPrompt += "\n\nIMPORTANT: This is your last inner iteration. You MUST output PRESENT_TO_PLAYER now.";
 
-                var decisionText = await AgentHelper.RunAgent(gmAgent, gmPrompt, ct,
-                    "{\"next_agent\": \"PRESENT_TO_PLAYER\", \"reason\": \"Error occurred\", \"task\": \"Present current state\"}");
+                string decisionText;
+                await using (ConsoleSpinner.Start("GM deciding next action..."))
+                {
+                    decisionText = await AgentHelper.RunAgent(gmAgent, gmPrompt, ct,
+                        "{\"next_agent\": \"PRESENT_TO_PLAYER\", \"reason\": \"Error occurred\", \"task\": \"Present current state\"}");
+                }
                 var decision = ParseDecision(decisionText);
 
                 if (decision.NextAgent.Equals(AgentNames.PresentToPlayer, StringComparison.OrdinalIgnoreCase))
@@ -96,8 +99,6 @@ internal static class GameMasterWorkflow
                     turnContext.Add($"SYSTEM: Unknown agent '{decision.NextAgent}' — skipped.");
                     continue;
                 }
-
-                AgentHelper.PrintSubAgentWork(decision.NextAgent, decision.Task);
 
                 var langHint = LanguageHint.For(state.Language);
                 var subPrompt = $"World theme: {state.WorldTheme}\n{langHint}\n" +
@@ -125,7 +126,11 @@ internal static class GameMasterWorkflow
                         "Output ONLY the raw Location JSON object, no markdown fences, no explanation.";
                 }
 
-                var subResponse = await AgentHelper.RunAgent(subAgent, subPrompt, ct);
+                string subResponse;
+                await using (ConsoleSpinner.Start($"[{decision.NextAgent}] {decision.Task}"))
+                {
+                    subResponse = await AgentHelper.RunAgent(subAgent, subPrompt, ct);
+                }
                 turnContext.Add($"{decision.NextAgent.ToUpper()} OUTPUT:\n{subResponse}");
 
                 // Process sub-agent output — integrate into game state
@@ -140,7 +145,11 @@ internal static class GameMasterWorkflow
                 $"Turn context:\n{string.Join("\n\n---\n\n", turnContext)}\n\n" +
                 "Remember: output ONLY the JSON {\"narrative\": \"...\", \"options\": [...]}";
 
-            var presentText = await AgentHelper.RunAgent(gmAgent, presentPrompt, ct);
+            string presentText;
+            await using (ConsoleSpinner.Start("Narrating..."))
+            {
+                presentText = await AgentHelper.RunAgent(gmAgent, presentPrompt, ct);
+            }
             presentation = ParsePresentation(presentText);
 
             if (presentation is null || presentation.Options.Count == 0)
@@ -265,7 +274,6 @@ internal static class GameMasterWorkflow
         if (exit.TargetLocationId.IsEmpty)
         {
             // Unexplored — generate new location
-            AgentHelper.PrintStatus($"Discovering what lies {exit.Direction}...");
             var newLoc = await GenerateLocationForEntry(
                 config, state, currentLoc.Id, exit, agentMap, ct);
 
@@ -400,8 +408,6 @@ internal static class GameMasterWorkflow
         // Route to Item Sage for scrolls, food, keys, misc, and other usable items
         if (agentMap.TryGetValue(AgentNames.ItemSage, out var itemSage))
         {
-            AgentHelper.PrintStatus($"Using {item.Name}...");
-
             var usePrompt = $"The player wants to USE this item.\n\n" +
                 $"Item: {JsonSerializer.Serialize(item, AgentHelper.JsonOpts)}\n" +
                 $"Player HP: {state.Player.Health}\n" +
@@ -409,8 +415,12 @@ internal static class GameMasterWorkflow
                 $"Location: {state.CurrentLocation?.Name ?? "unknown"}\n\n" +
                 "Determine the effect and narrate what happens. Call ApplyItemEffect with the result.";
 
-            var response = await AgentHelper.RunAgent(itemSage, usePrompt, ct,
-                "{\"action\": \"use\", \"narrative\": \"Nothing happens.\", \"effect\": {\"type\": \"narrative_only\"}}");
+            string response;
+            await using (ConsoleSpinner.Start($"[ItemSage] Using {item.Name}..."))
+            {
+                response = await AgentHelper.RunAgent(itemSage, usePrompt, ct,
+                    "{\"action\": \"use\", \"narrative\": \"Nothing happens.\", \"effect\": {\"type\": \"narrative_only\"}}");
+            }
 
             var narrative = ParseItemSageNarrative(response);
 
@@ -458,16 +468,18 @@ internal static class GameMasterWorkflow
         // Route to Item Sage for lore generation
         if (agentMap.TryGetValue(AgentNames.ItemSage, out var itemSage))
         {
-            AgentHelper.PrintStatus($"Examining {item.Name}...");
-
             var examinePrompt = $"The player wants to EXAMINE this item. Generate a rich lore description.\n\n" +
                 $"Item: {JsonSerializer.Serialize(item, AgentHelper.JsonOpts)}\n" +
                 $"World theme: {state.WorldTheme}\n" +
                 $"Location: {state.CurrentLocation?.Name ?? "unknown"}\n\n" +
                 "Generate lore and call SetItemLore to cache it.";
 
-            var response = await AgentHelper.RunAgent(itemSage, examinePrompt, ct,
-                "{\"action\": \"examine\", \"lore\": \"An unremarkable item.\"}");
+            string response;
+            await using (ConsoleSpinner.Start($"[ItemSage] Examining {item.Name}..."))
+            {
+                response = await AgentHelper.RunAgent(itemSage, examinePrompt, ct,
+                    "{\"action\": \"examine\", \"lore\": \"An unremarkable item.\"}");
+            }
 
             var lore = ParseItemSageLore(response);
 
@@ -638,8 +650,11 @@ internal static class GameMasterWorkflow
 
         var prompt = ContextBuilder.LocationGeneration(state, fromLocationId, entryExit);
 
-        AgentHelper.PrintSubAgentWork(AgentNames.WorldArchitect, "Generating location...");
-        var locResponse = await AgentHelper.RunAgent(architect, prompt, ct);
+        string locResponse;
+        await using (ConsoleSpinner.Start($"[{AgentNames.WorldArchitect}] Generating location..."))
+        {
+            locResponse = await AgentHelper.RunAgent(architect, prompt, ct);
+        }
         var newLoc = AgentHelper.ParseJson<Location>(locResponse);
 
         if (newLoc is null || newLoc.Id.IsEmpty)
@@ -670,12 +685,15 @@ internal static class GameMasterWorkflow
 
             for (var i = 0; i < npcCount; i++)
             {
-                AgentHelper.PrintSubAgentWork(AgentNames.NPCWeaver, $"Creating NPC {i + 1}...");
                 var npcContext = ContextBuilder.NPCGeneration(state, newLoc);
                 var npcPrompt = npcContext + "\n\n" +
                     "Generate a unique NPC for this location. Output ONLY the raw NPC JSON object, no markdown fences, no explanation.";
 
-                var npcResponse = await AgentHelper.RunAgent(npcWeaver, npcPrompt, ct);
+                string npcResponse;
+                await using (ConsoleSpinner.Start($"[{AgentNames.NPCWeaver}] Creating NPC {i + 1}..."))
+                {
+                    npcResponse = await AgentHelper.RunAgent(npcWeaver, npcPrompt, ct);
+                }
                 var npc = AgentHelper.ParseJson<NPC>(npcResponse);
 
                 if (npc is not null && !npc.Id.IsEmpty)
@@ -693,14 +711,16 @@ internal static class GameMasterWorkflow
         {
             var creaturePromptText = PromptLoader.Load(AgentNames.CreatureForgerPrompt);
             var forge = config.CreateAgent(creaturePromptText);
-            AgentHelper.PrintSubAgentWork(AgentNames.CreatureForger, "Spawning creature...");
-
             var difficulty = EnumExtensions.FromPlayerLevel(state.Player.Level);
             var creatureContext = ContextBuilder.CreatureGeneration(state, newLoc, difficulty);
             var creaturePrompt = creatureContext + "\n\n" +
                 "Generate a creature for this location. Output ONLY the raw Creature JSON object, no markdown fences, no explanation.";
 
-            var creatureResponse = await AgentHelper.RunAgent(forge, creaturePrompt, ct);
+            string creatureResponse;
+            await using (ConsoleSpinner.Start($"[{AgentNames.CreatureForger}] Spawning creature..."))
+            {
+                creatureResponse = await AgentHelper.RunAgent(forge, creaturePrompt, ct);
+            }
             var creature = AgentHelper.ParseJson<Creature>(creatureResponse);
 
             if (creature is not null && !creature.Id.IsEmpty)

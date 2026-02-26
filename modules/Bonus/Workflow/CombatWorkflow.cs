@@ -57,8 +57,12 @@ internal static class CombatWorkflow
 
             // ── Generate cinematic moves via Combat Strategist ──
             var movesPrompt = BuildStrategistPrompt(state.Player, creature, round, combatLog, locationName, locationAtmosphere, state.Language);
-            var movesResponse = await AgentHelper.RunAgent(strategist, movesPrompt, ct,
-                "[]");
+            string movesResponse;
+            await using (ConsoleSpinner.Start("[Strategist] Planning moves..."))
+            {
+                movesResponse = await AgentHelper.RunAgent(strategist, movesPrompt, ct,
+                    "[]");
+            }
 
             var moves = ParseMoves(movesResponse, state.Player, creature, state.Language);
 
@@ -102,8 +106,12 @@ internal static class CombatWorkflow
 
             // ── Narrate the outcome via Combat Narrator (LLM) ──
             var narratorPrompt = BuildNarratorPrompt(result, state.Player, creature, round, locationName, locationAtmosphere, state.Language);
-            var narrativeResponse = await AgentHelper.RunAgent(narrator, narratorPrompt, ct,
-                "{\"narrative\": \"The clash of combat continues.\"}");
+            string narrativeResponse;
+            await using (ConsoleSpinner.Start("[Narrator] Describing battle..."))
+            {
+                narrativeResponse = await AgentHelper.RunAgent(narrator, narratorPrompt, ct,
+                    "{\"narrative\": \"The clash of combat continues.\"}");
+            }
             var narrative = ParseNarrative(narrativeResponse);
 
             Console.ForegroundColor = ConsoleColor.Cyan;

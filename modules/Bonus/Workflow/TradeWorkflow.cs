@@ -40,8 +40,12 @@ internal static class TradeWorkflow
             "{\"greeting\": \"...\", \"items\": [{\"name\": \"...\", \"description\": \"...\", \"type\": \"weapon|armor|potion|misc\", \"effect_value\": 0, \"price\": 0}, ...]}";
 
         var merchantAgent = config.CreateAgent($"You are a merchant NPC named {npc.Name}. {npc.Personality}");
-        var shopResponse = await AgentHelper.RunAgent(merchantAgent, merchantPrompt, ct,
-            "{\"greeting\": \"Welcome!\", \"items\": []}");
+        string shopResponse;
+        await using (ConsoleSpinner.Start($"[{npc.Name}] Preparing wares..."))
+        {
+            shopResponse = await AgentHelper.RunAgent(merchantAgent, merchantPrompt, ct,
+                "{\"greeting\": \"Welcome!\", \"items\": []}");
+        }
 
         var shopJson = AgentHelper.ExtractJson(shopResponse);
         List<ShopItem> shopItems = [];
