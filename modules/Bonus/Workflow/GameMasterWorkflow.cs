@@ -636,25 +636,36 @@ internal static class GameMasterWorkflow
         state.RegisterLocation(newLoc);
         state.CurrentLocationId = newLoc.Id;
 
-        // DangerLevel-driven spawn probabilities
-        var npcChance = newLoc.DangerLevel.NpcSpawnChance();
-        var creatureChance = newLoc.DangerLevel.CreatureSpawnChance();
+        // ── Independent NPC and creature rolls ──
+        // Both can spawn, one can spawn, or neither (empty location).
+        var isStarting = fromLocationId is null;
 
-        // Generate NPCs (probability driven by danger level; always for starting location)
-        var shouldGenNPC = fromLocationId is null || Random.Shared.NextDouble() < npcChance;
-        if (shouldGenNPC)
+        // NPCs — always for starting location; probability-driven otherwise
+        if (isStarting || Random.Shared.NextDouble() < newLoc.DangerLevel.NpcSpawnChance())
         {
-            var npcCount = fromLocationId is null
+            var npcCount = isStarting
                 ? GameConstants.StartingNPCCount
                 : (Random.Shared.NextDouble() < GameConstants.ExtraNPCChance ? 2 : 1);
 
             await GenerateNPCsForLocation(state, newLoc, npcCount, agentMap[AgentNames.NPCGen], ct);
         }
 
-        // Generate creatures (probability driven by danger level; never for starting location)
-        if (fromLocationId is not null && Random.Shared.NextDouble() < creatureChance)
+        // Creatures — independent roll (can co-exist with NPCs)
+        var spawnCreature = isStarting
+            ? Random.Shared.NextDouble() < GameConstants.StartingCreatureChance
+            : Random.Shared.NextDouble() < newLoc.DangerLevel.CreatureSpawnChance();
+
+        if (spawnCreature)
         {
             await GenerateCreatureForLocation(state, newLoc, agentMap[AgentNames.CreatureGen], ct);
+
+            // Extra creature at dangerous/deadly locations
+            if (!isStarting
+                && newLoc.DangerLevel is DangerLevel.Dangerous or DangerLevel.Deadly
+                && Random.Shared.NextDouble() < GameConstants.ExtraCreatureChance)
+            {
+                await GenerateCreatureForLocation(state, newLoc, agentMap[AgentNames.CreatureGen], ct);
+            }
         }
 
         return newLoc;

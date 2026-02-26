@@ -115,24 +115,24 @@ internal static class EnumExtensions
 
     // ── DangerLevel ──
 
-    /// <summary>NPC spawn probability by danger level.</summary>
+    /// <summary>NPC spawn probability by danger level (independent roll — both NPC and creature can spawn or neither).</summary>
     public static double NpcSpawnChance(this DangerLevel level) => level switch
     {
-        DangerLevel.Safe => 0.90,
-        DangerLevel.Moderate => 0.60,
+        DangerLevel.Safe => 0.80,
+        DangerLevel.Moderate => 0.55,
         DangerLevel.Dangerous => 0.30,
         DangerLevel.Deadly => 0.15,
-        _ => 0.60,
+        _ => 0.55,
     };
 
-    /// <summary>Creature spawn probability by danger level.</summary>
+    /// <summary>Creature spawn probability by danger level (independent roll — both NPC and creature can spawn or neither).</summary>
     public static double CreatureSpawnChance(this DangerLevel level) => level switch
     {
-        DangerLevel.Safe => 0.10,
-        DangerLevel.Moderate => 0.40,
-        DangerLevel.Dangerous => 0.70,
+        DangerLevel.Safe => 0.20,
+        DangerLevel.Moderate => 0.55,
+        DangerLevel.Dangerous => 0.75,
         DangerLevel.Deadly => 0.90,
-        _ => 0.40,
+        _ => 0.55,
     };
 
     // ── Difficulty ──

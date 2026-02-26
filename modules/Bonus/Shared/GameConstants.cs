@@ -47,6 +47,12 @@ internal static class GameConstants
     /// <summary>Probability of spawning a second NPC at non-starting locations.</summary>
     public const double ExtraNPCChance = 0.4;
 
+    /// <summary>Probability of spawning a weak creature at the starting location (early combat tutorial).</summary>
+    public const double StartingCreatureChance = 0.5;
+
+    /// <summary>Probability of spawning a second creature at dangerous/deadly locations.</summary>
+    public const double ExtraCreatureChance = 0.25;
+
     // ── Reward scaling (used in PromptContextFactory prompt hints) ──
 
     /// <summary>Base gold reward per quest (additive with level multiplier).</summary>
