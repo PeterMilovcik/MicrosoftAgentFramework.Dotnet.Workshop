@@ -1,5 +1,6 @@
 using HumanInLoopGuards;
 using Microsoft.Agents.AI;
+using Workshop.Common;
 
 Console.WriteLine("===========================================");
 Console.WriteLine(" Module 05 - Human-in-the-Loop & Guards");
@@ -30,14 +31,12 @@ Console.WriteLine("Commands: /exit");
 Console.WriteLine("Example: Analyze build-log-01.txt and identify root cause");
 Console.WriteLine();
 
-var tools = WorkshopTools.GetTools();
+var tools = HumanInLoopGuards.WorkshopTools.GetTools();
 var agent = config.CreateAgent(instructions, tools);
 
 while (true)
 {
-    Console.ForegroundColor = ConsoleColor.Cyan;
-    Console.Write("Query> ");
-    Console.ResetColor();
+    Console.WriteColorful("Query> ", ConsoleColor.Cyan);
 
     var input = Console.ReadLine();
     if (input is null) break;
@@ -53,9 +52,7 @@ while (true)
     }
     catch (Exception ex)
     {
-        Console.ForegroundColor = ConsoleColor.Red;
-        Console.Error.WriteLine($"❌ Error: {ex.Message}");
-        Console.ResetColor();
+        Console.WriteLineError($"❌ Error: {ex.Message}");
     }
 }
 

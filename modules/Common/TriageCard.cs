@@ -1,11 +1,11 @@
 using System.Text.Json.Serialization;
 
-namespace HandoffOrchestration;
+namespace Workshop.Common;
 
 /// <summary>
 /// Structured Triage Card output - matches the triage-rubric.md schema.
 /// </summary>
-internal sealed class TriageCard
+public sealed class TriageCard
 {
     [JsonPropertyName("summary")]
     public string Summary { get; set; } = "";

@@ -1,6 +1,7 @@
 using System.Text.Json;
 using WorkflowsMultiStep;
 using Microsoft.Agents.AI;
+using Workshop.Common;
 
 Console.WriteLine("===========================================");
 Console.WriteLine(" Module 04 - Workflows: Multi-Step Analysis");
@@ -30,9 +31,7 @@ Console.WriteLine();
 
 while (true)
 {
-    Console.ForegroundColor = ConsoleColor.Cyan;
-    Console.Write("Query> ");
-    Console.ResetColor();
+    Console.WriteColorful("Query> ", ConsoleColor.Cyan);
 
     var input = Console.ReadLine();
     if (input is null) break;
@@ -49,11 +48,9 @@ while (true)
     {
         var output = await AnalysisWorkflow.RunAsync(agent, input);
 
-        Console.ForegroundColor = ConsoleColor.Green;
-        Console.WriteLine("══════════════════════════════════════════");
-        Console.WriteLine(" STRUCTURED OUTPUT (JSON)");
-        Console.WriteLine("══════════════════════════════════════════");
-        Console.ResetColor();
+        Console.WriteLineColorful("══════════════════════════════════════════", ConsoleColor.Green);
+        Console.WriteLineColorful(" STRUCTURED OUTPUT (JSON)", ConsoleColor.Green);
+        Console.WriteLineColorful("══════════════════════════════════════════", ConsoleColor.Green);
 
         var json = JsonSerializer.Serialize(output, new JsonSerializerOptions { WriteIndented = true });
         Console.WriteLine(json);
@@ -61,9 +58,7 @@ while (true)
     }
     catch (Exception ex)
     {
-        Console.ForegroundColor = ConsoleColor.Red;
-        Console.Error.WriteLine($"❌ Workflow error: {ex.Message}");
-        Console.ResetColor();
+        Console.WriteLineError($"❌ Workflow error: {ex.Message}");
     }
 }
 

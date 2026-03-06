@@ -2,6 +2,7 @@ using System.Text;
 using System.Text.Json;
 using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
+using Workshop.Common;
 
 namespace WorkflowsMultiStep;
 
@@ -105,9 +106,7 @@ internal static class AnalysisWorkflow
         AIAgent agent, string prompt, AgentSession session, string label, CancellationToken ct)
     {
         var sb = new StringBuilder();
-        Console.ForegroundColor = ConsoleColor.DarkGray;
-        Console.Write($"[{label}] ");
-        Console.ResetColor();
+        Console.WriteColorful($"[{label}] ", ConsoleColor.DarkGray);
 
         await foreach (var update in agent.RunStreamingAsync(prompt, session).WithCancellation(ct))
         {
@@ -121,12 +120,8 @@ internal static class AnalysisWorkflow
 
     private static void PrintStepHeader(string step, string description)
     {
-        Console.ForegroundColor = ConsoleColor.Magenta;
-        Console.WriteLine($"━━━ Step: {step} ━━━");
-        Console.ResetColor();
-        Console.ForegroundColor = ConsoleColor.DarkGray;
-        Console.WriteLine($"  {description}");
-        Console.ResetColor();
+        Console.WriteLineColorful($"━━━ Step: {step} ━━━", ConsoleColor.Magenta);
+        Console.WriteLineColorful($"  {description}", ConsoleColor.DarkGray);
     }
 
     private static WorkflowOutput ParseOutput(string raw)

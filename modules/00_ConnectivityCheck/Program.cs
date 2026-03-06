@@ -1,7 +1,7 @@
 using System.Diagnostics;
-using ConnectivityCheck;
 using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
+using Workshop.Common;
 
 Console.WriteLine("===========================================");
 Console.WriteLine(" Module 00 - Azure OpenAI Connectivity Check");
@@ -42,10 +42,8 @@ try
 catch (Exception ex)
 {
     sw.Stop();
-    Console.ForegroundColor = ConsoleColor.Red;
-    Console.WriteLine($"\n❌ Request failed after {sw.ElapsedMilliseconds}ms");
-    Console.Error.WriteLine($"   Error: {ex.GetType().Name}: {ex.Message}");
-    Console.ResetColor();
+    Console.WriteLineError($"\n❌ Request failed after {sw.ElapsedMilliseconds}ms");
+    Console.WriteLineError($"   Error: {ex.GetType().Name}: {ex.Message}");
     Environment.Exit(2);
     return;
 }
@@ -55,9 +53,7 @@ Console.WriteLine($"done ({sw.ElapsedMilliseconds}ms)");
 Console.WriteLine();
 
 Console.WriteLine("📨 Response:");
-Console.ForegroundColor = ConsoleColor.Green;
-Console.WriteLine($"   {response.Text}");
-Console.ResetColor();
+Console.WriteLineColorful($"   {response.Text}", ConsoleColor.Green);
 Console.WriteLine();
 
 Console.WriteLine("📊 Diagnostics:");

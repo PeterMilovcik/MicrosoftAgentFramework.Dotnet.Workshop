@@ -3,6 +3,7 @@ using System.Text.Json;
 using Microsoft.Agents.AI;
 using Microsoft.Agents.AI.Workflows;
 using Microsoft.Extensions.AI;
+using Workshop.Common;
 
 namespace GroupChatOrchestration;
 
@@ -39,7 +40,7 @@ internal static class GroupChatWorkflow
 
         var investigatorAgent = config.CreateNamedAgent(
             investigatorPrompt, name: "investigator", description: "Gathers evidence using ReadFile and SearchKb tools",
-            tools: WorkshopTools.GetInvestigatorTools());
+            tools: WorkshopTools.GetTools());
 
         var criticAgent = config.CreateNamedAgent(
             criticPrompt, name: "critic", description: "Challenges assumptions and identifies evidence gaps");
@@ -104,9 +105,7 @@ internal static class GroupChatWorkflow
                             "scribe" => (ConsoleColor.Green, "[SCRIBE]"),
                             _ => (ConsoleColor.White, $"[{agentRole.ToUpper()}]"),
                         };
-                        Console.ForegroundColor = color;
-                        Console.Write($"{prefix} ");
-                        Console.ResetColor();
+                        Console.WriteColorful($"{prefix} ", color);
                         lastAgentName = executorId;
                     }
 
@@ -193,11 +192,7 @@ internal static class GroupChatWorkflow
 
     private static void PrintHeader(string step, string desc)
     {
-        Console.ForegroundColor = ConsoleColor.Magenta;
-        Console.WriteLine($"━━━ {step} ━━━");
-        Console.ResetColor();
-        Console.ForegroundColor = ConsoleColor.DarkGray;
-        Console.WriteLine($"  {desc}");
-        Console.ResetColor();
+        Console.WriteLineColorful($"━━━ {step} ━━━", ConsoleColor.Magenta);
+        Console.WriteLineColorful($"  {desc}", ConsoleColor.DarkGray);
     }
 }

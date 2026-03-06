@@ -1,27 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using Microsoft.Extensions.AI;
 
 namespace StateSessionsPersistence;
-
-/// <summary>
-/// Represents a persisted workshop session.
-/// </summary>
-internal sealed class WorkshopSession
-{
-    public Guid SessionId { get; init; } = Guid.NewGuid();
-    public DateTime CreatedAt { get; init; } = DateTime.UtcNow;
-    public string Label { get; set; } = "";
-
-    /// <summary>Chat history stored as simple role/content pairs for JSON portability.</summary>
-    public List<SerializedMessage> Messages { get; set; } = [];
-}
-
-internal sealed class SerializedMessage
-{
-    public string Role { get; init; } = "";
-    public string Content { get; init; } = "";
-}
 
 /// <summary>
 /// Persists workshop sessions as JSON files under .sessions/ in the current directory.
@@ -80,20 +60,4 @@ internal static class SessionStore
         File.Delete(path);
         return true;
     }
-
-    /// <summary>
-    /// Converts a list of <see cref="ChatMessage"/> objects into serializable form.
-    /// </summary>
-    public static List<SerializedMessage> ToSerializable(IEnumerable<ChatMessage> messages)
-        => messages.Select(m => new SerializedMessage
-        {
-            Role = m.Role.Value,
-            Content = m.Text ?? "",
-        }).ToList();
-
-    /// <summary>
-    /// Converts serialized messages back to <see cref="ChatMessage"/> objects.
-    /// </summary>
-    public static List<ChatMessage> FromSerializable(IEnumerable<SerializedMessage> messages)
-        => messages.Select(m => new ChatMessage(new ChatRole(m.Role), m.Content)).ToList();
 }

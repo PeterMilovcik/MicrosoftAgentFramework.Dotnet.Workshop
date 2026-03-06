@@ -1,5 +1,6 @@
 using System.Text.Json;
 using CapstoneTriageAssistant;
+using Workshop.Common;
 
 Console.WriteLine("===========================================");
 Console.WriteLine(" Module 06 - Capstone: Triage Assistant");
@@ -25,9 +26,7 @@ Console.WriteLine();
 while (true)
 {
     // Step 1: Get failure report
-    Console.ForegroundColor = ConsoleColor.Cyan;
-    Console.WriteLine("Step 1: Paste your failure report (end with a line containing only 'END'):");
-    Console.ResetColor();
+    Console.WriteLineColorful("Step 1: Paste your failure report (end with a line containing only 'END'):", ConsoleColor.Cyan);
 
     var reportLines = new List<string>();
     while (true)
@@ -45,17 +44,13 @@ while (true)
     var failureReport = string.Join("\n", reportLines).Trim();
     if (string.IsNullOrWhiteSpace(failureReport))
     {
-        Console.ForegroundColor = ConsoleColor.Yellow;
-        Console.WriteLine("⚠️  Empty report. Please try again. (type /exit to quit)");
-        Console.ResetColor();
+        Console.WriteLineColorful("⚠️  Empty report. Please try again. (type /exit to quit)", ConsoleColor.Yellow);
         continue;
     }
 
     // Step 2: Select log file
     Console.WriteLine();
-    Console.ForegroundColor = ConsoleColor.Cyan;
-    Console.WriteLine("Step 2: Select a sample log file to analyze:");
-    Console.ResetColor();
+    Console.WriteLineColorful("Step 2: Select a sample log file to analyze:", ConsoleColor.Cyan);
     Console.WriteLine("  [0] None");
     Console.WriteLine("  [1] build-log-01.txt  (AuthService - DB connection failure)");
     Console.WriteLine("  [2] build-log-02.txt  (PaymentGateway - retry + coverage failure)");
@@ -73,9 +68,7 @@ while (true)
 
     // Step 3: KB query
     Console.WriteLine();
-    Console.ForegroundColor = ConsoleColor.Cyan;
-    Console.WriteLine("Step 3: Enter an optional KB search query (press Enter to skip):");
-    Console.ResetColor();
+    Console.WriteLineColorful("Step 3: Enter an optional KB search query (press Enter to skip):", ConsoleColor.Cyan);
     Console.Write("KB query: ");
     var kbQuery = Console.ReadLine()?.Trim();
     if (string.IsNullOrWhiteSpace(kbQuery)) kbQuery = null;
@@ -90,37 +83,29 @@ while (true)
 
         if (card is null)
         {
-            Console.ForegroundColor = ConsoleColor.Yellow;
-            Console.WriteLine("⚠️  Could not parse structured Triage Card. Raw response:");
-            Console.WriteLine(humanSummary);
-            Console.ResetColor();
+            Console.WriteLineColorful("⚠️  Could not parse structured Triage Card. Raw response:", ConsoleColor.Yellow);
+            Console.WriteLineColorful(humanSummary, ConsoleColor.Yellow);
         }
         else
         {
             // Human-readable summary
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine("══════════════════════════════════════════");
-            Console.WriteLine(" HUMAN SUMMARY");
-            Console.WriteLine("══════════════════════════════════════════");
-            Console.ResetColor();
+            Console.WriteLineColorful("══════════════════════════════════════════", ConsoleColor.Green);
+            Console.WriteLineColorful(" HUMAN SUMMARY", ConsoleColor.Green);
+            Console.WriteLineColorful("══════════════════════════════════════════", ConsoleColor.Green);
             Console.WriteLine(card.Summary);
             Console.WriteLine();
 
             // Triage Card JSON
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine("══════════════════════════════════════════");
-            Console.WriteLine(" TRIAGE CARD (JSON)");
-            Console.WriteLine("══════════════════════════════════════════");
-            Console.ResetColor();
+            Console.WriteLineColorful("══════════════════════════════════════════", ConsoleColor.Green);
+            Console.WriteLineColorful(" TRIAGE CARD (JSON)", ConsoleColor.Green);
+            Console.WriteLineColorful("══════════════════════════════════════════", ConsoleColor.Green);
             var json = JsonSerializer.Serialize(card, new JsonSerializerOptions { WriteIndented = true });
             Console.WriteLine(json);
         }
     }
     catch (Exception ex)
     {
-        Console.ForegroundColor = ConsoleColor.Red;
-        Console.Error.WriteLine($"❌ Error: {ex.Message}");
-        Console.ResetColor();
+        Console.WriteLineError($"❌ Error: {ex.Message}");
     }
 
     Console.WriteLine();

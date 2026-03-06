@@ -3,6 +3,7 @@ using System.Text.Json;
 using Microsoft.Agents.AI;
 using Microsoft.Agents.AI.Workflows;
 using Microsoft.Extensions.AI;
+using Workshop.Common;
 
 namespace HandoffOrchestration;
 
@@ -22,7 +23,7 @@ internal static class HandoffWorkflow
         CancellationToken ct = default)
     {
         var baseDir = AppContext.BaseDirectory;
-        var expertTools = WorkshopTools.GetExpertTools();
+        var expertTools = WorkshopTools.GetTools();
 
         // Load agent prompts
         string LoadPrompt(string name)
@@ -89,9 +90,7 @@ internal static class HandoffWorkflow
         var lastScribeText = "";
 
         PrintHeader("HANDOFF WORKFLOW", "Starting handoff-based triage...");
-        Console.ForegroundColor = ConsoleColor.DarkGray;
-        Console.WriteLine("  frontdesk → [infra-expert | product-expert | test-expert] → scribe");
-        Console.ResetColor();
+        Console.WriteLineColorful("  frontdesk → [infra-expert | product-expert | test-expert] → scribe", ConsoleColor.DarkGray);
         Console.WriteLine();
 
         // Run the workflow using Lockstep mode with chat messages as input
@@ -139,9 +138,7 @@ internal static class HandoffWorkflow
                             "scribe" => (ConsoleColor.Green, "[SCRIBE]"),
                             _ => (ConsoleColor.Gray, $"[{agentRole.ToUpper()}]"),
                         };
-                        Console.ForegroundColor = color;
-                        Console.Write($"{prefix} ");
-                        Console.ResetColor();
+                        Console.WriteColorful($"{prefix} ", color);
                         lastExecutorId = executorId;
                     }
 
@@ -201,9 +198,7 @@ internal static class HandoffWorkflow
 
     private static void PrintHandoff(string from, string to)
     {
-        Console.ForegroundColor = ConsoleColor.DarkYellow;
-        Console.WriteLine($"  ⟶ Handoff: {from} → {to}");
-        Console.ResetColor();
+        Console.WriteLineColorful($"  ⟶ Handoff: {from} → {to}", ConsoleColor.DarkYellow);
         Console.WriteLine();
     }
 
@@ -229,11 +224,7 @@ internal static class HandoffWorkflow
 
     private static void PrintHeader(string step, string desc)
     {
-        Console.ForegroundColor = ConsoleColor.Magenta;
-        Console.WriteLine($"━━━ {step} ━━━");
-        Console.ResetColor();
-        Console.ForegroundColor = ConsoleColor.DarkGray;
-        Console.WriteLine($"  {desc}");
-        Console.ResetColor();
+        Console.WriteLineColorful($"━━━ {step} ━━━", ConsoleColor.Magenta);
+        Console.WriteLineColorful($"  {desc}", ConsoleColor.DarkGray);
     }
 }

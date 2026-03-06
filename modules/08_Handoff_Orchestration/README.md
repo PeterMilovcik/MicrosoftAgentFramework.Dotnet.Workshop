@@ -158,14 +158,6 @@ Handing off to scribe.
 
 4. ✏️ **Ambiguous input**: Select scenario 3 and try: _"The build failed."_ — observe how `frontdesk` makes its routing decision with minimal context. *(~3 min)*
 
-5. ✏️ **Loop prevention**: Add a counter to `HandoffWorkflow.cs` that stops the workflow if more than 5 agents have responded. *(~10 min)*
-
-💡HINT: Prompt for GitHub Copilot:
-
-```
-In #file:HandoffWorkflow.cs for module 08, add a counter that tracks how many agent responses have been received. If it exceeds 5, break out of the event loop and use whatever scribe output is available.
-```
-
 ---
 
 ## Key Takeaways

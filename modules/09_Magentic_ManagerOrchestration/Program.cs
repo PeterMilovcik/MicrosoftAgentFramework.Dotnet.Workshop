@@ -1,5 +1,6 @@
 using System.Text.Json;
 using MagenticOrchestration;
+using Workshop.Common;
 
 Console.WriteLine("===========================================");
 Console.WriteLine(" Module 09 - Magentic Manager Orchestration");
@@ -18,9 +19,7 @@ Console.WriteLine();
 while (true)
 {
     // Quick scenario picker — keeps focus on the orchestration pattern
-    Console.ForegroundColor = ConsoleColor.Cyan;
-    Console.WriteLine("Select a scenario (or type /exit to quit):");
-    Console.ResetColor();
+    Console.WriteLineColorful("Select a scenario (or type /exit to quit):", ConsoleColor.Cyan);
     Console.WriteLine("  [1] AuthService — DB connection pool failure  (build-log-01.txt)");
     Console.WriteLine("  [2] PaymentGateway — retry + coverage failure (build-log-02.txt)");
     Console.WriteLine("  [3] Custom — enter your own failure report");
@@ -54,9 +53,7 @@ while (true)
             break;
         case "3":
             // Full custom input (same as Module 06)
-            Console.ForegroundColor = ConsoleColor.Cyan;
-            Console.WriteLine("Paste your failure report (end with a line containing only 'END'):");
-            Console.ResetColor();
+            Console.WriteLineColorful("Paste your failure report (end with a line containing only 'END'):", ConsoleColor.Cyan);
 
             var reportLines = new List<string>();
             while (true)
@@ -68,9 +65,7 @@ while (true)
             failureReport = string.Join("\n", reportLines).Trim();
             if (string.IsNullOrWhiteSpace(failureReport))
             {
-                Console.ForegroundColor = ConsoleColor.Yellow;
-                Console.WriteLine("⚠️  Empty report — skipping.");
-                Console.ResetColor();
+                Console.WriteLineColorful("⚠️  Empty report — skipping.", ConsoleColor.Yellow);
                 continue;
             }
 
@@ -93,9 +88,7 @@ while (true)
 
     // Human-in-the-loop plan approval
     Console.WriteLine();
-    Console.ForegroundColor = ConsoleColor.Yellow;
-    Console.WriteLine("━━━ 🔐 Human-in-the-Loop Checkpoint ━━━");
-    Console.ResetColor();
+    Console.WriteLineColorful("━━━ 🔐 Human-in-the-Loop Checkpoint ━━━", ConsoleColor.Yellow);
     Console.WriteLine("The manager will run autonomously within the configured limits.");
     Console.WriteLine("Options: [approve] to start | [abort] to cancel");
     Console.Write("Decision: ");
@@ -103,9 +96,7 @@ while (true)
     var decision = Console.ReadLine()?.Trim() ?? "";
     if (decision.Equals("abort", StringComparison.OrdinalIgnoreCase))
     {
-        Console.ForegroundColor = ConsoleColor.Red;
-        Console.WriteLine("🛑 Triage aborted.");
-        Console.ResetColor();
+        Console.WriteLineColorful("🛑 Triage aborted.", ConsoleColor.Red);
         Console.WriteLine();
         Console.Write("Run another triage? [y/N]: ");
         var again2 = Console.ReadLine()?.Trim().ToLowerInvariant();
@@ -114,9 +105,7 @@ while (true)
         continue;
     }
 
-    Console.ForegroundColor = ConsoleColor.Green;
-    Console.WriteLine("✅ Starting Magentic triage...");
-    Console.ResetColor();
+    Console.WriteLineColorful("✅ Starting Magentic triage...", ConsoleColor.Green);
     Console.WriteLine();
 
     try
@@ -126,27 +115,21 @@ while (true)
         Console.WriteLine();
         if (card is null)
         {
-            Console.ForegroundColor = ConsoleColor.Yellow;
-            Console.WriteLine("⚠️  Could not parse structured Triage Card. Raw scribe output:");
-            Console.WriteLine(finalText);
-            Console.ResetColor();
+            Console.WriteLineColorful("⚠️  Could not parse structured Triage Card. Raw scribe output:", ConsoleColor.Yellow);
+            Console.WriteLineColorful(finalText, ConsoleColor.Yellow);
         }
         else
         {
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine("══════════════════════════════════════════");
-            Console.WriteLine(" TRIAGE CARD (JSON)");
-            Console.WriteLine("══════════════════════════════════════════");
-            Console.ResetColor();
+            Console.WriteLineColorful("══════════════════════════════════════════", ConsoleColor.Green);
+            Console.WriteLineColorful(" TRIAGE CARD (JSON)", ConsoleColor.Green);
+            Console.WriteLineColorful("══════════════════════════════════════════", ConsoleColor.Green);
             var json = JsonSerializer.Serialize(card, new JsonSerializerOptions { WriteIndented = true });
             Console.WriteLine(json);
         }
     }
     catch (Exception ex)
     {
-        Console.ForegroundColor = ConsoleColor.Red;
-        Console.Error.WriteLine($"❌ Error: {ex.Message}");
-        Console.ResetColor();
+        Console.WriteLineError($"❌ Error: {ex.Message}");
     }
 
     Console.WriteLine();

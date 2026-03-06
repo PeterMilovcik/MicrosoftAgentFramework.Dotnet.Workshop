@@ -266,6 +266,7 @@ agent-framework-dotnet-workshop/
     set-env.sh / set-env.ps1  ← Diagnose missing env vars
     run.sh / run.ps1          ← Run a module by number
   modules/
+    Common/                   ← Shared library (AgentConfig, WorkshopTools, TriageCard, ConsoleExtensions)
     00_ConnectivityCheck/     ← Azure OpenAI connectivity check
     01_HelloAgent/            ← Basic agent + REPL loop
     02_Tools_FunctionCalling/ ← Tools: GetTime, ReadFile, SearchKb

@@ -1,6 +1,6 @@
 using StateSessionsPersistence;
 using Microsoft.Agents.AI;
-using Microsoft.Extensions.AI;
+using Workshop.Common;
 
 Console.WriteLine("===========================================");
 Console.WriteLine(" Module 03 - State, Sessions & Persistence");
@@ -19,18 +19,9 @@ SessionStore.EnsureDirectory();
 // Current in-memory state
 WorkshopSession? currentWorkshopSession = null;
 AgentSession? agentSession = null;
-var inMemoryMessages = new List<ChatMessage>();
+int turnCount = 0;
 
-Console.WriteLine("Commands:");
-Console.WriteLine("  /new              Create a new session");
-Console.WriteLine("  /list             List saved sessions");
-Console.WriteLine("  /load <id>        Load a session by ID (or ID prefix)");
-Console.WriteLine("  /delete <id>      Delete a session");
-Console.WriteLine("  /status           Show current session info");
-Console.WriteLine("  /exit             Exit");
-Console.WriteLine();
-Console.WriteLine("Start by typing /new to create your first session.");
-Console.WriteLine();
+PrintCommands();
 
 while (true)
 {
@@ -38,9 +29,7 @@ while (true)
         ? $"[{currentWorkshopSession.Label}] You> "
         : "You> ";
 
-    Console.ForegroundColor = ConsoleColor.Cyan;
-    Console.Write(prompt);
-    Console.ResetColor();
+    Console.WriteColorful(prompt, ConsoleColor.Cyan);
 
     var input = Console.ReadLine();
     if (input is null) break;
@@ -51,6 +40,7 @@ while (true)
 
     if (input.Equals("/exit", StringComparison.OrdinalIgnoreCase))
     {
+        await SaveActiveSessionAsync();
         AgentConfig.PrintTokenSummary();
         Console.WriteLine("Goodbye!");
         break;
@@ -58,170 +48,191 @@ while (true)
 
     if (input.StartsWith("/new", StringComparison.OrdinalIgnoreCase))
     {
-        Console.Write("Session label (optional, press Enter to skip): ");
-        var label = Console.ReadLine()?.Trim() ?? "";
-
-        // Save current session if active
-        if (currentWorkshopSession is not null && inMemoryMessages.Count > 0)
-        {
-            currentWorkshopSession.Messages = SessionStore.ToSerializable(inMemoryMessages);
-            SessionStore.Save(currentWorkshopSession);
-        }
-
-        currentWorkshopSession = new WorkshopSession { Label = label };
-        agentSession = await agent.CreateSessionAsync();
-        inMemoryMessages = [];
-
-        SessionStore.Save(currentWorkshopSession);
-        Console.ForegroundColor = ConsoleColor.Green;
-        Console.WriteLine($"✅ New session created: {currentWorkshopSession.SessionId} (\"{label}\")");
-        Console.ResetColor();
+        await HandleNewSessionAsync();
         continue;
     }
 
     if (input.Equals("/list", StringComparison.OrdinalIgnoreCase))
     {
-        var sessions = SessionStore.ListAll();
-        if (sessions.Count == 0)
-        {
-            Console.WriteLine("No saved sessions. Type /new to create one.");
-        }
-        else
-        {
-            Console.WriteLine($"Saved sessions ({sessions.Count}):");
-            foreach (var s in sessions)
-            {
-                var active = currentWorkshopSession?.SessionId == s.SessionId ? " ◄ active" : "";
-                Console.WriteLine($"  {s.SessionId} | {s.CreatedAt:u} | \"{s.Label}\" | {s.Messages.Count} messages{active}");
-            }
-        }
+        HandleListSessions();
         continue;
     }
 
     if (input.StartsWith("/load ", StringComparison.OrdinalIgnoreCase))
     {
-        var idArg = input[6..].Trim();
-        var sessions = SessionStore.ListAll();
-        var target = sessions.FirstOrDefault(s =>
-            s.SessionId.ToString().StartsWith(idArg, StringComparison.OrdinalIgnoreCase));
-
-        if (target is null)
-        {
-            Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine($"❌ No session found matching: {idArg}");
-            Console.ResetColor();
-            continue;
-        }
-
-        // Save current session first
-        if (currentWorkshopSession is not null && inMemoryMessages.Count > 0)
-        {
-            currentWorkshopSession.Messages = SessionStore.ToSerializable(inMemoryMessages);
-            SessionStore.Save(currentWorkshopSession);
-        }
-
-        currentWorkshopSession = target;
-        inMemoryMessages = SessionStore.FromSerializable(target.Messages);
-
-        // Recreate agent session and replay history
-        agentSession = await agent.CreateSessionAsync();
-
-        Console.ForegroundColor = ConsoleColor.Green;
-        Console.WriteLine($"✅ Loaded session: {target.SessionId} (\"{target.Label}\") - {inMemoryMessages.Count} messages in history");
-        Console.ResetColor();
+        await HandleLoadSessionAsync(input[6..].Trim());
         continue;
     }
 
     if (input.StartsWith("/delete ", StringComparison.OrdinalIgnoreCase))
     {
-        var idArg = input[8..].Trim();
-        var sessions = SessionStore.ListAll();
-        var target = sessions.FirstOrDefault(s =>
-            s.SessionId.ToString().StartsWith(idArg, StringComparison.OrdinalIgnoreCase));
-
-        if (target is null)
-        {
-            Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine($"❌ No session found matching: {idArg}");
-            Console.ResetColor();
-            continue;
-        }
-
-        SessionStore.Delete(target.SessionId);
-        if (currentWorkshopSession?.SessionId == target.SessionId)
-        {
-            currentWorkshopSession = null;
-            agentSession = null;
-            inMemoryMessages = [];
-        }
-
-        Console.ForegroundColor = ConsoleColor.Yellow;
-        Console.WriteLine($"🗑️  Deleted session: {target.SessionId}");
-        Console.ResetColor();
+        HandleDeleteSession(input[8..].Trim());
         continue;
     }
 
     if (input.Equals("/status", StringComparison.OrdinalIgnoreCase))
     {
-        if (currentWorkshopSession is null)
-        {
-            Console.WriteLine("No active session. Type /new to create one.");
-        }
-        else
-        {
-            Console.WriteLine($"Active session: {currentWorkshopSession.SessionId}");
-            Console.WriteLine($"  Label:    \"{currentWorkshopSession.Label}\"");
-            Console.WriteLine($"  Created:  {currentWorkshopSession.CreatedAt:u}");
-            Console.WriteLine($"  Messages: {inMemoryMessages.Count}");
-        }
+        HandleStatus();
         continue;
     }
 
     // ---- Chat ----
 
+    await HandleChatAsync(input);
+}
+
+// ---- Helper Methods ----
+
+void PrintCommands()
+{
+    Console.WriteLine("Commands:");
+    Console.WriteLine("  /new              Create a new session");
+    Console.WriteLine("  /list             List saved sessions");
+    Console.WriteLine("  /load <id>        Load a session by ID (or ID prefix)");
+    Console.WriteLine("  /delete <id>      Delete a session by ID (or ID prefix)");
+    Console.WriteLine("  /status           Show current session info");
+    Console.WriteLine("  /exit             Exit");
+    Console.WriteLine();
+    Console.WriteLine("Start by typing /new to create your first session.");
+    Console.WriteLine();
+}
+
+async Task HandleNewSessionAsync()
+{
+    Console.Write("Session label (optional, press Enter to skip): ");
+    var label = Console.ReadLine()?.Trim() ?? "";
+
+    await SaveActiveSessionAsync();
+
+    currentWorkshopSession = new WorkshopSession { Label = label };
+    agentSession = await agent.CreateSessionAsync();
+    turnCount = 0;
+
+    SessionStore.Save(currentWorkshopSession);
+    Console.WriteLineColorful($"✅ New session created: {currentWorkshopSession.SessionId} (\"{label}\")", ConsoleColor.Green);
+}
+
+void HandleListSessions()
+{
+    var sessions = SessionStore.ListAll();
+    if (sessions.Count == 0)
+    {
+        Console.WriteLine("No saved sessions. Type /new to create one.");
+        return;
+    }
+
+    Console.WriteLine($"Saved sessions ({sessions.Count}):");
+    foreach (var s in sessions)
+    {
+        var active = currentWorkshopSession?.SessionId == s.SessionId ? " ◄ active" : "";
+        Console.WriteLine($"  {s.SessionId} | {s.CreatedAt:u} | \"{s.Label}\" | {s.TurnCount} turns{active}");
+    }
+}
+
+async Task HandleLoadSessionAsync(string sessionIdPrefix)
+{
+    var target = FindSessionByPrefix(sessionIdPrefix);
+    if (target is null) return;
+
+    await SaveActiveSessionAsync();
+
+    var loaded = SessionStore.Load(target.SessionId);
+    if (loaded?.AgentSessionState is null)
+    {
+        Console.WriteLineColorful($"⚠️  Session {target.SessionId} has no saved conversation state. Starting fresh.", ConsoleColor.Yellow);
+        currentWorkshopSession = loaded ?? target;
+        agentSession = await agent.CreateSessionAsync();
+        turnCount = 0;
+        return;
+    }
+
+    currentWorkshopSession = loaded;
+    agentSession = await agent.DeserializeSessionAsync(loaded.AgentSessionState.Value);
+    turnCount = loaded.TurnCount;
+
+    Console.WriteLineColorful($"✅ Loaded session: {loaded.SessionId} (\"{loaded.Label}\") - {loaded.TurnCount} turns restored", ConsoleColor.Green);
+}
+
+void HandleDeleteSession(string sessionIdPrefix)
+{
+    var target = FindSessionByPrefix(sessionIdPrefix);
+    if (target is null) return;
+
+    SessionStore.Delete(target.SessionId);
+    if (currentWorkshopSession?.SessionId == target.SessionId)
+    {
+        currentWorkshopSession = null;
+        agentSession = null;
+        turnCount = 0;
+    }
+
+    Console.WriteLineColorful($"🗑️  Deleted session: {target.SessionId}", ConsoleColor.Yellow);
+}
+
+void HandleStatus()
+{
+    if (currentWorkshopSession is null)
+    {
+        Console.WriteLine("No active session. Type /new to create one.");
+        return;
+    }
+
+    Console.WriteLine($"Active session: {currentWorkshopSession.SessionId}");
+    Console.WriteLine($"  Label:    \"{currentWorkshopSession.Label}\"");
+    Console.WriteLine($"  Created:  {currentWorkshopSession.CreatedAt:u}");
+    Console.WriteLine($"  Turns:    {turnCount}");
+}
+
+async Task HandleChatAsync(string input)
+{
     if (currentWorkshopSession is null || agentSession is null)
     {
-        Console.ForegroundColor = ConsoleColor.Yellow;
-        Console.WriteLine("⚠️  No active session. Type /new to create one first.");
-        Console.ResetColor();
-        continue;
+        Console.WriteLineColorful("⚠️  No active session. Type /new to create one first.", ConsoleColor.Yellow);
+        return;
     }
 
     try
     {
-        // Include the full in-memory history in the run
-        var allMessages = new List<ChatMessage>(inMemoryMessages)
-        {
-            new(ChatRole.User, input)
-        };
+        Console.WriteColorful("Agent> ", ConsoleColor.DarkGray);
 
-        Console.ForegroundColor = ConsoleColor.DarkGray;
-        Console.Write("Agent> ");
-        Console.ResetColor();
-
-        var responseText = new System.Text.StringBuilder();
-        await foreach (var update in agent.RunStreamingAsync(allMessages, agentSession))
+        await foreach (var update in agent.RunStreamingAsync(input, agentSession))
         {
             Console.Write(update.Text);
-            responseText.Append(update.Text);
         }
         Console.WriteLine();
         Console.WriteLine();
 
-        // Store messages in local history
-        inMemoryMessages.Add(new ChatMessage(ChatRole.User, input));
-        inMemoryMessages.Add(new ChatMessage(ChatRole.Assistant, responseText.ToString()));
-
-        // Auto-save session after each turn
-        currentWorkshopSession.Messages = SessionStore.ToSerializable(inMemoryMessages);
-        SessionStore.Save(currentWorkshopSession);
+        turnCount++;
+        await SaveActiveSessionAsync();
     }
     catch (Exception ex)
     {
-        Console.ForegroundColor = ConsoleColor.Red;
-        Console.Error.WriteLine($"❌ Error: {ex.Message}");
-        Console.ResetColor();
+        Console.WriteLineError($"❌ Error: {ex.Message}");
     }
+}
+
+WorkshopSession? FindSessionByPrefix(string sessionIdPrefix)
+{
+    var sessions = SessionStore.ListAll();
+    var target = sessions.FirstOrDefault(s =>
+        s.SessionId.ToString().StartsWith(sessionIdPrefix, StringComparison.OrdinalIgnoreCase));
+
+    if (target is null)
+    {
+        Console.WriteLineColorful($"❌ No session found matching: {sessionIdPrefix}", ConsoleColor.Red);
+    }
+
+    return target;
+}
+
+async Task SaveActiveSessionAsync()
+{
+    if (currentWorkshopSession is null || agentSession is null) return;
+
+    var serializedState = await agent.SerializeSessionAsync(agentSession);
+    currentWorkshopSession.AgentSessionState = serializedState;
+    currentWorkshopSession.TurnCount = turnCount;
+    SessionStore.Save(currentWorkshopSession);
 }
 
 static string LoadPromptFile(string path)

@@ -2,6 +2,7 @@ using System.Text;
 using System.Text.Json;
 using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
+using Workshop.Common;
 
 namespace MagenticOrchestration;
 
@@ -40,7 +41,7 @@ internal static class MagenticWorkflow
         // Create agents
         var managerAgent = config.CreateAgent(LoadPrompt("magentic-manager"));
         var researcherAgent = config.CreateAgent(LoadPrompt("researcher"),
-            tools: WorkshopTools.GetResearcherTools());
+            tools: WorkshopTools.GetTools());
         var diagnosticianAgent = config.CreateAgent(LoadPrompt("diagnostician"));
         var criticAgent = config.CreateAgent(LoadPrompt("critic"));
         var scribeAgent = config.CreateAgent(LoadPrompt("scribe"));
@@ -110,17 +111,13 @@ internal static class MagenticWorkflow
             // Check stopping conditions
             if (decision.NextAgent.Equals("DONE", StringComparison.OrdinalIgnoreCase))
             {
-                Console.ForegroundColor = ConsoleColor.Green;
-                Console.WriteLine($"  Manager signalled DONE. Confidence: {decision.Confidence:F2}");
-                Console.ResetColor();
+                Console.WriteLineColorful($"  Manager signalled DONE. Confidence: {decision.Confidence:F2}", ConsoleColor.Green);
                 break;
             }
 
             if (decision.Confidence >= ConfidenceThreshold && !string.IsNullOrEmpty(finalScribeText))
             {
-                Console.ForegroundColor = ConsoleColor.Green;
-                Console.WriteLine($"  Confidence threshold reached ({decision.Confidence:F2} >= {ConfidenceThreshold}). Stopping.");
-                Console.ResetColor();
+                Console.WriteLineColorful($"  Confidence threshold reached ({decision.Confidence:F2} >= {ConfidenceThreshold}). Stopping.", ConsoleColor.Green);
                 break;
             }
 
@@ -130,17 +127,13 @@ internal static class MagenticWorkflow
             // Force scribe on last iteration if not already called
             if (iteration == MaxIterations && agentName != "scribe" && string.IsNullOrEmpty(finalScribeText))
             {
-                Console.ForegroundColor = ConsoleColor.Yellow;
-                Console.WriteLine($"  ⚠️ Last iteration reached without scribe. Forcing scribe to produce triage card.");
-                Console.ResetColor();
+                Console.WriteLineColorful($"  ⚠️ Last iteration reached without scribe. Forcing scribe to produce triage card.", ConsoleColor.Yellow);
                 agentName = "scribe";
             }
 
             if (!agentMap.TryGetValue(agentName, out var nextAgent))
             {
-                Console.ForegroundColor = ConsoleColor.Yellow;
-                Console.WriteLine($"  ⚠️ Unknown agent '{decision.NextAgent}'. Defaulting to researcher.");
-                Console.ResetColor();
+                Console.WriteLineColorful($"  ⚠️ Unknown agent '{decision.NextAgent}'. Defaulting to researcher.", ConsoleColor.Yellow);
                 agentName = "researcher";
                 nextAgent = researcherAgent;
             }
@@ -157,9 +150,7 @@ internal static class MagenticWorkflow
             var preToolCount = toolCallCount;
             if (agentName == "researcher" && toolCallCount >= MaxToolCalls)
             {
-                Console.ForegroundColor = ConsoleColor.Yellow;
-                Console.WriteLine($"  ⚠️ Tool call limit reached ({MaxToolCalls}). Skipping tool usage this turn.");
-                Console.ResetColor();
+                Console.WriteLineColorful($"  ⚠️ Tool call limit reached ({MaxToolCalls}). Skipping tool usage this turn.", ConsoleColor.Yellow);
                 // Override: run researcher without tools this turn
                 nextAgent = config.CreateAgent(LoadPrompt("researcher")); // no tools
             }
@@ -189,9 +180,7 @@ internal static class MagenticWorkflow
 
         if (iteration >= MaxIterations)
         {
-            Console.ForegroundColor = ConsoleColor.Yellow;
-            Console.WriteLine($"  ⚠️ Max iterations ({MaxIterations}) reached.");
-            Console.ResetColor();
+            Console.WriteLineColorful($"  ⚠️ Max iterations ({MaxIterations}) reached.", ConsoleColor.Yellow);
         }
 
         var card = ParseTriageCard(finalScribeText);
@@ -261,29 +250,18 @@ internal static class MagenticWorkflow
 
     private static void PrintManagerDecision(int iteration, int maxIter, int toolCalls, int maxTools, ManagerDecision decision)
     {
-        Console.ForegroundColor = ConsoleColor.Magenta;
-        Console.Write($"\nIteration {iteration}/{maxIter} | ToolCalls {toolCalls}/{maxTools}");
-        Console.ResetColor();
+        Console.WriteColorful($"\nIteration {iteration}/{maxIter} | ToolCalls {toolCalls}/{maxTools}", ConsoleColor.Magenta);
         Console.WriteLine();
 
-        Console.ForegroundColor = ConsoleColor.DarkMagenta;
-        Console.Write($"Manager chose: {decision.NextAgent?.ToUpper()} ");
-        Console.ResetColor();
-        Console.ForegroundColor = ConsoleColor.DarkGray;
-        Console.Write($"(reason: {decision.Reason})");
-        Console.ResetColor();
-        Console.WriteLine();
+        Console.WriteColorful($"Manager chose: {decision.NextAgent?.ToUpper()} ", ConsoleColor.DarkMagenta);
+        Console.WriteLineColorful($"(reason: {decision.Reason})", ConsoleColor.DarkGray);
 
         if (!string.IsNullOrWhiteSpace(decision.ProgressSummary))
         {
-            Console.ForegroundColor = ConsoleColor.DarkGray;
-            Console.WriteLine($"  Progress: {decision.ProgressSummary}");
-            Console.ResetColor();
+            Console.WriteLineColorful($"  Progress: {decision.ProgressSummary}", ConsoleColor.DarkGray);
         }
 
-        Console.ForegroundColor = ConsoleColor.DarkGray;
-        Console.WriteLine($"  Confidence: {decision.Confidence:F2} | Task: {decision.Task}");
-        Console.ResetColor();
+        Console.WriteLineColorful($"  Confidence: {decision.Confidence:F2} | Task: {decision.Task}", ConsoleColor.DarkGray);
         Console.WriteLine();
     }
 
@@ -298,20 +276,14 @@ internal static class MagenticWorkflow
             _ => (ConsoleColor.White, $"[{agentName.ToUpper()}]"),
         };
 
-        Console.ForegroundColor = color;
-        Console.Write($"{prefix} ");
-        Console.ResetColor();
+        Console.WriteColorful($"{prefix} ", color);
         Console.WriteLine(text);
         Console.WriteLine();
     }
 
     private static void PrintHeader(string step, string desc)
     {
-        Console.ForegroundColor = ConsoleColor.Magenta;
-        Console.WriteLine($"━━━ {step} ━━━");
-        Console.ResetColor();
-        Console.ForegroundColor = ConsoleColor.DarkGray;
-        Console.WriteLine($"  {desc}");
-        Console.ResetColor();
+        Console.WriteLineColorful($"━━━ {step} ━━━", ConsoleColor.Magenta);
+        Console.WriteLineColorful($"  {desc}", ConsoleColor.DarkGray);
     }
 }

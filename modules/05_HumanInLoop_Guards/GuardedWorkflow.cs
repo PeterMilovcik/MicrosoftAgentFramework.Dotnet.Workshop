@@ -2,6 +2,7 @@ using System.Text;
 using System.Text.Json;
 using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
+using Workshop.Common;
 
 namespace HumanInLoopGuards;
 
@@ -31,9 +32,7 @@ internal static class GuardedWorkflow
 
             // Human approval gate
             Console.WriteLine();
-            Console.ForegroundColor = ConsoleColor.Yellow;
-            Console.WriteLine("━━━ 🔐 Human Approval Gate ━━━");
-            Console.ResetColor();
+            Console.WriteLineColorful("━━━ 🔐 Human Approval Gate ━━━", ConsoleColor.Yellow);
             Console.WriteLine("Options: [approve] | [revise <feedback>] | [abort]");
             Console.Write("Your decision: ");
 
@@ -41,17 +40,13 @@ internal static class GuardedWorkflow
 
             if (decision.Equals("approve", StringComparison.OrdinalIgnoreCase))
             {
-                Console.ForegroundColor = ConsoleColor.Green;
-                Console.WriteLine("✅ Plan approved. Proceeding to evidence gathering.");
-                Console.ResetColor();
+                Console.WriteLineColorful("✅ Plan approved. Proceeding to evidence gathering.", ConsoleColor.Green);
                 break;
             }
 
             if (decision.Equals("abort", StringComparison.OrdinalIgnoreCase))
             {
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine("🛑 Workflow aborted by user.");
-                Console.ResetColor();
+                Console.WriteLineColorful("🛑 Workflow aborted by user.", ConsoleColor.Red);
                 return;
             }
 
@@ -64,15 +59,11 @@ internal static class GuardedWorkflow
                     feedback = Console.ReadLine()?.Trim() ?? "";
                 }
                 userQuery = $"{userQuery}\n\nUser feedback on plan: {feedback}";
-                Console.ForegroundColor = ConsoleColor.Yellow;
-                Console.WriteLine("🔄 Regenerating plan with your feedback...");
-                Console.ResetColor();
+                Console.WriteLineColorful("🔄 Regenerating plan with your feedback...", ConsoleColor.Yellow);
                 continue; // loop back to regenerate plan
             }
 
-            Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine("❌ Unknown option. Please type: approve | revise <feedback> | abort");
-            Console.ResetColor();
+            Console.WriteLineColorful("❌ Unknown option. Please type: approve | revise <feedback> | abort", ConsoleColor.Red);
         }
 
         // ---- Step 2: Gather Evidence (with ReadFile gating) ----
@@ -117,11 +108,9 @@ internal static class GuardedWorkflow
         var finalResult = await RunAndCollectAsync(agent, finalPrompt, finalSession, "FINAL", ct);
 
         // Print formatted JSON
-        Console.ForegroundColor = ConsoleColor.Green;
-        Console.WriteLine("══════════════════════════════════════════");
-        Console.WriteLine(" STRUCTURED OUTPUT");
-        Console.WriteLine("══════════════════════════════════════════");
-        Console.ResetColor();
+        Console.WriteLineColorful("══════════════════════════════════════════", ConsoleColor.Green);
+        Console.WriteLineColorful(" STRUCTURED OUTPUT", ConsoleColor.Green);
+        Console.WriteLineColorful("══════════════════════════════════════════", ConsoleColor.Green);
 
         var start = finalResult.IndexOf('{');
         var end = finalResult.LastIndexOf('}');
@@ -146,9 +135,7 @@ internal static class GuardedWorkflow
         AIAgent agent, string prompt, AgentSession session, string label, CancellationToken ct)
     {
         var sb = new StringBuilder();
-        Console.ForegroundColor = ConsoleColor.DarkGray;
-        Console.Write($"[{label}] ");
-        Console.ResetColor();
+        Console.WriteColorful($"[{label}] ", ConsoleColor.DarkGray);
 
         await foreach (var update in agent.RunStreamingAsync(prompt, session).WithCancellation(ct))
         {
@@ -162,11 +149,7 @@ internal static class GuardedWorkflow
 
     private static void PrintHeader(string step, string desc)
     {
-        Console.ForegroundColor = ConsoleColor.Magenta;
-        Console.WriteLine($"━━━ Step: {step} ━━━");
-        Console.ResetColor();
-        Console.ForegroundColor = ConsoleColor.DarkGray;
-        Console.WriteLine($"  {desc}");
-        Console.ResetColor();
+        Console.WriteLineColorful($"━━━ Step: {step} ━━━", ConsoleColor.Magenta);
+        Console.WriteLineColorful($"  {desc}", ConsoleColor.DarkGray);
     }
 }

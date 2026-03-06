@@ -1,6 +1,6 @@
-using HelloAgent;
 using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
+using Workshop.Common;
 
 Console.WriteLine("===========================================");
 Console.WriteLine(" Module 01 - Hello Agent (REPL Loop)");
@@ -37,9 +37,7 @@ var session = await agent.CreateSessionAsync();
 // REPL loop
 while (true)
 {
-    Console.ForegroundColor = ConsoleColor.Cyan;
-    Console.Write("You> ");
-    Console.ResetColor();
+    Console.WriteColorful("You> ", ConsoleColor.Cyan);
 
     var input = Console.ReadLine();
     if (input is null) break;
@@ -65,9 +63,7 @@ while (true)
     {
         // Create a fresh session to clear history
         session = await agent.CreateSessionAsync();
-        Console.ForegroundColor = ConsoleColor.Yellow;
-        Console.WriteLine("🔄 Conversation history cleared.");
-        Console.ResetColor();
+        Console.WriteLineColorful("🔄 Conversation history cleared.", ConsoleColor.Yellow);
         continue;
     }
 
@@ -84,9 +80,7 @@ while (true)
     // Send message to agent and print response
     try
     {
-        Console.ForegroundColor = ConsoleColor.DarkGray;
-        Console.Write("Agent> ");
-        Console.ResetColor();
+        Console.WriteColorful("Agent> ", ConsoleColor.DarkGray);
 
         // Stream the response for a better UX
         await foreach (var update in agent.RunStreamingAsync(input, session))
@@ -98,9 +92,7 @@ while (true)
     }
     catch (Exception ex)
     {
-        Console.ForegroundColor = ConsoleColor.Red;
-        Console.Error.WriteLine($"❌ Error: {ex.Message}");
-        Console.ResetColor();
+        Console.WriteLineError($"❌ Error: {ex.Message}");
     }
 }
 
@@ -119,9 +111,7 @@ static string LoadPromptFile(string path, string fallback)
 {
     if (!File.Exists(path))
     {
-        Console.ForegroundColor = ConsoleColor.Yellow;
-        Console.WriteLine($"⚠️  Prompt file not found: {path} - using default.");
-        Console.ResetColor();
+        Console.WriteLineColorful($"⚠️  Prompt file not found: {path} - using default.", ConsoleColor.Yellow);
         return fallback;
     }
     return File.ReadAllText(path);

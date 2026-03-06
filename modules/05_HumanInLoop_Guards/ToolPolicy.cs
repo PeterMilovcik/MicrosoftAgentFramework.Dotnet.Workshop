@@ -1,3 +1,5 @@
+using Workshop.Common;
+
 namespace HumanInLoopGuards;
 
 /// <summary>
@@ -41,16 +43,12 @@ internal static class ToolPolicy
     public static bool RequestApproval(string toolName, string args)
     {
         Console.WriteLine();
-        Console.ForegroundColor = ConsoleColor.Yellow;
-        Console.WriteLine($"⚠️  Tool Approval Required: {toolName}");
-        Console.WriteLine($"   Arguments: {args}");
-        Console.ResetColor();
+        Console.WriteLineColorful($"⚠️  Tool Approval Required: {toolName}", ConsoleColor.Yellow);
+        Console.WriteLineColorful($"   Arguments: {args}", ConsoleColor.Yellow);
         Console.Write("   Approve this tool call? [y/N]: ");
         var answer = Console.ReadLine()?.Trim().ToLowerInvariant();
         var approved = answer is "y" or "yes";
-        Console.ForegroundColor = approved ? ConsoleColor.Green : ConsoleColor.Red;
-        Console.WriteLine(approved ? "   ✅ Approved." : "   ❌ Denied.");
-        Console.ResetColor();
+        Console.WriteLineColorful(approved ? "   ✅ Approved." : "   ❌ Denied.", approved ? ConsoleColor.Green : ConsoleColor.Red);
         return approved;
     }
 }

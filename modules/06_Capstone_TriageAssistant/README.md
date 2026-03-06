@@ -154,14 +154,14 @@ was not reachable at 127.0.0.1:5432 during the test run.
 
 2. ✏️ **Custom failure report**: Write your own failure report (a fictional one) and run it through the triage. Evaluate the quality of the output. *(~5 min)*
 
-3. ✏️ **Refine the rubric**: Edit `assets/prompts/triage-rubric.md` to add a new field `severity` (critical/high/medium/low). Update `TriageCard.cs` to include it and verify the agent produces the new field. *(~10 min)*
+3. ✏️ **Refine the rubric**: Edit `assets/prompts/triage-rubric.md` to add a new field `severity` (critical/high/medium/low). Update `TriageCard.cs` in the `Common` project to include it and verify the agent produces the new field. *(~10 min)*
 
 4. ✏️ **Save triage results**: Add functionality to save each Triage Card as a JSON file in a `.triage/` directory, similar to the session store in Module 03. *(~10 min)*
 
 💡HINT: Prompt for GitHub Copilot:
 
 ```
-In #file:TriageCard.cs for module 06_Capstone_TriageAssistant, add a `severity` field (critical/high/medium/low). Also update #file:Program.cs to save each Triage Card to a `.triage/` directory as a JSON file with a timestamp-based filename.
+In #file:TriageCard.cs in the `Common` project, add a `severity` field (critical/high/medium/low). Also update #file:Program.cs to save each Triage Card to a `.triage/` directory as a JSON file with a timestamp-based filename.
 ```
 
 ---

@@ -2,13 +2,13 @@ using System.ComponentModel;
 using System.Text;
 using Microsoft.Extensions.AI;
 
-namespace ToolsFunctionCalling;
+namespace Workshop.Common;
 
 /// <summary>
 /// Read-only, sandbox-safe tools exposed to the agent via function calling.
 /// All file access is restricted to the assets/sample-data/ subtree.
 /// </summary>
-internal static class WorkshopTools
+public static class WorkshopTools
 {
     // Compute the allowed root directory at startup
     private static readonly string AllowedRoot =
@@ -54,7 +54,7 @@ internal static class WorkshopTools
         if (info.Length > MaxFileSizeBytes)
             return $"⚠️ File too large ({info.Length / 1024}KB). Maximum allowed size is {MaxFileSizeBytes / 1024}KB.";
 
-        return File.ReadAllText(fullPath);
+        return System.IO.File.ReadAllText(fullPath);
     }
 
     /// <summary>
@@ -79,7 +79,7 @@ internal static class WorkshopTools
         foreach (var file in Directory.GetFiles(kbDir, "*.md"))
         {
             var fileName = Path.GetFileName(file);
-            var lines = File.ReadAllLines(file);
+            var lines = System.IO.File.ReadAllLines(file);
             foreach (var line in lines)
             {
                 if (keywords.Any(kw => line.Contains(kw, StringComparison.OrdinalIgnoreCase)))

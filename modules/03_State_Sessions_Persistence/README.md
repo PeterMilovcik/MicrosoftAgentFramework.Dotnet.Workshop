@@ -35,9 +35,9 @@ Understand how to manage agent state beyond a single run:
 
 ## Concepts Covered
 
-- `WorkshopSession` model: `SessionId`, `Label`, `CreatedAt`, `Messages`
-- JSON serialization with `System.Text.Json`
-- In-memory history tracking and replay
+- `WorkshopSession` model: `SessionId`, `Label`, `CreatedAt`, `TurnCount`, `AgentSessionState`
+- Framework-native session serialization via `agent.SerializeSessionAsync()` / `agent.DeserializeSessionAsync()`
+- Letting `AgentSession` manage conversation history internally
 - Session commands: `/new`, `/list`, `/load`, `/delete`, `/status`
 - Auto-save after each conversation turn
 
@@ -45,32 +45,35 @@ Understand how to manage agent state beyond a single run:
 
 ## Key Code
 
-**Session model with serializable message history:**
+**Session model with framework-serialized state:**
 
 ```csharp
 internal class WorkshopSession
 {
-    public Guid SessionId { get; set; } = Guid.NewGuid();
-    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public Guid SessionId { get; init; } = Guid.NewGuid();
+    public DateTime CreatedAt { get; init; } = DateTime.UtcNow;
     public string Label { get; set; } = "";
-    public List<SessionMessage> Messages { get; set; } = [];
+    public int TurnCount { get; set; }
+    public JsonElement? AgentSessionState { get; set; }
 }
 ```
 
-**Saving after each turn:**
+**Saving after each turn using framework serialization:**
 
 ```csharp
-// After getting the agent's response, add to history and save
-workshopSession.Messages.Add(new("user", input));
-workshopSession.Messages.Add(new("assistant", responseText));
+// Serialize the AgentSession (includes full conversation history)
+var serializedState = await agent.SerializeSessionAsync(agentSession);
+workshopSession.AgentSessionState = serializedState;
+workshopSession.TurnCount = turnCount;
 SessionStore.Save(workshopSession);  // writes to .sessions/{id}.json
 ```
 
-**Loading a session by ID prefix:**
+**Loading a session — deserialize directly into a working AgentSession:**
 
 ```csharp
-var session = SessionStore.Load(sessionId);
-// Replay history into a fresh AgentSession to restore context
+var loaded = SessionStore.Load(sessionId);
+agentSession = await agent.DeserializeSessionAsync(loaded.AgentSessionState.Value);
+// AgentSession has full history restored — ready for follow-up conversation
 ```
 
 ---
@@ -85,12 +88,12 @@ Example session file:
   "SessionId": "3f8a1c2d-...",
   "CreatedAt": "2026-02-23T15:42:00Z",
   "Label": "testing-discussion",
-  "Messages": [
-    { "Role": "user", "Content": "What are the flaky test rules?" },
-    { "Role": "assistant", "Content": "According to our policy..." }
-  ]
+  "TurnCount": 1,
+  "AgentSessionState": { ... }
 }
 ```
+
+The `AgentSessionState` field contains the framework-serialized `AgentSession`, which includes the full conversation history and any internal state managed by the agent.
 
 ---
 
@@ -115,7 +118,7 @@ Agent> Flaky tests are tests that pass and fail intermittently without any chang
 
 [testing-discussion] You> /list
 Saved sessions (1):
-  ad5dcad1-2797-4570-959f-31fa92edb111 | 2026-02-24 07:50:50Z | "testing-discussion" | 2 messages ◄ active
+  ad5dcad1-2797-4570-959f-31fa92edb111 | 2026-02-24 07:50:50Z | "testing-discussion" | 1 turns ◄ active
 [testing-discussion] You> /exit
 Goodbye!
 
@@ -123,9 +126,9 @@ Goodbye!
 
 You> /list
 Saved sessions (1):
-  ad5dcad1-2797-4570-959f-31fa92edb111 | 2026-02-24 07:50:50Z | "testing-discussion" | 2 messages
+  ad5dcad1-2797-4570-959f-31fa92edb111 | 2026-02-24 07:50:50Z | "testing-discussion" | 1 turns
 You> /load ad5
-✅ Loaded session: ad5dcad1-2797-4570-959f-31fa92edb111 ("testing-discussion") - 2 messages in history
+✅ Loaded session: ad5dcad1-2797-4570-959f-31fa92edb111 ("testing-discussion") - 1 turns restored
 ```
 
 ---
@@ -156,7 +159,8 @@ Module `03_State_Sessions_Persistence`: #file:SessionStore.cs extend #sym:Worksh
 - **Sessions decouple state from the process** — restart the app without losing context
 - **Auto-save** after each turn keeps conversations durable without user action
 - **Session labels** make it easy to find and manage multiple conversations
-- **History replay** feeds past messages into a fresh `AgentSession` to restore context
+- **Framework-native serialization** (`SerializeSessionAsync` / `DeserializeSessionAsync`) lets you persist and restore full `AgentSession` state without manually tracking messages
+- Let the `AgentSession` manage conversation history — use `RunStreamingAsync(string, session)` instead of manually building message lists
 - This pattern is foundational for production agent applications (e.g., chat history databases)
 
 ---

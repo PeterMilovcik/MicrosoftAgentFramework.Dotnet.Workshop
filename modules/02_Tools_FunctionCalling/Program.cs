@@ -1,5 +1,5 @@
-using ToolsFunctionCalling;
 using Microsoft.Agents.AI;
+using Workshop.Common;
 
 Console.WriteLine("===========================================");
 Console.WriteLine(" Module 02 - Tools and Function Calling");
@@ -34,9 +34,7 @@ Console.WriteLine();
 
 while (true)
 {
-    Console.ForegroundColor = ConsoleColor.Cyan;
-    Console.Write("You> ");
-    Console.ResetColor();
+    Console.WriteColorful("You> ", ConsoleColor.Cyan);
 
     var input = Console.ReadLine();
     if (input is null) break;
@@ -55,17 +53,13 @@ while (true)
     if (input.Equals("/reset", StringComparison.OrdinalIgnoreCase))
     {
         session = await agent.CreateSessionAsync();
-        Console.ForegroundColor = ConsoleColor.Yellow;
-        Console.WriteLine("🔄 Conversation history cleared.");
-        Console.ResetColor();
+        Console.WriteLineColorful("🔄 Conversation history cleared.", ConsoleColor.Yellow);
         continue;
     }
 
     try
     {
-        Console.ForegroundColor = ConsoleColor.DarkGray;
-        Console.Write("Agent> ");
-        Console.ResetColor();
+        Console.WriteColorful("Agent> ", ConsoleColor.DarkGray);
 
         await foreach (var update in agent.RunStreamingAsync(input, session))
         {
@@ -76,9 +70,7 @@ while (true)
     }
     catch (Exception ex)
     {
-        Console.ForegroundColor = ConsoleColor.Red;
-        Console.Error.WriteLine($"❌ Error: {ex.Message}");
-        Console.ResetColor();
+        Console.WriteLineError($"❌ Error: {ex.Message}");
     }
 }
 
@@ -86,9 +78,7 @@ static string LoadPromptFile(string path)
 {
     if (!File.Exists(path))
     {
-        Console.ForegroundColor = ConsoleColor.Yellow;
-        Console.WriteLine($"⚠️  Prompt file not found: {path}");
-        Console.ResetColor();
+        Console.WriteLineColorful($"⚠️  Prompt file not found: {path}", ConsoleColor.Yellow);
         return "";
     }
     return File.ReadAllText(path);
