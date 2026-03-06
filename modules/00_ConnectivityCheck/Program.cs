@@ -68,4 +68,4 @@ if (response.Usage is { } usage)
 
 Console.WriteLine();
 Console.WriteLine("✅ Connectivity check PASSED. Azure OpenAI is reachable.");
-AgentConfig.PrintTokenSummary();
+TokenTracker.PrintSummary();

@@ -41,7 +41,7 @@ while (true)
     if (input.Equals("/exit", StringComparison.OrdinalIgnoreCase))
     {
         await SaveActiveSessionAsync();
-        AgentConfig.PrintTokenSummary();
+        TokenTracker.PrintSummary();
         Console.WriteLine("Goodbye!");
         break;
     }

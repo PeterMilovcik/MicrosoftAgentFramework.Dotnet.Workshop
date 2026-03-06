@@ -38,7 +38,12 @@ while (true)
     input = input.Trim();
     if (string.IsNullOrEmpty(input)) continue;
 
-    if (input.Equals("/exit", StringComparison.OrdinalIgnoreCase)) { AgentConfig.PrintTokenSummary(); Console.WriteLine("Goodbye!"); break; }
+    if (input.Equals("/exit", StringComparison.OrdinalIgnoreCase)) 
+    { 
+        TokenTracker.PrintSummary(); 
+        Console.WriteLine("Goodbye!"); 
+        break; 
+    }
 
     Console.WriteLine();
     Console.WriteLine("🚀 Starting workflow...");

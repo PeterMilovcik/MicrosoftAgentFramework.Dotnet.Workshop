@@ -139,5 +139,5 @@ while (true)
     Console.WriteLine();
 }
 
-AgentConfig.PrintTokenSummary();
+TokenTracker.PrintSummary();
 Console.WriteLine("Goodbye!");

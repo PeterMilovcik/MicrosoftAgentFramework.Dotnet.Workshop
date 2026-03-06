@@ -115,7 +115,7 @@ while (true)
     Console.WriteLine();
 }
 
-AgentConfig.PrintTokenSummary();
+TokenTracker.PrintSummary();
 Console.WriteLine("Goodbye!");
 
 static string LoadPromptFile(string path)
