@@ -28,8 +28,21 @@ internal sealed class ConsoleSpinner : IAsyncDisposable
 
     private ConsoleSpinner(string label)
     {
-        _label = label;
         _interactive = !Console.IsOutputRedirected;
+
+        // Truncate label so the full rendered line fits one console row:
+        //   "  ⠋ {label} (999.9s)"  →  prefix(4) + suffix(~10) + margin(1) = 15 chars overhead
+        if (_interactive)
+        {
+            var maxLabel = Math.Max(20, Console.BufferWidth - 15);
+            _label = label.Length > maxLabel
+                ? string.Concat(label.AsSpan(0, maxLabel - 3), "...")
+                : label;
+        }
+        else
+        {
+            _label = label;
+        }
 
         if (_interactive)
         {

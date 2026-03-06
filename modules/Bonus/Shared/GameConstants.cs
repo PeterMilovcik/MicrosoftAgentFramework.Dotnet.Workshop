@@ -82,7 +82,7 @@ internal static class GameConstants
     // ── Agent call resilience ──
 
     /// <summary>Maximum time (seconds) for a single LLM streaming call before cancelling.</summary>
-    public const int AgentCallTimeoutSeconds = 45;
+    public const int AgentCallTimeoutSeconds = 60;
 
     /// <summary>Maximum retry attempts after a timeout or transient error (total attempts = 1 + retries).</summary>
     public const int AgentMaxRetries = 2;
