@@ -135,8 +135,8 @@ var agentMap = new Dictionary<string, AIAgent>(StringComparer.OrdinalIgnoreCase)
 ## How to Run
 
 ```bash
-./scripts/run.sh 09
-# or
+./scripts/run.sh 09       # Linux/macOS
+./scripts/run.ps1 09      # Windows PowerShell
 dotnet run --project modules/09_Magentic_ManagerOrchestration
 ```
 

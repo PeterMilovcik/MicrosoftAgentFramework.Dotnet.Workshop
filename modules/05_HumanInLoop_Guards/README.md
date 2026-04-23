@@ -121,7 +121,8 @@ if (decision.StartsWith("revise", StringComparison.OrdinalIgnoreCase))
 ## How to Run
 
 ```bash
-./scripts/run.sh 05
+./scripts/run.sh 05       # Linux/macOS
+./scripts/run.ps1 05      # Windows PowerShell
 dotnet run --project modules/05_HumanInLoop_Guards
 ```
 

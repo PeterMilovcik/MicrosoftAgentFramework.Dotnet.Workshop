@@ -100,7 +100,8 @@ The `AgentSessionState` field contains the framework-serialized `AgentSession`, 
 ## How to Run
 
 ```bash
-./scripts/run.sh 03
+./scripts/run.sh 03       # Linux/macOS
+./scripts/run.ps1 03      # Windows PowerShell
 dotnet run --project modules/03_State_Sessions_Persistence
 ```
 

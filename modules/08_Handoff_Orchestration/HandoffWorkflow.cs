@@ -146,6 +146,24 @@ internal static class HandoffWorkflow
                     currentAgentText.Append(text);
                     break;
                 }
+                case ExecutorInvokedEvent invoked:
+                    Console.WriteLineColorful($"  [Event] Executor invoked: {invoked.ExecutorId}", ConsoleColor.DarkGray);
+                    break;
+                case ExecutorCompletedEvent completed:
+                    Console.WriteLineColorful($"  [Event] Executor completed: {completed.ExecutorId}", ConsoleColor.DarkGray);
+                    break;
+                case ExecutorFailedEvent failed:
+                    Console.WriteLineColorful($"  [Event] Executor FAILED: {failed.ExecutorId} — {failed}", ConsoleColor.Red);
+                    break;
+                case WorkflowErrorEvent workflowErr:
+                    Console.WriteLineColorful($"  [Event] Workflow ERROR: {workflowErr}", ConsoleColor.Red);
+                    break;
+                case WorkflowWarningEvent workflowWarn:
+                    Console.WriteLineColorful($"  [Event] Workflow WARNING: {workflowWarn}", ConsoleColor.DarkYellow);
+                    break;
+                default:
+                    Console.WriteLineColorful($"  [Event] {evt.GetType().Name}", ConsoleColor.DarkGray);
+                    break;
             }
         }
 
@@ -159,6 +177,11 @@ internal static class HandoffWorkflow
 
         Console.WriteLine();
         Console.WriteLine();
+
+        Console.WriteLineColorful($"  [Debug] Last executor: {lastExecutorId ?? "(none)"}, resolved role: {(lastExecutorId is not null ? ResolveAgentRole(lastExecutorId) : "N/A")}", ConsoleColor.DarkGray);
+        Console.WriteLineColorful($"  [Debug] Scribe text length: {lastScribeText.Length}", ConsoleColor.DarkGray);
+        if (lastScribeText.Length > 0)
+            Console.WriteLineColorful($"  [Debug] Scribe text preview: {lastScribeText[..Math.Min(200, lastScribeText.Length)]}", ConsoleColor.DarkGray);
 
         var card = ParseTriageCard(lastScribeText);
         return (lastScribeText, card);
@@ -184,16 +207,48 @@ internal static class HandoffWorkflow
 
     private static TriageCard? ParseTriageCard(string text)
     {
-        if (string.IsNullOrWhiteSpace(text)) return null;
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            Console.WriteLineColorful("  [ParseTriageCard] Scribe output is empty or whitespace.", ConsoleColor.DarkYellow);
+            return null;
+        }
+
         var start = text.IndexOf('{');
         var end = text.LastIndexOf('}');
-        if (start < 0 || end <= start) return null;
+
+        if (start < 0 || end <= start)
+        {
+            Console.WriteLineColorful($"  [ParseTriageCard] No JSON object found in scribe output (start={start}, end={end}). Text length={text.Length}.", ConsoleColor.DarkYellow);
+            return null;
+        }
+
+        var jsonFragment = text[start..(end + 1)];
         try
         {
-            return JsonSerializer.Deserialize<TriageCard>(text[start..(end + 1)],
+            var card = JsonSerializer.Deserialize<TriageCard>(jsonFragment,
                 new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+            if (card is null)
+            {
+                Console.WriteLineColorful("  [ParseTriageCard] Deserialization returned null.", ConsoleColor.DarkYellow);
+                return null;
+            }
+
+            // Warn if key fields are missing
+            if (string.IsNullOrWhiteSpace(card.Summary) && string.IsNullOrWhiteSpace(card.Category))
+            {
+                Console.WriteLineColorful("  [ParseTriageCard] Parsed card has empty summary and category — may be wrong JSON object.", ConsoleColor.DarkYellow);
+                Console.WriteLineColorful($"  [ParseTriageCard] JSON fragment: {jsonFragment[..Math.Min(200, jsonFragment.Length)]}...", ConsoleColor.DarkYellow);
+            }
+
+            return card;
         }
-        catch { return null; }
+        catch (JsonException ex)
+        {
+            Console.WriteLineColorful($"  [ParseTriageCard] JSON deserialization failed: {ex.Message}", ConsoleColor.DarkYellow);
+            Console.WriteLineColorful($"  [ParseTriageCard] JSON fragment ({jsonFragment.Length} chars): {jsonFragment[..Math.Min(300, jsonFragment.Length)]}...", ConsoleColor.DarkYellow);
+            return null;
+        }
     }
 
     private static void PrintHandoff(string from, string to)

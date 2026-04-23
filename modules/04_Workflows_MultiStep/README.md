@@ -94,7 +94,8 @@ private static async Task<string> RunAndCollectAsync(
 ## How to Run
 
 ```bash
-./scripts/run.sh 04
+./scripts/run.sh 04       # Linux/macOS
+./scripts/run.ps1 04      # Windows PowerShell
 dotnet run --project modules/04_Workflows_MultiStep
 ```
 

@@ -91,7 +91,8 @@ var agent = config.CreateAgent(instructions, tools);
 ## How to Run
 
 ```bash
-./scripts/run.sh 02
+./scripts/run.sh 02       # Linux/macOS
+./scripts/run.ps1 02      # Windows PowerShell
 dotnet run --project modules/02_Tools_FunctionCalling
 ```
 

@@ -97,7 +97,8 @@ internal sealed class TriageCard
 ## How to Run
 
 ```bash
-./scripts/run.sh 06
+./scripts/run.sh 06       # Linux/macOS
+./scripts/run.ps1 06      # Windows PowerShell
 dotnet run --project modules/06_Capstone_TriageAssistant
 ```
 

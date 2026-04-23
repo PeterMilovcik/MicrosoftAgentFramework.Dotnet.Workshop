@@ -98,8 +98,8 @@ await foreach (var evt in streamingRun.WatchStreamAsync())
 ## How to Run
 
 ```bash
-./scripts/run.sh 07
-# or
+./scripts/run.sh 07       # Linux/macOS
+./scripts/run.ps1 07      # Windows PowerShell
 dotnet run --project modules/07_GroupChat_Orchestration
 ```
 

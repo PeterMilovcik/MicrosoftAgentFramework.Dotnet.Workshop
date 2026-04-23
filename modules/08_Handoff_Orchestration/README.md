@@ -98,8 +98,8 @@ var frontdesk = config.CreateNamedAgent(LoadPrompt("frontdesk"),
 ## How to Run
 
 ```bash
-./scripts/run.sh 08
-# or
+./scripts/run.sh 08       # Linux/macOS
+./scripts/run.ps1 08      # Windows PowerShell
 dotnet run --project modules/08_Handoff_Orchestration
 ```
 
