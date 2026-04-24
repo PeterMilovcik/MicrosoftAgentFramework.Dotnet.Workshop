@@ -421,6 +421,6 @@ This work is licensed under [CC BY-NC-ND 4.0](https://creativecommons.org/licens
 
 ## ☕ Support
 
-If you appreciate the content and find it useful, consider supporting me by "buying me a coffee".
+If you appreciate the content and find it useful, consider supporting me by using "Reward & Recognition" or "buying me a coffee".
 
 [![ko-fi|400](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/H2H2X917V)
