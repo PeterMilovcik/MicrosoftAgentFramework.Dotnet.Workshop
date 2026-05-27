@@ -130,12 +130,12 @@ Goodbye!
 
 4. ✏️ **Explore `/sys`**: Use the `/sys` command to see the active system prompt. Observe how both `system-base.md` and `system-safety.md` are combined. *(~2 min)*
 
-5. ✏️ **Add a `/tokens` command** that displays the current token usage summary using `AgentConfig.PrintTokenSummary()`. *(~5 min)*
+5. ✏️ **Add a `/tokens` command** that displays the current token usage summary using `TokenTracker.PrintSummary()`. *(~5 min)*
 
 💡HINT: Prompt for GitHub Copilot:
 
 ```
-In #file:Program.cs for module 01_HelloAgent, add a `/tokens` command to the REPL that calls AgentConfig.PrintTokenSummary() to display current token usage.
+In #file:Program.cs for module 01_HelloAgent, add a `/tokens` command to the REPL that calls TokenTracker.PrintSummary() to display current token usage.
 ```
 
 ---

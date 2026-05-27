@@ -100,6 +100,8 @@ dotnet run --project modules/02_Tools_FunctionCalling
 
 ## Expected Interaction
 
+> **Note:** Smaller models (e.g., `gpt-4o-mini`) may not always call tools automatically. If the agent answers from its training data instead of calling `SearchKb` or `ReadFile`, try being more explicit: _"Search the knowledge base for flaky test guidelines"_ or _"Read file build-log-01.txt"_.
+
 ```
 You> What time is it?
 Agent> The current time is 2026-02-23T15:42:31.0000000Z.

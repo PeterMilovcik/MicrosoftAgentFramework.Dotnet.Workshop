@@ -15,8 +15,8 @@ Analyze the failure report and decide which specialist should handle it next. Th
 
 ## What To Do
 
-1. Write a 2-3 sentence summary of your routing decision and why.
-2. Then use the available transfer function to hand off to the chosen specialist. You MUST call the transfer function — do NOT write it as text.
+1. Immediately call the transfer function to hand off to the chosen specialist. Do NOT write any text before calling the function.
+2. Include your routing reasoning as part of the function call context.
 
 ## Constraints
 
