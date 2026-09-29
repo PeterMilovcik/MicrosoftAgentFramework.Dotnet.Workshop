@@ -11,10 +11,6 @@ $requiredVars = @(
     "AZURE_OPENAI_DEPLOYMENT"
 )
 
-$optionalVars = @(
-    "AZURE_OPENAI_API_VERSION"
-)
-
 $missing = @()
 
 foreach ($var in $requiredVars) {
@@ -30,9 +26,6 @@ if ($missing.Count -eq 0) {
     Write-Host "  AZURE_OPENAI_ENDPOINT    = $env:AZURE_OPENAI_ENDPOINT"
     Write-Host '  AZURE_OPENAI_API_KEY     = (set, hidden)'
     Write-Host "  AZURE_OPENAI_DEPLOYMENT  = $env:AZURE_OPENAI_DEPLOYMENT"
-    if ($env:AZURE_OPENAI_API_VERSION) {
-        Write-Host "  AZURE_OPENAI_API_VERSION = $env:AZURE_OPENAI_API_VERSION"
-    }
     exit 0
 }
 
@@ -46,7 +39,6 @@ Write-Host ""
 Write-Host "  `$env:AZURE_OPENAI_ENDPOINT   = 'https://<your-resource>.openai.azure.com/'"
 Write-Host "  `$env:AZURE_OPENAI_API_KEY    = '<your-api-key>'"
 Write-Host "  `$env:AZURE_OPENAI_DEPLOYMENT = '<your-deployment-name>'"
-Write-Host "  `$env:AZURE_OPENAI_API_VERSION = '2025-01-01-preview'  # optional"
 Write-Host ""
 Write-Host "Tip: Add these to your PowerShell profile (`$PROFILE) for persistence." -ForegroundColor Cyan
 exit 1

@@ -123,29 +123,27 @@ In the **handoff** pattern, an agent explicitly transfers control to another age
 
 #### Magentic-One (Manager-Driven Orchestration)
 
-The **Magentic-One** pattern, inspired by [Microsoft Research](https://www.microsoft.com/en-us/research/articles/magentic-one-a-generalist-multi-agent-system-for-solving-complex-tasks/), places an LLM-powered **manager** in charge of dynamically choosing which agent speaks next. At each iteration, the manager reviews a rolling progress summary, decides which specialist to activate, assigns a specific task, and estimates a confidence score. When confidence crosses a threshold (e.g., 0.75) or the maximum iteration count is reached, the workflow terminates. This is the most adaptive pattern — the manager can skip agents, revisit earlier specialists, or call the same agent twice — but it is also the most expensive (every iteration costs an extra LLM call for the manager) and the hardest to predict. Module 09 implements this manually using the `AIAgent` API, since the framework does not yet include a built-in Magentic manager. Best for open-ended, complex tasks where the optimal agent sequence is not known in advance.
+The **Magentic-One** pattern, inspired by [Microsoft Research](https://www.microsoft.com/en-us/research/articles/magentic-one-a-generalist-multi-agent-system-for-solving-complex-tasks/), places an LLM-powered **manager** in charge of planning work and dynamically choosing which specialist acts next. The manager maintains task and progress ledgers, detects stalls, replans when necessary, and decides when the request is satisfied. This is the most adaptive pattern: the manager can skip specialists, revisit earlier work, or change direction as new evidence appears. It is also less predictable and can require more model calls than fixed orchestration. Module 09 uses the built-in [`MagenticWorkflowBuilder`](https://learn.microsoft.com/dotnet/api/microsoft.agents.ai.workflows.magenticworkflowbuilder), bounded rounds, stall/reset limits, observable workflow events, and checkpoint-backed review of generated plans. Best for open-ended, complex tasks where the optimal agent sequence is not known in advance.
 
 ### The .NET Package Stack
 
 The workshop builds on a layered stack of NuGet packages. Each layer adds a higher-level abstraction:
 
 ```
-Azure.AI.OpenAI          → raw Azure OpenAI SDK (HTTP client, auth)
+OpenAI                   → OpenAI SDK configured for Azure OpenAI v1
   └─ Microsoft.Extensions.AI       → IChatClient, AITool, DelegatingChatClient
        └─ Microsoft.Agents.AI           → AIAgent, AgentSession, AgentResponse
-            └─ Microsoft.Agents.AI.Workflows  → AgentWorkflowBuilder, GroupChat, Handoff
+            └─ Microsoft.Agents.AI.Workflows  → AgentWorkflowBuilder, GroupChat, Handoff, Magentic
 ```
 
 | Package | Abstraction | Used in |
 |---------|-------------|---------|
-| `Azure.AI.OpenAI` | `AzureOpenAIClient`, `ApiKeyCredential` — HTTP-level access to the model | All modules |
+| `OpenAI` | `ChatClient`, `ApiKeyCredential`: HTTP-level access through the Azure OpenAI v1 endpoint | All modules |
 | `Microsoft.Extensions.AI` | `IChatClient` — vendor-neutral chat interface; `AIFunctionFactory` for tools | All modules |
 | `Microsoft.Extensions.AI.OpenAI` | `AsIChatClient()` — wraps the Azure SDK as `IChatClient` | All modules |
 | `Microsoft.Agents.AI` | `AIAgent`, `AgentSession` — agent lifecycle, instructions, streaming | All modules |
 | `Microsoft.Agents.AI.OpenAI` | OpenAI-specific agent provider registration | All modules |
-| `Microsoft.Agents.AI.Workflows` | `AgentWorkflowBuilder`, `RoundRobinGroupChatManager`, `WithHandoff` | Modules 07–08 |
-
-> Module 09 does **not** use the Workflows package — it implements the Magentic-One pattern manually to show how orchestration works under the hood.
+| `Microsoft.Agents.AI.Workflows` | `AgentWorkflowBuilder`, `RoundRobinGroupChatManager`, `WithHandoff`, `MagenticWorkflowBuilder` | Modules 07-09 |
 
 ### Quick-Reference Glossary
 
@@ -178,14 +176,13 @@ Azure.AI.OpenAI          → raw Azure OpenAI SDK (HTTP client, auth)
 
 Your workshop facilitator will provide the values below. If you already have your own Azure OpenAI resource, you can use that instead. (Setting up Azure OpenAI / Azure AI Foundry resources is outside the scope of this workshop.)
 
-All modules use the same four environment variables:
+All modules use the same three environment variables:
 
 | Variable | Required | Example |
 |----------|----------|---------|
 | `AZURE_OPENAI_ENDPOINT` | ✅ Yes | `https://myresource.openai.azure.com/` |
 | `AZURE_OPENAI_API_KEY` | ✅ Yes | `sk-...` |
 | `AZURE_OPENAI_DEPLOYMENT` | ✅ Yes | `gpt-4o` |
-| `AZURE_OPENAI_API_VERSION` | ⬜ Optional | `2025-01-01-preview` (default if unset) |
 
 ### Setting environment variables
 
@@ -286,12 +283,12 @@ agent-framework-dotnet-workshop/
 
 | Package | Version | Purpose |
 |---------|---------|---------|
-| `Microsoft.Agents.AI` | 1.0.0-rc1 | Core Agent Framework |
-| `Microsoft.Agents.AI.OpenAI` | 1.0.0-rc1 | OpenAI/Azure OpenAI provider |
-| `Microsoft.Agents.AI.Workflows` | 1.0.0-rc1 | Multi-agent orchestration (Group Chat, Handoff) |
-| `Microsoft.Extensions.AI` | 10.3.0 | Unified AI abstractions (`IChatClient`) |
-| `Microsoft.Extensions.AI.OpenAI` | 10.3.0 | `AsIChatClient()` extension |
-| `Azure.AI.OpenAI` | 2.1.0 | Azure OpenAI SDK |
+| `Microsoft.Agents.AI` | 1.22.0 | Core Agent Framework |
+| `Microsoft.Agents.AI.OpenAI` | 1.22.0 | OpenAI/Azure OpenAI provider |
+| `Microsoft.Agents.AI.Workflows` | 1.22.0 | Multi-agent orchestration (Group Chat, Handoff, Magentic) |
+| `Microsoft.Extensions.AI` | 10.10.0 | Unified AI abstractions (`IChatClient`) |
+| `Microsoft.Extensions.AI.OpenAI` | 10.10.1 | `AsIChatClient()` extension |
+| `OpenAI` | 2.14.0 | OpenAI SDK configured for Azure OpenAI v1 |
 
 ---
 

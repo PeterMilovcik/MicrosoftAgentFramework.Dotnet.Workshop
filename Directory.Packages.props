@@ -5,19 +5,15 @@
 
   <ItemGroup>
     <!-- Microsoft Agent Framework -->
-    <PackageVersion Include="Microsoft.Agents.AI" Version="1.0.0-rc1" />
-    <PackageVersion Include="Microsoft.Agents.AI.OpenAI" Version="1.0.0-rc1" />
-    <PackageVersion Include="Microsoft.Agents.AI.Workflows" Version="1.0.0-rc1" />
+    <PackageVersion Include="Microsoft.Agents.AI" Version="1.22.0" />
+    <PackageVersion Include="Microsoft.Agents.AI.OpenAI" Version="1.22.0" />
+    <PackageVersion Include="Microsoft.Agents.AI.Workflows" Version="1.22.0" />
 
     <!-- Microsoft Extensions AI -->
-    <PackageVersion Include="Microsoft.Extensions.AI" Version="10.3.0" />
-    <PackageVersion Include="Microsoft.Extensions.AI.OpenAI" Version="10.3.0" />
+    <PackageVersion Include="Microsoft.Extensions.AI" Version="10.10.0" />
+    <PackageVersion Include="Microsoft.Extensions.AI.OpenAI" Version="10.10.1" />
 
-    <!-- Azure OpenAI -->
-    <PackageVersion Include="Azure.AI.OpenAI" Version="2.1.0" />
-    <PackageVersion Include="Azure.Identity" Version="1.17.1" />
-
-    <!-- System utilities -->
-    <PackageVersion Include="System.Text.Json" Version="9.0.2" />
+    <!-- OpenAI SDK (configured for Azure OpenAI v1 endpoints) -->
+    <PackageVersion Include="OpenAI" Version="2.14.0" />
   </ItemGroup>
 </Project>

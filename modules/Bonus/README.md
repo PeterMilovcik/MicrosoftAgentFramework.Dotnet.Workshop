@@ -629,7 +629,7 @@ dotnet run --project modules/Bonus
 | `Microsoft.Agents.AI.OpenAI` | Azure OpenAI provider registration |
 | `Microsoft.Extensions.AI` | `IChatClient`, `AIFunctionFactory`, `AITool` |
 | `Microsoft.Extensions.AI.OpenAI` | `AsIChatClient()` extension |
-| `Azure.AI.OpenAI` | Azure OpenAI SDK — HTTP client, authentication |
+| `OpenAI` | OpenAI SDK configured for Azure OpenAI v1 |
 
 > This module intentionally does **not** use `Microsoft.Agents.AI.Workflows`. Like Module 09, it implements orchestration manually to demonstrate how the pattern works under the hood.
 

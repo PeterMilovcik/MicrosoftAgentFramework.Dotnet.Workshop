@@ -19,7 +19,6 @@ if (config is null)
 Console.WriteLine($"✅ Configuration loaded.");
 Console.WriteLine($"   Endpoint:   {config.Endpoint}");
 Console.WriteLine($"   Deployment: {config.Deployment}");
-Console.WriteLine($"   API Version:{config.ApiVersion}");
 Console.WriteLine();
 
 // Generate a correlation id for tracing this run

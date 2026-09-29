@@ -1,7 +1,8 @@
 using System.ClientModel;
-using Azure.AI.OpenAI;
 using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
+using OpenAI;
+using OpenAI.Chat;
 
 namespace Workshop.Common;
 
@@ -13,16 +14,14 @@ public sealed class AgentConfig
 {
     public string Endpoint { get; }
     public string Deployment { get; }
-    public string ApiVersion { get; }
 
     private readonly string _apiKey;
 
-    private AgentConfig(string endpoint, string apiKey, string deployment, string apiVersion)
+    private AgentConfig(string endpoint, string apiKey, string deployment)
     {
         Endpoint = endpoint;
         _apiKey = apiKey;
         Deployment = deployment;
-        ApiVersion = apiVersion;
     }
 
     /// <summary>
@@ -34,8 +33,6 @@ public sealed class AgentConfig
         var endpoint = Environment.GetEnvironmentVariable("AZURE_OPENAI_ENDPOINT");
         var apiKey = Environment.GetEnvironmentVariable("AZURE_OPENAI_API_KEY");
         var deployment = Environment.GetEnvironmentVariable("AZURE_OPENAI_DEPLOYMENT");
-        var apiVersion = Environment.GetEnvironmentVariable("AZURE_OPENAI_API_VERSION")
-                         ?? "2025-01-01-preview";
 
         var missing = new List<string>();
         if (string.IsNullOrWhiteSpace(endpoint)) missing.Add("AZURE_OPENAI_ENDPOINT");
@@ -49,7 +46,7 @@ public sealed class AgentConfig
             return null;
         }
 
-        return new AgentConfig(endpoint!, apiKey!, deployment!, apiVersion);
+        return new AgentConfig(endpoint!, apiKey!, deployment!);
     }
 
     /// <summary>
@@ -57,11 +54,25 @@ public sealed class AgentConfig
     /// </summary>
     private IChatClient CreateChatClient()
     {
-        var azureClient = new AzureOpenAIClient(
-            new Uri(Endpoint),
-            new ApiKeyCredential(_apiKey));
+        var options = new OpenAIClientOptions
+        {
+            Endpoint = CreateV1Endpoint(Endpoint),
+            Transport = AzureOpenAIStreamingCompatibility.Transport,
+        };
+        var chatClient = new ChatClient(Deployment, new ApiKeyCredential(_apiKey), options);
 
-        return TokenTracker.Wrap(azureClient.GetChatClient(Deployment).AsIChatClient());
+        return TokenTracker.Wrap(chatClient.AsIChatClient());
+    }
+
+    private static Uri CreateV1Endpoint(string endpoint)
+    {
+        var normalized = endpoint.TrimEnd('/');
+        if (!normalized.EndsWith("/openai/v1", StringComparison.OrdinalIgnoreCase))
+        {
+            normalized += "/openai/v1";
+        }
+
+        return new Uri(normalized + "/");
     }
 
     /// <summary>

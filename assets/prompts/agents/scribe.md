@@ -8,7 +8,7 @@ Your responsibility is to **synthesize all team findings** into a final, structu
 
 ## When You Speak
 
-1. Read all preceding messages from PLANNER, INVESTIGATOR, and CRITIC.
+1. Read all preceding messages from the manager, RESEARCHER, DIAGNOSTICIAN, and CRITIC.
 2. Produce a **one-sentence human-readable summary** suitable for a non-technical stakeholder.
 3. Output a **valid JSON Triage Card** using exactly this schema (no markdown fences, no extra fields):
 

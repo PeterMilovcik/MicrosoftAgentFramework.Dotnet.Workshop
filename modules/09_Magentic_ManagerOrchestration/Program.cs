@@ -11,9 +11,10 @@ var config = AgentConfig.Load();
 if (config is null) { Environment.Exit(1); return; }
 
 Console.WriteLine("Welcome to the Magentic Triage!");
-Console.WriteLine("A manager LLM dynamically selects which agent acts next at each step.");
+Console.WriteLine("The built-in Magentic workflow plans, delegates, tracks progress, and replans as needed.");
 Console.WriteLine("Team: researcher (tools), diagnostician, critic, scribe");
-Console.WriteLine($"Limits: max 8 iterations, max 5 tool calls, stops at confidence >= 0.75");
+Console.WriteLine("Limits: max 8 rounds, 3 stalls before replanning, max 2 resets");
+Console.WriteLine("Plan signoff: enabled (approve, revise, or abort the generated plan)");
 Console.WriteLine();
 
 while (true)
@@ -86,44 +87,29 @@ while (true)
             continue;
     }
 
-    // Human-in-the-loop plan approval
-    Console.WriteLine();
-    Console.WriteLineColorful("━━━ 🔐 Human-in-the-Loop Checkpoint ━━━", ConsoleColor.Yellow);
-    Console.WriteLine("The manager will run autonomously within the configured limits.");
-    Console.WriteLine("Options: [approve] to start | [abort] to cancel");
-    Console.Write("Decision: ");
-
-    var decision = Console.ReadLine()?.Trim() ?? "";
-    if (decision.Equals("abort", StringComparison.OrdinalIgnoreCase))
-    {
-        Console.WriteLineColorful("🛑 Triage aborted.", ConsoleColor.Red);
-        Console.WriteLine();
-        Console.Write("Run another triage? [y/N]: ");
-        var again2 = Console.ReadLine()?.Trim().ToLowerInvariant();
-        if (again2 is not "y" and not "yes") break;
-        Console.WriteLine();
-        continue;
-    }
-
-    Console.WriteLineColorful("✅ Starting Magentic triage...", ConsoleColor.Green);
+    Console.WriteLineColorful("✅ Generating the Magentic plan...", ConsoleColor.Green);
     Console.WriteLine();
 
     try
     {
-        var (finalText, card) = await MagenticWorkflow.RunAsync(config, failureReport, logFileName, kbQuery);
+        var result = await MagenticWorkflow.RunAsync(config, failureReport, logFileName, kbQuery);
 
         Console.WriteLine();
-        if (card is null)
+        if (result.WasAborted)
+        {
+            Console.WriteLineColorful("🛑 Triage aborted during plan review.", ConsoleColor.Red);
+        }
+        else if (result.Card is null)
         {
             Console.WriteLineColorful("⚠️  Could not parse structured Triage Card. Raw scribe output:", ConsoleColor.Yellow);
-            Console.WriteLineColorful(finalText, ConsoleColor.Yellow);
+            Console.WriteLineColorful(result.FinalText, ConsoleColor.Yellow);
         }
         else
         {
             Console.WriteLineColorful("══════════════════════════════════════════", ConsoleColor.Green);
             Console.WriteLineColorful(" TRIAGE CARD (JSON)", ConsoleColor.Green);
             Console.WriteLineColorful("══════════════════════════════════════════", ConsoleColor.Green);
-            var json = JsonSerializer.Serialize(card, new JsonSerializerOptions { WriteIndented = true });
+            var json = JsonSerializer.Serialize(result.Card, new JsonSerializerOptions { WriteIndented = true });
             Console.WriteLine(json);
         }
     }
