@@ -84,7 +84,7 @@ var agent = config.CreateAgent(instructions, tools);
 |------|-------------|--------------|
 | `GetTime()` | Returns current UTC time | None |
 | `ReadFile(path)` | Reads a file | `.txt`/`.md` only, within `assets/sample-data/`, max 100 KB |
-| `SearchKb(query)` | Keyword search across `kb/*.md` | Top 5 results |
+| `SearchKb(query)` | Ranked section search across `kb/*.md` | Top 3 relevant Markdown sections |
 
 ---
 

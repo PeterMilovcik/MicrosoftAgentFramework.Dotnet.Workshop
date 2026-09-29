@@ -1,5 +1,4 @@
 using System.ComponentModel;
-using System.Text;
 using Microsoft.Extensions.AI;
 
 namespace HumanInLoopGuards;
@@ -60,36 +59,14 @@ internal static class WorkshopTools
         return File.ReadAllText(fullPath);
     }
 
-    [Description("Searches kb/*.md files for matching keywords. Returns up to 5 snippets.")]
+    [Description("Searches kb/*.md files for relevant Markdown sections. Returns up to 3 ranked sections.")]
     public static string SearchKb(
         [Description("Keywords to search for.")] string query)
     {
         var denied = EnforcePolicy("SearchKb", query);
         if (denied is not null) return denied;
 
-        if (string.IsNullOrWhiteSpace(query)) return "⚠️ Query must not be empty.";
-        var kbDir = Path.Combine(AllowedRoot, "kb");
-        if (!Directory.Exists(kbDir)) return "⚠️ KB directory not found.";
-        var keywords = query.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        var results = new List<string>();
-        foreach (var file in Directory.GetFiles(kbDir, "*.md"))
-        {
-            var fileName = Path.GetFileName(file);
-            foreach (var line in File.ReadAllLines(file))
-            {
-                if (keywords.Any(kw => line.Contains(kw, StringComparison.OrdinalIgnoreCase)))
-                {
-                    results.Add($"[{fileName}] {line.Trim()}");
-                    if (results.Count >= 5) break;
-                }
-            }
-            if (results.Count >= 5) break;
-        }
-        if (results.Count == 0) return $"No results for: {query}";
-        var sb = new StringBuilder();
-        sb.AppendLine($"Found {results.Count} result(s) for '{query}':");
-        foreach (var r in results) sb.AppendLine($"  • {r}");
-        return sb.ToString();
+        return global::Workshop.Common.WorkshopTools.SearchKb(query);
     }
 
     public static IList<AITool> GetTools()

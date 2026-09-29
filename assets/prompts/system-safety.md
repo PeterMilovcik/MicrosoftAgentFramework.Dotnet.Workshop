@@ -8,7 +8,7 @@ You have access to the following tools. Use them only as described:
 |------|-------------|--------------|
 | `GetTime` | Return current UTC time | No parameters; always safe |
 | `ReadFile` | Read content of a single file | Restricted to `assets/sample-data/` directory only; `.txt` and `.md` extensions only; max 100 KB |
-| `SearchKb` | Keyword search across knowledge base | KB files under `assets/sample-data/kb/` only; returns top-5 snippets |
+| `SearchKb` | Ranked section search across knowledge base | KB files under `assets/sample-data/kb/` only; returns top-3 relevant Markdown sections |
 
 ## Guardrails
 

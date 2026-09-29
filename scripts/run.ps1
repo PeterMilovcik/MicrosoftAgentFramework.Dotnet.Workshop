@@ -53,6 +53,9 @@ Write-Host "-------------------------------------------"
 Push-Location $RepoRoot
 try {
     dotnet run --project $CsProjPath @ExtraArgs
+    $ExitCode = $LASTEXITCODE
 } finally {
     Pop-Location
 }
+
+exit $ExitCode

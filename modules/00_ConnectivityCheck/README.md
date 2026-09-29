@@ -100,7 +100,6 @@ dotnet run --project modules/00_ConnectivityCheck
 ✅ Configuration loaded.
    Endpoint:   https://myresource.openai.azure.com/
    Deployment: gpt-4o
-   API Version:2025-01-01-preview
 
 🔗 Correlation ID: 7a693c41-b5ce-4abd-9b93-8970d653d992
 

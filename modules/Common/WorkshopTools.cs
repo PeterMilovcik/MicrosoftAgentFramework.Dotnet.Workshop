@@ -15,7 +15,16 @@ public static class WorkshopTools
         Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "assets", "sample-data"));
 
     private const long MaxFileSizeBytes = 100 * 1024; // 100 KB
+    private const int MaxSearchResults = 3;
+    private const int MaxSectionCharacters = 4_000;
     private static readonly string[] AllowedExtensions = [".txt", ".md"];
+    private static readonly HashSet<string> SearchStopWords = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "a", "all", "an", "and", "are", "as", "at", "be", "by", "for", "from",
+        "how", "i", "in", "is", "it", "knowledge", "me", "of", "on", "or", "our",
+        "please", "search", "show", "that", "the", "this", "to", "use", "what",
+        "when", "where", "which", "who", "with", "would", "you", "your",
+    };
 
     /// <summary>Returns the current UTC time as an ISO-8601 string.</summary>
     [Description("Returns the current UTC date and time in ISO-8601 format.")]
@@ -58,11 +67,11 @@ public static class WorkshopTools
     }
 
     /// <summary>
-    /// Performs a naive keyword search across all knowledge-base Markdown files.
-    /// Returns up to 5 matching line snippets with file names.
+    /// Searches and ranks top-level sections across all knowledge-base Markdown files.
+    /// Returns up to 3 relevant sections with file names and headings.
     /// </summary>
-    [Description("Searches the knowledge base (kb/*.md files) for lines matching the query keywords. " +
-                 "Returns file name and matching line snippets (up to 5 results).")]
+    [Description("Searches the knowledge base (kb/*.md files) for relevant Markdown sections. " +
+                 "Returns up to 3 ranked sections with file names, headings, and supporting content.")]
     public static string SearchKb(
         [Description("Keywords to search for in the knowledge base files.")] string query)
     {
@@ -73,33 +82,152 @@ public static class WorkshopTools
         if (!Directory.Exists(kbDir))
             return "⚠️ Knowledge base directory not found.";
 
-        var keywords = query.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        var results = new List<string>();
+        var queryTerms = Tokenize(query);
+        queryTerms.ExceptWith(SearchStopWords);
+        if (queryTerms.Count == 0)
+            return $"No searchable terms found for: {query}";
 
-        foreach (var file in Directory.GetFiles(kbDir, "*.md"))
-        {
-            var fileName = Path.GetFileName(file);
-            var lines = System.IO.File.ReadAllLines(file);
-            foreach (var line in lines)
+        var results = Directory.GetFiles(kbDir, "*.md")
+            .OrderBy(file => file, StringComparer.OrdinalIgnoreCase)
+            .SelectMany(ReadMarkdownSections)
+            .Select(section => new
             {
-                if (keywords.Any(kw => line.Contains(kw, StringComparison.OrdinalIgnoreCase)))
-                {
-                    results.Add($"[{fileName}] {line.Trim()}");
-                    if (results.Count >= 5) break;
-                }
-            }
-            if (results.Count >= 5) break;
-        }
+                Section = section,
+                Score = ScoreSection(section, queryTerms),
+            })
+            .Where(result => result.Score > 0)
+            .OrderByDescending(result => result.Score)
+            .ThenBy(result => result.Section.FileName, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(result => result.Section.Order)
+            .Take(MaxSearchResults)
+            .ToList();
 
         if (results.Count == 0)
             return $"No results found for: {query}";
 
         var sb = new StringBuilder();
-        sb.AppendLine($"Found {results.Count} result(s) for '{query}':");
-        foreach (var r in results)
-            sb.AppendLine($"  • {r}");
+        sb.AppendLine($"Found {results.Count} relevant section(s) for '{query}':");
+        foreach (var result in results)
+        {
+            sb.AppendLine();
+            sb.AppendLine($"[{result.Section.FileName} > {result.Section.Heading}]");
+            sb.AppendLine(TruncateSection(result.Section.Content));
+        }
+
         return sb.ToString();
     }
+
+    private static IEnumerable<MarkdownSection> ReadMarkdownSections(string file)
+    {
+        var fileName = Path.GetFileName(file);
+        var heading = Path.GetFileNameWithoutExtension(file);
+        var content = new List<string>();
+        var order = 0;
+
+        foreach (var line in File.ReadLines(file))
+        {
+            if (TryGetSectionHeading(line, out var nextHeading))
+            {
+                if (content.Any(line => !string.IsNullOrWhiteSpace(line)))
+                {
+                    yield return new MarkdownSection(fileName, heading, string.Join(Environment.NewLine, content).Trim(), order++);
+                }
+
+                heading = nextHeading;
+                content.Clear();
+                continue;
+            }
+
+            content.Add(line);
+        }
+
+        if (content.Any(line => !string.IsNullOrWhiteSpace(line)))
+        {
+            yield return new MarkdownSection(fileName, heading, string.Join(Environment.NewLine, content).Trim(), order);
+        }
+    }
+
+    private static bool TryGetSectionHeading(string line, out string heading)
+    {
+        var trimmed = line.TrimStart();
+        var markerLength = 0;
+        while (markerLength < trimmed.Length && trimmed[markerLength] == '#')
+        {
+            markerLength++;
+        }
+
+        if (markerLength is < 1 or > 2 ||
+            markerLength >= trimmed.Length ||
+            trimmed[markerLength] != ' ')
+        {
+            heading = "";
+            return false;
+        }
+
+        heading = trimmed[(markerLength + 1)..].Trim();
+        return heading.Length > 0;
+    }
+
+    private static int ScoreSection(MarkdownSection section, HashSet<string> queryTerms)
+    {
+        var headingTerms = Tokenize(section.Heading);
+        var fileTerms = Tokenize(Path.GetFileNameWithoutExtension(section.FileName));
+        var contentTerms = Tokenize(section.Content);
+        var score = 0;
+
+        foreach (var term in queryTerms)
+        {
+            if (headingTerms.Contains(term))
+            {
+                score += 6;
+            }
+            else if (fileTerms.Contains(term))
+            {
+                score += 3;
+            }
+            else if (contentTerms.Contains(term))
+            {
+                score++;
+            }
+        }
+
+        return score;
+    }
+
+    private static HashSet<string> Tokenize(string text)
+    {
+        var tokens = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var token = new StringBuilder();
+
+        foreach (var character in text)
+        {
+            if (char.IsLetterOrDigit(character))
+            {
+                token.Append(char.ToLowerInvariant(character));
+                continue;
+            }
+
+            AddToken();
+        }
+
+        AddToken();
+        return tokens;
+
+        void AddToken()
+        {
+            if (token.Length == 0) return;
+            tokens.Add(token.ToString());
+            token.Clear();
+        }
+    }
+
+    private static string TruncateSection(string content)
+    {
+        if (content.Length <= MaxSectionCharacters) return content;
+        return $"{content[..MaxSectionCharacters].TrimEnd()}{Environment.NewLine}...";
+    }
+
+    private sealed record MarkdownSection(string FileName, string Heading, string Content, int Order);
 
     /// <summary>
     /// Returns the list of <see cref="AIFunction"/> tool wrappers to register with the agent.
