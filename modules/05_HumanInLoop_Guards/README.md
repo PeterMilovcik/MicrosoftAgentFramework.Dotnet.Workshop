@@ -114,7 +114,7 @@ if (decision.StartsWith("revise", StringComparison.OrdinalIgnoreCase))
 |------|--------|--------|
 | `GetTime` | Always Allow | Read-only, no risk |
 | `ReadFile` | Require Approval | Accesses file system content |
-| `SearchKb` | Always Allow | Ranked read-only section search, no risk |
+| `SearchKb` | Always Allow | Read-only knowledge-base search, no risk |
 
 ---
 

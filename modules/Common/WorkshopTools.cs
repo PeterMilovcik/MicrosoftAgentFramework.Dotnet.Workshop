@@ -34,9 +34,11 @@ public static class WorkshopTools
     /// <summary>
     /// Reads a text file from the sample-data directory.
     /// Path must be relative (e.g., "build-log-01.txt" or "kb/testing-guidelines.md").
+    /// Knowledge-base files may also be read by basename (e.g., "testing-guidelines.md").
     /// </summary>
     [Description("Reads a file from the workshop sample data directory. " +
                  "Path must be a relative path like 'build-log-01.txt' or 'kb/testing-guidelines.md'. " +
+                 "A knowledge-base basename like 'release-notes.md' is resolved under the 'kb' directory. " +
                  "Only .txt and .md files under assets/sample-data/ are accessible.")]
     public static string ReadFile(
         [Description("Relative path to the file within the sample-data directory.")] string path)
@@ -55,6 +57,11 @@ public static class WorkshopTools
         if (!fullPath.StartsWith(AllowedRoot, StringComparison.OrdinalIgnoreCase))
             return "⛔ Access denied: path is outside the allowed directory.";
 
+        if (!File.Exists(fullPath) && string.IsNullOrEmpty(Path.GetDirectoryName(path)))
+        {
+            fullPath = Path.GetFullPath(Path.Combine(AllowedRoot, "kb", path));
+        }
+
         if (!File.Exists(fullPath))
             return $"⚠️ File not found: {path}";
 
@@ -68,10 +75,11 @@ public static class WorkshopTools
 
     /// <summary>
     /// Searches and ranks top-level sections across all knowledge-base Markdown files.
-    /// Returns up to 3 relevant sections with file names and headings.
+    /// Returns a full document for a filename match, or up to 3 relevant sections.
     /// </summary>
     [Description("Searches the knowledge base (kb/*.md files) for relevant Markdown sections. " +
-                 "Returns up to 3 ranked sections with file names, headings, and supporting content.")]
+                 "Returns the full document when the query identifies a filename, otherwise up to 3 ranked sections. " +
+                 "Source paths can be passed directly to ReadFile for more context.")]
     public static string SearchKb(
         [Description("Keywords to search for in the knowledge base files.")] string query)
     {
@@ -87,8 +95,20 @@ public static class WorkshopTools
         if (queryTerms.Count == 0)
             return $"No searchable terms found for: {query}";
 
-        var results = Directory.GetFiles(kbDir, "*.md")
+        var files = Directory.GetFiles(kbDir, "*.md")
             .OrderBy(file => file, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        var documentMatch = files.FirstOrDefault(file =>
+            queryTerms.IsSubsetOf(Tokenize(Path.GetFileNameWithoutExtension(file))));
+        if (documentMatch is not null)
+        {
+            var relativePath = GetRelativeSourcePath(documentMatch);
+            return $"Found knowledge-base document for '{query}':{Environment.NewLine}{Environment.NewLine}" +
+                   $"[{relativePath}]{Environment.NewLine}{TruncateSection(File.ReadAllText(documentMatch))}";
+        }
+
+        var results = files
             .SelectMany(ReadMarkdownSections)
             .Select(section => new
             {
@@ -119,7 +139,7 @@ public static class WorkshopTools
 
     private static IEnumerable<MarkdownSection> ReadMarkdownSections(string file)
     {
-        var fileName = Path.GetFileName(file);
+        var sourcePath = GetRelativeSourcePath(file);
         var heading = Path.GetFileNameWithoutExtension(file);
         var content = new List<string>();
         var order = 0;
@@ -130,7 +150,7 @@ public static class WorkshopTools
             {
                 if (content.Any(line => !string.IsNullOrWhiteSpace(line)))
                 {
-                    yield return new MarkdownSection(fileName, heading, string.Join(Environment.NewLine, content).Trim(), order++);
+                    yield return new MarkdownSection(sourcePath, heading, string.Join(Environment.NewLine, content).Trim(), order++);
                 }
 
                 heading = nextHeading;
@@ -143,9 +163,12 @@ public static class WorkshopTools
 
         if (content.Any(line => !string.IsNullOrWhiteSpace(line)))
         {
-            yield return new MarkdownSection(fileName, heading, string.Join(Environment.NewLine, content).Trim(), order);
+            yield return new MarkdownSection(sourcePath, heading, string.Join(Environment.NewLine, content).Trim(), order);
         }
     }
+
+    private static string GetRelativeSourcePath(string file)
+        => Path.GetRelativePath(AllowedRoot, file).Replace('\\', '/');
 
     private static bool TryGetSectionHeading(string line, out string heading)
     {

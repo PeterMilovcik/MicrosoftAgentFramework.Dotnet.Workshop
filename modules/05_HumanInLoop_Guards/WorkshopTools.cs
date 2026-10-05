@@ -8,7 +8,6 @@ internal static class WorkshopTools
     private static readonly string AllowedRoot =
         Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "assets", "sample-data"));
 
-    private const long MaxFileSizeBytes = 100 * 1024;
     private static readonly string[] AllowedExtensions = [".txt", ".md"];
 
     /// <summary>
@@ -53,13 +52,10 @@ internal static class WorkshopTools
         var denied = EnforcePolicy("ReadFile", path);
         if (denied is not null) return denied;
 
-        if (!File.Exists(fullPath)) return $"⚠️ File not found: {path}";
-        var info = new FileInfo(fullPath);
-        if (info.Length > MaxFileSizeBytes) return $"⚠️ File too large.";
-        return File.ReadAllText(fullPath);
+        return global::Workshop.Common.WorkshopTools.ReadFile(path);
     }
 
-    [Description("Searches kb/*.md files for relevant Markdown sections. Returns up to 3 ranked sections.")]
+    [Description("Searches kb/*.md files. Returns a full filename match or up to 3 ranked sections.")]
     public static string SearchKb(
         [Description("Keywords to search for.")] string query)
     {

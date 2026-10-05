@@ -83,8 +83,8 @@ var agent = config.CreateAgent(instructions, tools);
 | Tool | Description | Restrictions |
 |------|-------------|--------------|
 | `GetTime()` | Returns current UTC time | None |
-| `ReadFile(path)` | Reads a file | `.txt`/`.md` only, within `assets/sample-data/`, max 100 KB |
-| `SearchKb(query)` | Ranked section search across `kb/*.md` | Top 3 relevant Markdown sections |
+| `ReadFile(path)` | Reads a file | `.txt`/`.md` only, within `assets/sample-data/`, max 100 KB; KB basenames resolve under `kb/` |
+| `SearchKb(query)` | Ranked section search across `kb/*.md` | Full document for a filename match, otherwise top 3 relevant sections |
 
 ---
 
