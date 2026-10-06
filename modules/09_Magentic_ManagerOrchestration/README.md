@@ -35,12 +35,12 @@ This is an architectural replacement for the old custom `ManagerDecision` protoc
 | Agent | Responsibility | Tools |
 |-------|----------------|-------|
 | `magentic-manager` | Plans, delegates, tracks progress, and replans | No |
-| `researcher` | Gathers evidence from logs and the knowledge base | `ReadFile`, `SearchKb`, `GetTime` |
+| `researcher` | Gathers evidence from logs and the knowledge base | Selected `ReadFile` / `SearchKb` sources only |
 | `diagnostician` | Ranks likely root-cause hypotheses | No |
 | `critic` | Challenges claims and identifies evidence gaps | No |
 | `scribe` | Drafts the evidence-based JSON `TriageCard` | No |
 
-Only the researcher receives tools. Agent names and descriptions matter because the manager uses them when choosing the next participant.
+Only the researcher receives tools. Unselected tools are not registered, and registered wrappers reject arguments that do not match the selected source. When no source is selected, the researcher receives no tools and the final confidence is capped at `0.4`. Agent names and descriptions matter because the manager uses them when choosing the next participant.
 
 ---
 
@@ -73,12 +73,22 @@ Setting `RequirePlanSignoff(false)` allows plans and replans to proceed without 
 ## Core Builder
 
 ```csharp
+var researcherTools = WorkshopTools.GetSelectedEvidenceTools(logFileName, kbQuery);
+var researcherAgent = config.CreateNamedAgent(
+    LoadPrompt(baseDir, "researcher"),
+    name: "researcher",
+    description: "Gathers selected evidence using read-only tools",
+    tools: researcherTools);
+
 Workflow workflow = new MagenticWorkflowBuilder(managerAgent)
     .AddParticipants([researcherAgent, diagnosticianAgent, criticAgent, scribeAgent])
     .WithName("Magentic Software Triage")
     .WithDescription("Coordinates evidence gathering, diagnosis, criticism, and structured triage output")
     .WithPromptOverrides(new MagenticPromptOverrides
     {
+        ProgressLedgerPrompt = MagenticDefaultPrompts.ProgressLedgerPrompt +
+            " If the latest scribe response is a valid six-field Triage Card, " +
+            "mark the request satisfied immediately.",
         FinalAnswerPrompt = MagenticDefaultPrompts.FinalAnswerPrompt +
             " Return only the latest valid JSON Triage Card drafted by the scribe.",
     })
@@ -89,7 +99,7 @@ Workflow workflow = new MagenticWorkflowBuilder(managerAgent)
     .Build();
 ```
 
-The manager is passed to the constructor. Specialists are added as participants. The manager has no tools and must delegate evidence gathering to the researcher. The final-answer override preserves the framework's default synthesis prompt while constraining its terminal answer to the required JSON contract.
+The manager is passed to the constructor. Specialists are added as participants. The manager has no tools and must delegate evidence gathering to the researcher. The progress-ledger override preserves the required `{schema}` placeholder from the default prompt and makes the six-field JSON contract an explicit completion condition. The final-answer override preserves the framework's default synthesis prompt while constraining its terminal answer to the required JSON contract.
 
 ---
 
@@ -145,7 +155,7 @@ The sample surfaces these framework events:
 | `WorkflowOutputEvent` | Final conversation transcript |
 | `WorkflowErrorEvent` / `ExecutorFailedEvent` | Workflow or participant failures |
 
-The terminal `WorkflowOutputEvent` contains the manager's synthesized answer as a conversation transcript. The application parses that terminal JSON first. It also captures valid streamed scribe drafts so a useful card can still be returned if a configured safety bound stops the manager before final synthesis.
+The terminal `WorkflowOutputEvent` contains the manager's synthesized answer as a conversation transcript. The application parses that terminal JSON first. It also captures valid streamed scribe drafts so a useful card can still be returned if a configured safety bound stops the manager before final synthesis. That fallback is a safety net; a valid Scribe card normally satisfies the request immediately.
 
 ---
 
@@ -208,6 +218,7 @@ The exact participant order is intentionally dynamic. The manager can revisit a 
 
 - Give every participant a stable name and a concise capability description.
 - Keep the manager tool-free and assign tools only to the agent that needs them.
+- Register only the evidence sources selected for the current run; do not rely on prompts alone to restrict tool access.
 - Put domain goals in prompts, but use builder settings for orchestration controls.
 - Bound autonomous execution with rounds, stalls, and resets.
 - Review the generated plan rather than using a preflight confirmation.
@@ -222,6 +233,7 @@ The exact participant order is intentionally dynamic. The manager can revisit a 
 
 - `MagenticWorkflowBuilder` is the supported .NET API for built-in Magentic orchestration.
 - The framework owns planning, speaker selection, progress tracking, stall detection, replanning, and completion decisions.
+- A progress-ledger override defines the valid six-field Scribe card as the completion condition.
 - `RequirePlanSignoff(true)` creates a resumable human review point around actual generated plans.
 - The manager owns terminal synthesis. The scribe supplies the structured draft, and a final-answer override requires the manager to return that draft as JSON.
 - Module 09 keeps only domain-specific responsibilities in application code: agent definitions, tools, event presentation, user review, and `TriageCard` validation.

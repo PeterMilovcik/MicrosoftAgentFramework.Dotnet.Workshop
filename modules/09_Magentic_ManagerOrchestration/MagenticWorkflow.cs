@@ -19,6 +19,7 @@ internal static class MagenticWorkflow
     private const int MaxRounds = 8;
     private const int MaxStalls = 3;
     private const int MaxResets = 2;
+    private const double MaximumConfidenceWithoutSelectedEvidence = 0.4;
 
     public static async Task<MagenticRunResult> RunAsync(
         AgentConfig config,
@@ -38,7 +39,7 @@ internal static class MagenticWorkflow
             LoadPrompt(baseDir, "researcher"),
             name: "researcher",
             description: "Gathers factual evidence from logs and the knowledge base using read-only tools",
-            tools: WorkshopTools.GetTools());
+            tools: WorkshopTools.GetSelectedEvidenceTools(logFileName, kbQuery));
 
         var diagnosticianAgent = config.CreateNamedAgent(
             LoadPrompt(baseDir, "diagnostician"),
@@ -64,6 +65,16 @@ internal static class MagenticWorkflow
             .WithDescription("Coordinates evidence gathering, diagnosis, criticism, and structured triage output")
             .WithPromptOverrides(new MagenticPromptOverrides
             {
+                ProgressLedgerPrompt = MagenticDefaultPrompts.ProgressLedgerPrompt + """
+
+Completion rule for this software-triage task:
+- A valid Triage Card is a JSON object from the scribe containing all six fields:
+  summary, category, suspected_areas, next_steps, suggested_owner_role, and confidence.
+- Field order, whitespace, line breaks, concise values, and populated arrays do not invalidate the card.
+- If the latest scribe response contains all six field names, mark the request satisfied in the very next progress ledger.
+- Do not ask the critic to review a completed card and do not ask the scribe for stylistic changes.
+- Never ask the scribe to ensure valid formatting when all six fields are already present.
+""",
                 FinalAnswerPrompt = MagenticDefaultPrompts.FinalAnswerPrompt + """
 
 Return only the latest valid JSON Triage Card drafted by the scribe. Do not add
@@ -96,6 +107,7 @@ category, suspected_areas, next_steps, suggested_owner_role, and confidence.
         var streamedScribeResponses = new Dictionary<string, StringBuilder>(StringComparer.Ordinal);
         string? streamedCardText = null;
         TriageCard? streamedCard = null;
+        var planReviewCount = 0;
 
         async Task DrainAsync(StreamingRun activeRun)
         {
@@ -167,7 +179,7 @@ category, suspected_areas, next_steps, suggested_owner_role, and confidence.
         while (finalOutput is null && pendingRequest is not null && workflowFailure is null)
         {
             var reviewRequest = pendingRequest.Data.As<MagenticPlanReviewRequest>()!;
-            var reviewResponse = PromptForPlanReview(reviewRequest);
+            var reviewResponse = PromptForPlanReview(reviewRequest, planReviewCount++);
             if (reviewResponse is null)
             {
                 return new MagenticRunResult(string.Empty, null, WasAborted: true);
@@ -197,16 +209,32 @@ category, suspected_areas, next_steps, suggested_owner_role, and confidence.
             throw new InvalidOperationException("The Magentic workflow completed without a conversation transcript.");
         }
 
-        return ExtractTriageResult(transcript, streamedCardText, streamedCard);
+        var result = ExtractTriageResult(transcript, streamedCardText, streamedCard);
+        if (result.Card is not null &&
+            string.IsNullOrWhiteSpace(logFileName) &&
+            string.IsNullOrWhiteSpace(kbQuery) &&
+            result.Card.Confidence > MaximumConfidenceWithoutSelectedEvidence)
+        {
+            Console.WriteLineColorful(
+                $"⚠️  Confidence capped from {result.Card.Confidence:0.00} to {MaximumConfidenceWithoutSelectedEvidence:0.00} because no evidence source was selected.",
+                ConsoleColor.Yellow);
+            result.Card.Confidence = MaximumConfidenceWithoutSelectedEvidence;
+        }
+
+        return result;
     }
 
-    private static MagenticPlanReviewResponse? PromptForPlanReview(MagenticPlanReviewRequest request)
+    private static MagenticPlanReviewResponse? PromptForPlanReview(
+        MagenticPlanReviewRequest request,
+        int reviewIndex)
     {
         Console.WriteLine();
         Console.WriteLineColorful("━━━ 🔐 Magentic Plan Review ━━━", ConsoleColor.Yellow);
         Console.WriteLine(request.IsStalled
             ? "The workflow stalled and the manager proposed a revised plan."
-            : "The manager proposed an initial plan.");
+            : reviewIndex == 0
+                ? "The manager proposed an initial plan."
+                : "The manager proposed a revised plan.");
 
         if (request.CurrentProgress is { } progress)
         {
@@ -374,13 +402,23 @@ category, suspected_areas, next_steps, suggested_owner_role, and confidence.
         if (!string.IsNullOrWhiteSpace(logFileName))
         {
             sb.AppendLine($"\n== Log File Available: {logFileName} ==");
-            sb.AppendLine("The researcher should use ReadFile to gather evidence from it.");
+            sb.AppendLine("The researcher may use ReadFile only with this exact filename.");
+        }
+        else
+        {
+            sb.AppendLine("\n== Log File ==");
+            sb.AppendLine("No log file was selected. Do not inspect or cite any log file.");
         }
 
         if (!string.IsNullOrWhiteSpace(kbQuery))
         {
             sb.AppendLine($"\n== KB Query Hint: {kbQuery} ==");
-            sb.AppendLine("The researcher should use SearchKb with this query.");
+            sb.AppendLine("The researcher may use SearchKb only with this exact query.");
+        }
+        else
+        {
+            sb.AppendLine("\n== KB Query ==");
+            sb.AppendLine("No KB query was selected. Do not search or cite the knowledge base.");
         }
 
         sb.AppendLine("""
@@ -391,6 +429,8 @@ Gather concrete evidence, diagnose likely causes, have the critic review the con
     as the scribe produces valid JSON with exactly these fields:
 summary, category, suspected_areas, next_steps, suggested_owner_role, confidence.
     The manager will return that card as the framework's terminal synthesized answer.
+Use only the exact evidence sources selected above. When no source is selected, reason only
+    from the failure report, state the evidence gap, and keep confidence at or below 0.4.
 """);
 
         return sb.ToString();
