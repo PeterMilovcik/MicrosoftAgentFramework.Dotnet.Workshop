@@ -40,7 +40,7 @@ internal static class GroupChatWorkflow
 
         var investigatorAgent = config.CreateNamedAgent(
             investigatorPrompt, name: "investigator", description: "Gathers evidence using ReadFile and SearchKb tools",
-            tools: WorkshopTools.GetInvestigatorTools(logFileName, kbQuery));
+            tools: WorkshopTools.GetSelectedEvidenceTools(logFileName, kbQuery));
 
         var criticAgent = config.CreateNamedAgent(
             criticPrompt, name: "critic", description: "Challenges assumptions and identifies evidence gaps");

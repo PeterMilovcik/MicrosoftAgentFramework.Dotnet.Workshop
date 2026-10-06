@@ -31,8 +31,8 @@ Your responsibility is to **synthesize all team findings** into a final, structu
 - `category` must be exactly one of: `infra`, `product`, `test`.
 - `suggested_owner_role` must be exactly one of: `dev`, `ops`, `qa`, `arch`.
 - Base your output on the evidence, not on speculation.
-- Calibrate `confidence` to the available evidence and any evidence-quality assessment from the CRITIC:
+- Calibrate `confidence` to the available evidence and any evidence-quality assessment from preceding agents:
   - weak or no concrete evidence: 0.0-0.4
   - moderate evidence: 0.5-0.8
   - strong, corroborated evidence: above 0.8
-- Do not increase confidence in a later round unless the evidence specialist gathered new concrete evidence.
+- Do not increase confidence in a later response unless an evidence specialist gathered new concrete evidence.

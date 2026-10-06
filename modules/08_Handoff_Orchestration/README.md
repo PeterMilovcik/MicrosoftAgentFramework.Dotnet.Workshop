@@ -41,8 +41,11 @@ Then: expert → `scribe` (always).
 
 Key constraints:
 - **Only expert agents** may call tools (`ReadFile`, `SearchKb`)
+- Experts receive only the log file and KB query selected for the current run; unselected tools are not registered
+- Registered tools reject arguments that do not match the selected source
+- When no evidence source is selected, the final confidence is capped at `0.4`
 - `frontdesk` and `scribe` do NOT call tools
-- Maximum handoffs capped by prompt design
+- The acyclic handoff graph limits each run to frontdesk → one expert → scribe
 
 ---
 
@@ -84,7 +87,9 @@ var workflow = handoffBuilder.Build();
 **Tool enforcement at agent creation:**
 
 ```csharp
-// Only expert agents receive tools
+// Only the selected evidence sources become tools; an empty selection produces no tools
+var expertTools = WorkshopTools.GetSelectedEvidenceTools(logFileName, kbQuery);
+
 var infraExpert = config.CreateNamedAgent(LoadPrompt("infra-expert"),
     name: "infra-expert", description: "...", tools: expertTools);
 
@@ -119,9 +124,6 @@ Choice [1-3]: 1
 ━━━ HANDOFF WORKFLOW ━━━
   frontdesk → [infra-expert | product-expert | test-expert] → scribe
 
-[FRONTDESK]
-This failure mentions "Connection refused on port 5432" — routing to infra-expert.
-
   ⟶ Handoff: frontdesk → infra-expert
 
 [INFRA-EXPERT]
@@ -141,9 +143,9 @@ Handing off to scribe.
 | File | Agent | Can Use Tools |
 |------|-------|--------------|
 | `assets/prompts/agents/frontdesk.md` | Front Desk | No |
-| `assets/prompts/agents/infra-expert.md` | Infra Expert | Yes |
-| `assets/prompts/agents/product-expert.md` | Product Expert | Yes |
-| `assets/prompts/agents/test-expert.md` | Test Expert | Yes |
+| `assets/prompts/agents/infra-expert.md` | Infra Expert | Selected sources only |
+| `assets/prompts/agents/product-expert.md` | Product Expert | Selected sources only |
+| `assets/prompts/agents/test-expert.md` | Test Expert | Selected sources only |
 | `assets/prompts/agents/scribe.md` | Scribe | No |
 
 ---

@@ -9,7 +9,7 @@ Shared classes referenced by all workshop modules via `ProjectReference`.
 | `AgentConfig.cs` | Azure OpenAI configuration loading, `IChatClient` / `AIAgent` creation, token usage tracking |
 | `ConsoleExtensions.cs` | C# 14 extension methods on `Console` for colored output (`WriteColorful`, `WriteLineColorful`, `WriteError`, `WriteLineError`) |
 | `TriageCard.cs` | Structured triage card DTO with JSON serialization attributes (used by modules 06–09) |
-| `WorkshopTools.cs` | Sandbox-safe AI tools — `GetTime()`, `ReadFile()`, `SearchKb()` — exposed via `GetTools()` |
+| `WorkshopTools.cs` | Sandbox-safe AI tools — `GetTime()`, `ReadFile()`, `SearchKb()` — exposed via `GetTools()` or source-restricted `GetSelectedEvidenceTools()` |
 
 ## Usage
 

@@ -70,7 +70,7 @@ var plannerAgent = config.CreateNamedAgent(
     plannerPrompt, name: "planner", description: "Creates the triage plan");
 var investigatorAgent = config.CreateNamedAgent(
     investigatorPrompt, name: "investigator", description: "Gathers evidence",
-    tools: WorkshopTools.GetInvestigatorTools(logFileName, kbQuery));  // selected sources only
+    tools: WorkshopTools.GetSelectedEvidenceTools(logFileName, kbQuery));  // selected sources only
 var criticAgent = config.CreateNamedAgent(criticPrompt, name: "critic", description: "Challenges assumptions");
 var scribeAgent = config.CreateNamedAgent(scribePrompt, name: "scribe", description: "Produces JSON triage card");
 

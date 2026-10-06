@@ -268,7 +268,7 @@ public static class WorkshopTools
     /// <summary>
     /// Returns evidence-gathering tools restricted to the sources selected by the user.
     /// </summary>
-    public static IList<AITool> GetInvestigatorTools(string? selectedFile, string? selectedKbQuery)
+    public static IList<AITool> GetSelectedEvidenceTools(string? selectedFile, string? selectedKbQuery)
     {
         var tools = new List<AITool>();
 

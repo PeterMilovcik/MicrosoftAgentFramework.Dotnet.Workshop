@@ -15,6 +15,8 @@ namespace HandoffOrchestration;
 /// </summary>
 internal static class HandoffWorkflow
 {
+    private const double MaximumConfidenceWithoutSelectedEvidence = 0.4;
+
     public static async Task<(string FinalText, TriageCard? Card)> RunAsync(
         AgentConfig config,
         string failureReport,
@@ -23,7 +25,7 @@ internal static class HandoffWorkflow
         CancellationToken ct = default)
     {
         var baseDir = AppContext.BaseDirectory;
-        var expertTools = WorkshopTools.GetTools();
+        var expertTools = WorkshopTools.GetSelectedEvidenceTools(logFileName, kbQuery);
 
         // Load agent prompts
         string LoadPrompt(string name)
@@ -82,7 +84,7 @@ internal static class HandoffWorkflow
 
         // experts → scribe (after investigation, hand off for final output)
         handoffBuilder.WithHandoffs([infraExpert, productExpert, testExpert], scribe,
-            "Hand off here after investigation is complete to produce the final JSON triage card");
+            "After presenting the investigation, invoke the transfer function to hand off here for the final JSON triage card. Never write the function call as text.");
 
         var workflow = handoffBuilder.Build();
 
@@ -113,21 +115,25 @@ internal static class HandoffWorkflow
                     var agentRole = ResolveAgentRole(executorId);
                     var text = agentEvt.Update.Text ?? "";
 
-                    // When agent changes, flush previous agent's output
+                    // When agent changes, flush previous output and show the transfer.
                     if (executorId != lastExecutorId)
                     {
-                        if (lastExecutorId is not null && currentAgentText.Length > 0)
+                        if (lastExecutorId is not null)
                         {
                             var prevRole = ResolveAgentRole(lastExecutorId);
-                            if (prevRole == "scribe")
+                            if (prevRole == "scribe" && currentAgentText.Length > 0)
                                 lastScribeText = currentAgentText.ToString();
 
-                            // Print handoff transition
                             PrintHandoff(prevRole, agentRole);
                         }
                         currentAgentText.Clear();
+                        lastExecutorId = executorId;
+                    }
 
-                        // Print agent header
+                    // Function-only transfers produce empty updates, so defer the header
+                    // until the agent emits visible text.
+                    if (currentAgentText.Length == 0 && !string.IsNullOrEmpty(text))
+                    {
                         Console.WriteLine();
                         var (color, prefix) = agentRole switch
                         {
@@ -139,7 +145,6 @@ internal static class HandoffWorkflow
                             _ => (ConsoleColor.Gray, $"[{agentRole.ToUpper()}]"),
                         };
                         Console.WriteColorful($"{prefix} ", color);
-                        lastExecutorId = executorId;
                     }
 
                     Console.Write(text);
@@ -184,6 +189,17 @@ internal static class HandoffWorkflow
             Console.WriteLineColorful($"  [Debug] Scribe text preview: {lastScribeText[..Math.Min(200, lastScribeText.Length)]}", ConsoleColor.DarkGray);
 
         var card = ParseTriageCard(lastScribeText);
+        if (card is not null &&
+            string.IsNullOrWhiteSpace(logFileName) &&
+            string.IsNullOrWhiteSpace(kbQuery) &&
+            card.Confidence > MaximumConfidenceWithoutSelectedEvidence)
+        {
+            Console.WriteLineColorful(
+                $"  [Confidence] Capped from {card.Confidence:0.00} to {MaximumConfidenceWithoutSelectedEvidence:0.00} because no evidence source was selected.",
+                ConsoleColor.DarkYellow);
+            card.Confidence = MaximumConfidenceWithoutSelectedEvidence;
+        }
+
         return (lastScribeText, card);
     }
 
@@ -195,12 +211,17 @@ internal static class HandoffWorkflow
 
         if (!string.IsNullOrWhiteSpace(logFileName))
             sb.AppendLine($"\n== Log File Available: {logFileName} ==\n(Expert agents: use ReadFile to load it)");
+        else
+            sb.AppendLine("\n== Log File ==\nNo log file was selected. Do not cite or infer log-file evidence.");
 
         if (!string.IsNullOrWhiteSpace(kbQuery))
             sb.AppendLine($"\n== KB Query Hint: {kbQuery} ==\n(Expert agents: use SearchKb with this query)");
+        else
+            sb.AppendLine("\n== KB Query ==\nNo KB query was selected. Do not cite or infer knowledge-base evidence.");
 
         sb.AppendLine("\n== Instructions ==");
         sb.AppendLine("Analyze this failure and route it to the appropriate specialist.");
+        sb.AppendLine("Experts may use only the exact evidence sources named above. If none are named, reason only from the failure report and state the evidence gap.");
 
         return sb.ToString();
     }
