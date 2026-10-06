@@ -16,7 +16,7 @@ internal static class AgentNames
     public const string ItemSage = "item_sage";
     public const string PresentToPlayer = "PRESENT_TO_PLAYER";
 
-    // ── Tool-free generation variants (clean JSON output, no function-calling overhead) ──
+    // ── Tool-free generation aliases (same agents, invoked without per-run tools) ──
 
     public const string ArchitectGen = "architect-gen";
     public const string NPCGen = "npc-gen";

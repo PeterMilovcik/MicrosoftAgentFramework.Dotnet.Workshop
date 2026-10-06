@@ -1,6 +1,7 @@
 using System.Text;
 using System.Text.Json;
 using Microsoft.Agents.AI;
+using Microsoft.Extensions.AI;
 
 namespace RPGGameMaster.Workflow;
 
@@ -21,16 +22,12 @@ internal static class GameMasterWorkflow
     {
         // ── Create persistent agents ──
         var gmAgent = config.CreateAgent(PromptLoader.Load(AgentNames.GameMasterPrompt));
-        var worldArchitect = config.CreateAgent(PromptLoader.Load(AgentNames.WorldArchitectPrompt), tools: LocationTools.GetTools());
-        var npcWeaver = config.CreateAgent(PromptLoader.Load(AgentNames.NPCWeaverPrompt), tools: NPCTools.GetTools());
-        var creatureForger = config.CreateAgent(PromptLoader.Load(AgentNames.CreatureForgerPrompt), tools: CreatureTools.GetTools());
+        var worldArchitect = config.CreateAgent(PromptLoader.Load(AgentNames.WorldArchitectPrompt));
+        var npcWeaver = config.CreateAgent(PromptLoader.Load(AgentNames.NPCWeaverPrompt));
+        var creatureForger = config.CreateAgent(PromptLoader.Load(AgentNames.CreatureForgerPrompt));
         var combatNarrator = config.CreateAgent(PromptLoader.Load(AgentNames.CombatNarratorPrompt));
         var itemSage = config.CreateAgent(PromptLoader.Load(AgentNames.ItemSagePrompt), tools: ItemTools.GetTools());
 
-        // Tool-free variants reused for clean JSON generation (no function-calling overhead)
-        var architectGen = config.CreateAgent(PromptLoader.Load(AgentNames.WorldArchitectPrompt));
-        var npcWeaverGen = config.CreateAgent(PromptLoader.Load(AgentNames.NPCWeaverPrompt));
-        var creatureForgerGen = config.CreateAgent(PromptLoader.Load(AgentNames.CreatureForgerPrompt));
         var combatStrategist = config.CreateAgent(PromptLoader.Load(AgentNames.CombatStrategistGen));
         var combatNarratorGen = config.CreateAgent(PromptLoader.Load(AgentNames.CombatNarratorGen));
 
@@ -41,12 +38,19 @@ internal static class GameMasterWorkflow
             [AgentNames.CreatureForger] = creatureForger,
             [AgentNames.CombatNarrator] = combatNarrator,
             [AgentNames.ItemSage] = itemSage,
-            // Tool-free gen variants (clean JSON output)
-            [AgentNames.ArchitectGen] = architectGen,
-            [AgentNames.NPCGen] = npcWeaverGen,
-            [AgentNames.CreatureGen] = creatureForgerGen,
+            // Tool-free aliases reuse the same agent with no per-run tools.
+            [AgentNames.ArchitectGen] = worldArchitect,
+            [AgentNames.NPCGen] = npcWeaver,
+            [AgentNames.CreatureGen] = creatureForger,
             [AgentNames.CombatStrategistGen] = combatStrategist,
             [AgentNames.CombatNarratorGen] = combatNarratorGen,
+        };
+
+        var routedAgentTools = new Dictionary<string, IList<AITool>>(StringComparer.OrdinalIgnoreCase)
+        {
+            [AgentNames.WorldArchitect] = LocationTools.GetTools(),
+            [AgentNames.NPCWeaver] = NPCTools.GetTools(),
+            [AgentNames.CreatureForger] = CreatureTools.GetTools(),
         };
 
         // Set game state reference for tool classes
@@ -140,7 +144,12 @@ internal static class GameMasterWorkflow
                 string subResponse;
                 await using (ConsoleSpinner.Start($"[{decision.NextAgent}] {decision.Task}"))
                 {
-                    subResponse = await AgentRunner.RunAgent(subAgent, subPrompt, ct);
+                    routedAgentTools.TryGetValue(decision.NextAgent, out var runTools);
+                    subResponse = await AgentRunner.RunAgent(
+                        subAgent,
+                        subPrompt,
+                        ct,
+                        tools: runTools);
                 }
                 turnContext.Add($"{decision.NextAgent.ToUpper()} OUTPUT:\n{subResponse}");
 
@@ -640,75 +649,139 @@ internal static class GameMasterWorkflow
         // Both can spawn, one can spawn, or neither (empty location).
         var isStarting = fromLocationId is null;
 
-        // NPCs — always for starting location; probability-driven otherwise
+        var npcCount = 0;
         if (isStarting || Random.Shared.NextDouble() < newLoc.DangerLevel.NpcSpawnChance())
         {
-            var npcCount = isStarting
+            npcCount = isStarting
                 ? GameConstants.StartingNPCCount
                 : (Random.Shared.NextDouble() < GameConstants.ExtraNPCChance ? 2 : 1);
-
-            await GenerateNPCsForLocation(state, newLoc, npcCount, agentMap[AgentNames.NPCGen], ct);
         }
 
-        // Creatures — independent roll (can co-exist with NPCs)
+        var creatureCount = 0;
         var spawnCreature = isStarting
             ? Random.Shared.NextDouble() < GameConstants.StartingCreatureChance
             : Random.Shared.NextDouble() < newLoc.DangerLevel.CreatureSpawnChance();
 
         if (spawnCreature)
         {
-            await GenerateCreatureForLocation(state, newLoc, agentMap[AgentNames.CreatureGen], ct);
+            creatureCount = 1;
 
-            // Extra creature at dangerous/deadly locations
             if (!isStarting
                 && newLoc.DangerLevel is DangerLevel.Dangerous or DangerLevel.Deadly
                 && Random.Shared.NextDouble() < GameConstants.ExtraCreatureChance)
             {
-                await GenerateCreatureForLocation(state, newLoc, agentMap[AgentNames.CreatureGen], ct);
+                creatureCount++;
             }
+        }
+
+        if (npcCount > 0 || creatureCount > 0)
+        {
+            await GeneratePopulationForLocation(
+                state,
+                newLoc,
+                npcCount,
+                creatureCount,
+                agentMap[AgentNames.NPCGen],
+                agentMap[AgentNames.CreatureGen],
+                ct);
         }
 
         return newLoc;
     }
 
-    private static async Task GenerateNPCsForLocation(
-        GameState state, Location location, int count, AIAgent npcWeaver, CancellationToken ct)
+    private static async Task GeneratePopulationForLocation(
+        GameState state,
+        Location location,
+        int npcCount,
+        int creatureCount,
+        AIAgent npcWeaver,
+        AIAgent creatureForger,
+        CancellationToken ct)
     {
-        for (var i = 0; i < count; i++)
+        Task<NPC?>[] npcTasks;
+        Task<Creature?>[] creatureTasks;
+        NPC?[] npcs;
+        Creature?[] creatures;
+
+        await using (ConsoleSpinner.Start(
+            $"Populating {location.Name} in parallel ({npcCount} NPC, {creatureCount} creature)..."))
         {
-            var npcContext = NPCPromptFactory.Build(state, location);
-            var npcPrompt = npcContext + "\n\n" +
-                "Generate a unique NPC for this location. Output ONLY the raw NPC JSON object, no markdown fences, no explanation.";
+            npcTasks = Enumerable.Range(1, npcCount)
+                .Select(slot => GenerateNPCForLocation(
+                    state,
+                    location,
+                    slot,
+                    npcCount,
+                    npcWeaver,
+                    ct))
+                .ToArray();
 
-            string npcResponse;
-            await using (ConsoleSpinner.Start($"[{AgentNames.NPCWeaver}] Creating NPC {i + 1}..."))
-            {
-                npcResponse = await AgentRunner.RunAgent(npcWeaver, npcPrompt, ct);
-            }
-            var npc = LlmJsonParser.ParseJson<NPC>(npcResponse);
+            creatureTasks = Enumerable.Range(1, creatureCount)
+                .Select(slot => GenerateCreatureForLocation(
+                    state,
+                    location,
+                    slot,
+                    creatureCount,
+                    creatureForger,
+                    ct))
+                .ToArray();
 
+            var npcBatch = Task.WhenAll(npcTasks);
+            var creatureBatch = Task.WhenAll(creatureTasks);
+            await Task.WhenAll(npcBatch, creatureBatch);
+
+            npcs = await npcBatch;
+            creatures = await creatureBatch;
+        }
+
+        foreach (var npc in npcs)
+        {
             if (npc is not null && !npc.Id.IsEmpty)
                 state.RegisterNPC(npc, location);
         }
+
+        foreach (var creature in creatures)
+        {
+            if (creature is not null && !creature.Id.IsEmpty)
+                state.RegisterCreature(creature, location);
+        }
     }
 
-    private static async Task GenerateCreatureForLocation(
-        GameState state, Location location, AIAgent forge, CancellationToken ct)
+    private static async Task<NPC?> GenerateNPCForLocation(
+        GameState state,
+        Location location,
+        int slot,
+        int batchSize,
+        AIAgent npcWeaver,
+        CancellationToken ct)
+    {
+        var npcContext = NPCPromptFactory.Build(state, location);
+        var npcPrompt = npcContext + "\n\n" +
+            $"Generate NPC slot {slot} of {batchSize} for this location. " +
+            "Use the slot as a diversity seed: choose a clearly distinct name, occupation, and personality. " +
+            "Output ONLY the raw NPC JSON object, no markdown fences, no explanation.";
+
+        var npcResponse = await AgentRunner.RunAgent(npcWeaver, npcPrompt, ct);
+        return LlmJsonParser.ParseJson<NPC>(npcResponse);
+    }
+
+    private static async Task<Creature?> GenerateCreatureForLocation(
+        GameState state,
+        Location location,
+        int slot,
+        int batchSize,
+        AIAgent forge,
+        CancellationToken ct)
     {
         var difficulty = EnumExtensions.FromPlayerLevel(state.Player.Level);
         var creatureContext = CreaturePromptFactory.Build(state, location, difficulty);
         var creaturePrompt = creatureContext + "\n\n" +
-            "Generate a creature for this location. Output ONLY the raw Creature JSON object, no markdown fences, no explanation.";
+            $"Generate creature slot {slot} of {batchSize} for this location. " +
+            "Use the slot as a diversity seed: choose a clearly distinct species, combat behavior, and loot. " +
+            "Output ONLY the raw Creature JSON object, no markdown fences, no explanation.";
 
-        string creatureResponse;
-        await using (ConsoleSpinner.Start($"[{AgentNames.CreatureForger}] Spawning creature..."))
-        {
-            creatureResponse = await AgentRunner.RunAgent(forge, creaturePrompt, ct);
-        }
-        var creature = LlmJsonParser.ParseJson<Creature>(creatureResponse);
-
-        if (creature is not null && !creature.Id.IsEmpty)
-            state.RegisterCreature(creature, location);
+        var creatureResponse = await AgentRunner.RunAgent(forge, creaturePrompt, ct);
+        return LlmJsonParser.ParseJson<Creature>(creatureResponse);
     }
 
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

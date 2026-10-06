@@ -1,5 +1,6 @@
 using System.Text;
 using Microsoft.Agents.AI;
+using Microsoft.Extensions.AI;
 
 namespace RPGGameMaster.Workflow;
 
@@ -13,13 +14,22 @@ internal static class AgentRunner
     /// <summary>
     /// Run an agent with the given prompt and return the full text response.
     /// Applies a per-call timeout and retries on timeout or transient errors.
+    /// Optional tools are supplied only for this invocation through
+    /// <see cref="ChatClientAgentRunOptions"/>.
     /// If the caller's <paramref name="ct"/> is cancelled (e.g. Ctrl+C), the exception propagates immediately.
     /// </summary>
     public static async Task<string> RunAgent(
-        AIAgent agent, string prompt, CancellationToken ct, string? fallbackJson = null)
+        AIAgent agent,
+        string prompt,
+        CancellationToken ct,
+        string? fallbackJson = null,
+        IList<AITool>? tools = null)
     {
         var maxAttempts = 1 + GameConstants.AgentMaxRetries;
         var backoffMs = GameConstants.AgentRetryBaseDelayMs;
+        var runOptions = tools is { Count: > 0 }
+            ? new ChatClientAgentRunOptions(new ChatOptions { Tools = tools })
+            : null;
 
         for (var attempt = 1; attempt <= maxAttempts; attempt++)
         {
@@ -33,7 +43,9 @@ internal static class AgentRunner
 
             try
             {
-                await foreach (var update in agent.RunStreamingAsync(prompt, session).WithCancellation(linkedCt))
+                await foreach (var update in agent
+                    .RunStreamingAsync(prompt, session, runOptions)
+                    .WithCancellation(linkedCt))
                 {
                     sb.Append(update.Text);
                 }

@@ -283,9 +283,9 @@ agent-framework-dotnet-workshop/
 
 | Package | Version | Purpose |
 |---------|---------|---------|
-| `Microsoft.Agents.AI` | 1.22.0 | Core Agent Framework |
-| `Microsoft.Agents.AI.OpenAI` | 1.22.0 | OpenAI/Azure OpenAI provider |
-| `Microsoft.Agents.AI.Workflows` | 1.22.0 | Multi-agent orchestration (Group Chat, Handoff, Magentic) |
+| `Microsoft.Agents.AI` | 1.23.0 | Core Agent Framework |
+| `Microsoft.Agents.AI.OpenAI` | 1.23.0 | OpenAI/Azure OpenAI provider |
+| `Microsoft.Agents.AI.Workflows` | 1.23.0 | Multi-agent orchestration (Group Chat, Handoff, Magentic) |
 | `Microsoft.Extensions.AI` | 10.10.0 | Unified AI abstractions (`IChatClient`) |
 | `Microsoft.Extensions.AI.OpenAI` | 10.10.1 | `AsIChatClient()` extension |
 | `OpenAI` | 2.14.0 | OpenAI SDK configured for Azure OpenAI v1 |

@@ -12,6 +12,8 @@ internal static class TokenTracker
     private static long _totalInputTokens;
     private static long _totalOutputTokens;
     private static long _llmRequests;
+    private static long _activeRequests;
+    private static long _peakConcurrentRequests;
 
     /// <summary>Wraps <paramref name="inner"/> so every request updates the global counters.</summary>
     public static IChatClient Wrap(IChatClient inner) => new TrackingClient(inner);
@@ -28,6 +30,7 @@ internal static class TokenTracker
         Console.WriteLine($"   Output tokens: {_totalOutputTokens:N0}");
         Console.WriteLine($"   Total tokens:  {total:N0}");
         Console.WriteLine($"   LLM requests:  {_llmRequests}");
+        Console.WriteLine($"   Peak concurrent requests: {_peakConcurrentRequests}");
     }
 
     private static void Track(UsageDetails? usage)
@@ -38,6 +41,25 @@ internal static class TokenTracker
         Interlocked.Increment(ref _llmRequests);
     }
 
+    private static void EnterRequest()
+    {
+        var active = Interlocked.Increment(ref _activeRequests);
+        var observedPeak = Volatile.Read(ref _peakConcurrentRequests);
+
+        while (active > observedPeak)
+        {
+            var previous = Interlocked.CompareExchange(
+                ref _peakConcurrentRequests,
+                active,
+                observedPeak);
+
+            if (previous == observedPeak)
+                break;
+
+            observedPeak = previous;
+        }
+    }
+
     private sealed class TrackingClient(IChatClient inner) : DelegatingChatClient(inner)
     {
         public override async Task<ChatResponse> GetResponseAsync(
@@ -45,9 +67,17 @@ internal static class TokenTracker
             ChatOptions? options = null,
             CancellationToken cancellationToken = default)
         {
-            var result = await base.GetResponseAsync(chatMessages, options, cancellationToken);
-            Track(result.Usage);
-            return result;
+            EnterRequest();
+            try
+            {
+                var result = await base.GetResponseAsync(chatMessages, options, cancellationToken);
+                Track(result.Usage);
+                return result;
+            }
+            finally
+            {
+                Interlocked.Decrement(ref _activeRequests);
+            }
         }
 
         public override async IAsyncEnumerable<ChatResponseUpdate> GetStreamingResponseAsync(
@@ -55,14 +85,22 @@ internal static class TokenTracker
             ChatOptions? options = null,
             [EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
-            await foreach (var update in base.GetStreamingResponseAsync(chatMessages, options, cancellationToken))
+            EnterRequest();
+            try
             {
-                foreach (var content in update.Contents)
+                await foreach (var update in base.GetStreamingResponseAsync(chatMessages, options, cancellationToken))
                 {
-                    if (content is UsageContent usageContent)
-                        Track(usageContent.Details);
+                    foreach (var content in update.Contents)
+                    {
+                        if (content is UsageContent usageContent)
+                            Track(usageContent.Details);
+                    }
+                    yield return update;
                 }
-                yield return update;
+            }
+            finally
+            {
+                Interlocked.Decrement(ref _activeRequests);
             }
         }
     }
