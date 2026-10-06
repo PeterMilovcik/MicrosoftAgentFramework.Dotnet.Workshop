@@ -11,7 +11,7 @@ namespace CapstoneTriageAssistant;
 /// </summary>
 internal static class TriageWorkflow
 {
-    public static async Task<(string HumanSummary, TriageCard? Card)> RunAsync(
+    public static async Task<(string HumanSummary, TriageCard? Card, bool WasAborted)> RunAsync(
         AIAgent agent,
         string failureReport,
         string? logFileName,
@@ -72,7 +72,7 @@ internal static class TriageWorkflow
             if (decision.Equals("abort", StringComparison.OrdinalIgnoreCase))
             {
                 Console.WriteLineColorful("🛑 Triage aborted.", ConsoleColor.Red);
-                return ("Aborted", null);
+                return ("Aborted", null, true);
             }
 
             if (decision.StartsWith("revise", StringComparison.OrdinalIgnoreCase))
@@ -159,7 +159,7 @@ internal static class TriageWorkflow
             catch { /* fall through */ }
         }
 
-        return (card?.Summary ?? finalResult, card);
+        return (card?.Summary ?? finalResult, card, false);
     }
 
     private static async Task<string> RunAndCollectAsync(

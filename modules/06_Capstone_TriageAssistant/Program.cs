@@ -79,14 +79,15 @@ while (true)
 
     try
     {
-        var (humanSummary, card) = await TriageWorkflow.RunAsync(agent, failureReport, logFileName, kbQuery);
+        var (humanSummary, card, wasAborted) = await TriageWorkflow.RunAsync(
+            agent, failureReport, logFileName, kbQuery);
 
-        if (card is null)
+        if (card is null && !wasAborted)
         {
             Console.WriteLineColorful("⚠️  Could not parse structured Triage Card. Raw response:", ConsoleColor.Yellow);
             Console.WriteLineColorful(humanSummary, ConsoleColor.Yellow);
         }
-        else
+        else if (card is not null)
         {
             // Human-readable summary
             Console.WriteLineColorful("══════════════════════════════════════════", ConsoleColor.Green);
