@@ -36,9 +36,14 @@ Multiple specialized agents collaborate in a shared conversation coordinated by 
 - **Critic** — challenges assumptions and finds gaps
 - **Scribe** — produces the final structured JSON Triage Card
 
-Key constraints enforced at runtime:
+Runtime-enforced constraints:
 - Only the **Investigator** may call tools
-- Maximum **8 turns** total (2 full rounds for 4 agents)
+- Only tools for the user-selected log file and KB query are registered, and their arguments are allowlisted
+- Maximum **8 agent turns** total (2 full rounds for 4 agents)
+- Tool calls can add provider request round trips without increasing the 8-turn limit
+
+Prompt-enforced policies:
+- The Scribe calibrates confidence to evidence quality and does not raise it without new evidence
 
 ---
 
@@ -65,7 +70,7 @@ var plannerAgent = config.CreateNamedAgent(
     plannerPrompt, name: "planner", description: "Creates the triage plan");
 var investigatorAgent = config.CreateNamedAgent(
     investigatorPrompt, name: "investigator", description: "Gathers evidence",
-    tools: WorkshopTools.GetInvestigatorTools());  // only this agent gets tools
+    tools: WorkshopTools.GetInvestigatorTools(logFileName, kbQuery));  // selected sources only
 var criticAgent = config.CreateNamedAgent(criticPrompt, name: "critic", description: "Challenges assumptions");
 var scribeAgent = config.CreateNamedAgent(scribePrompt, name: "scribe", description: "Produces JSON triage card");
 
@@ -136,6 +141,9 @@ Choice [1-3]: 1
 [SCRIBE]
 { "summary": "...", "category": "infra", ... }
 ```
+
+With the default 8-turn limit, the four-agent sequence runs twice. The Triage
+Card printed after the workflow is parsed from the second Scribe response.
 
 ---
 

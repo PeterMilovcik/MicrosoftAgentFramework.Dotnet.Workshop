@@ -40,7 +40,7 @@ internal static class GroupChatWorkflow
 
         var investigatorAgent = config.CreateNamedAgent(
             investigatorPrompt, name: "investigator", description: "Gathers evidence using ReadFile and SearchKb tools",
-            tools: WorkshopTools.GetTools());
+            tools: WorkshopTools.GetInvestigatorTools(logFileName, kbQuery));
 
         var criticAgent = config.CreateNamedAgent(
             criticPrompt, name: "critic", description: "Challenges assumptions and identifies evidence gaps");
@@ -141,9 +141,13 @@ internal static class GroupChatWorkflow
 
         if (!string.IsNullOrWhiteSpace(logFileName))
             sb.AppendLine($"\n== Log File Available: {logFileName} ==\n(INVESTIGATOR: use ReadFile to load it)");
+        else
+            sb.AppendLine("\n== Log File Available: none selected ==\n(INVESTIGATOR: do not call ReadFile)");
 
         if (!string.IsNullOrWhiteSpace(kbQuery))
             sb.AppendLine($"\n== KB Query Hint: {kbQuery} ==\n(INVESTIGATOR: use SearchKb with this query)");
+        else
+            sb.AppendLine("\n== KB Query Hint: none provided ==\n(INVESTIGATOR: do not call SearchKb)");
 
         sb.AppendLine("\n== Instructions ==");
         sb.AppendLine("Team: analyze this failure and produce a structured triage.");

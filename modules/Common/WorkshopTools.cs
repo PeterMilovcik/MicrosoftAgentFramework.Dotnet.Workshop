@@ -264,4 +264,42 @@ public static class WorkshopTools
             AIFunctionFactory.Create(SearchKb),
         ];
     }
+
+    /// <summary>
+    /// Returns evidence-gathering tools restricted to the sources selected by the user.
+    /// </summary>
+    public static IList<AITool> GetInvestigatorTools(string? selectedFile, string? selectedKbQuery)
+    {
+        var tools = new List<AITool>();
+
+        if (!string.IsNullOrWhiteSpace(selectedFile))
+        {
+            Func<string, string> readSelectedFile = path =>
+                !string.IsNullOrWhiteSpace(path) &&
+                string.Equals(path.Trim(), selectedFile.Trim(), StringComparison.OrdinalIgnoreCase)
+                    ? ReadFile(path)
+                    : $"⛔ ReadFile denied. The selected file is '{selectedFile}'.";
+
+            tools.Add(AIFunctionFactory.Create(
+                readSelectedFile,
+                name: "ReadFile",
+                description: $"Reads the selected sample-data file: {selectedFile}."));
+        }
+
+        if (!string.IsNullOrWhiteSpace(selectedKbQuery))
+        {
+            Func<string, string> searchSelectedQuery = query =>
+                !string.IsNullOrWhiteSpace(query) &&
+                string.Equals(query.Trim(), selectedKbQuery.Trim(), StringComparison.OrdinalIgnoreCase)
+                    ? SearchKb(query)
+                    : $"⛔ SearchKb denied. The selected query is '{selectedKbQuery}'.";
+
+            tools.Add(AIFunctionFactory.Create(
+                searchSelectedQuery,
+                name: "SearchKb",
+                description: $"Searches the knowledge base using the selected query: {selectedKbQuery}."));
+        }
+
+        return tools;
+    }
 }

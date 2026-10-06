@@ -46,7 +46,7 @@ while (true)
         case "2":
             failureReport = "PaymentGateway nightly build failed. RetryPolicyTest.ShouldRetryOnTransientFailure " +
                             "flaked twice then failed — expected retry_count=3 but got 2. " +
-                            "Code coverage also dropped below the 80% threshold.";
+                            "Code coverage also dropped below the 75% threshold.";
             logFileName = "build-log-02.txt";
             kbQuery = "retry transient";
             break;
